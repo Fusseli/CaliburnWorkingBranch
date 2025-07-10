@@ -5,6 +5,7 @@ using DOL.Database;
 using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.Language;
 using log4net;
 
@@ -117,6 +118,37 @@ namespace DOL.GS.Spells
 			return 0;
 		}
 
+		/// <summary>
+		/// Determines wether this spell is better than given one
+		/// </summary>
+		/// <returns>true if this spell is better version than compare spell</returns>
+		public override bool IsNewEffectBetter(GameSpellEffect oldeffect, GameSpellEffect neweffect)
+		{
+			Spell oldProcSpell = SkillBase.GetSpellByID((int)oldeffect.Spell.Value);
+			Spell newProcSpell = SkillBase.GetSpellByID((int)neweffect.Spell.Value);
+
+			if (oldProcSpell == null || newProcSpell == null)
+				return true;
+
+			// do not replace active proc with different type proc
+			if (oldProcSpell.SpellType != newProcSpell.SpellType) return false;
+
+			if (oldProcSpell.Concentration > 0) return false;
+
+			// if the new spell does less damage return false
+			if (oldProcSpell.Damage > newProcSpell.Damage) return false;
+
+			// if the new spell is lower than the old one return false
+			if (oldProcSpell.Value > newProcSpell.Value) return false;
+
+			//makes problems for immunity effects
+			if (oldeffect is GameSpellAndImmunityEffect == false || ((GameSpellAndImmunityEffect)oldeffect).ImmunityState == false)
+			{
+				if (neweffect.Duration <= oldeffect.RemainingTime) return false;
+			}
+
+			return true;
+		}
 		public override bool IsOverwritable(ECSGameSpellEffect compare)
 		{
 			if (Spell.EffectGroup != 0 || compare.SpellHandler.Spell.EffectGroup != 0)
@@ -179,8 +211,8 @@ namespace DOL.GS.Spells
 			{
 				var list = new List<string>();
 
-//                list.Add("Function: " + (string)(Spell.SpellType == string.Empty ? "(not implemented)" : Spell.SpellType));
-				list.Add(LanguageMgr.GetTranslation((Caster as GamePlayer).Client, "ProcSpellHandler.DelveInfo.Function", (string)(Spell.SpellType.ToString() == string.Empty ? "(not implemented)" : Spell.SpellType.ToString())));
+//                list.Add("Function: " + (string)(Spell.SpellType == "" ? "(not implemented)" : Spell.SpellType));
+				list.Add(LanguageMgr.GetTranslation((Caster as GamePlayer).Client, "ProcSpellHandler.DelveInfo.Function", (string)(Spell.SpellType.ToString() == "" ? "(not implemented)" : Spell.SpellType.ToString())));
 
 //                list.Add("Target: " + Spell.Target);
 				list.Add(LanguageMgr.GetTranslation((Caster as GamePlayer).Client, "DelveInfo.Target", Spell.Target));
@@ -242,7 +274,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// This class contains data for OffensiveProc spells
 	/// </summary>
-	[SpellHandler(eSpellType.OffensiveProc)]
+	[SpellHandler("OffensiveProc")]
 	public class OffensiveProcSpellHandler : BaseProcSpellHandler
 	{
 		private static readonly ILog log = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -322,7 +354,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// This class contains data for DefensiveProc spells
 	/// </summary>
-	[SpellHandler(eSpellType.DefensiveProc)]
+	[SpellHandler("DefensiveProc")]
 	public class DefensiveProcSpellHandler : BaseProcSpellHandler
 	{
 		/// <summary>
@@ -394,7 +426,7 @@ namespace DOL.GS.Spells
 		public DefensiveProcSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
 	}
 	
-	[SpellHandler(eSpellType.OffensiveProcPvE)]
+	[SpellHandler( "OffensiveProcPvE" )]
 	public class OffensiveProcPvESpellHandler : OffensiveProcSpellHandler
 	{
 		/// <summary>
@@ -406,12 +438,13 @@ namespace DOL.GS.Spells
 		protected override void EventHandler( DOLEvent e, object sender, EventArgs arguments )
 		{
 			AttackFinishedEventArgs args = arguments as AttackFinishedEventArgs;
+
 			if (args == null || args.AttackData == null)
 				return;
 
 			GameNPC target = args.AttackData.Target as GameNPC;
 			
-			if(target != null && !(target.Brain is IControlledBrain && ((IControlledBrain)target.Brain).GetPlayerOwner() != null))
+			if (target != null && target is not MimicNPC && !(target.Brain is IControlledBrain && ((IControlledBrain)target.Brain).GetIPlayerOwner() != null))
 				base.EventHandler(e, sender, arguments);
 		}
 

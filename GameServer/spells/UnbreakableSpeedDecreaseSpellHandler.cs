@@ -7,7 +7,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Spell handler for unbreakable speed decreasing spells
 	/// </summary>
-	[SpellHandler(eSpellType.UnbreakableSpeedDecrease)]
+	[SpellHandler("UnbreakableSpeedDecrease")]
 	public class UnbreakableSpeedDecreaseSpellHandler : ImmunityEffectSpellHandler
 	{
 		private const string EFFECT_PROPERTY = "UnbreakableSpeedDecreaseProperty";
@@ -73,7 +73,7 @@ namespace DOL.GS.Spells
 		{
 			base.OnEffectExpires(effect,noMessages);
 
-			RestoreSpeedTimer timer = effect.Owner.TempProperties.GetProperty<RestoreSpeedTimer>(EFFECT_PROPERTY);
+			RestoreSpeedTimer timer = effect.Owner.TempProperties.GetProperty<RestoreSpeedTimer>(EFFECT_PROPERTY, null);
 			effect.Owner.TempProperties.RemoveProperty(EFFECT_PROPERTY);
 			if(timer!=null) timer.Stop();
 

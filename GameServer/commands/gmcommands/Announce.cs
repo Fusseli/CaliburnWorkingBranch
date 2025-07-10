@@ -21,7 +21,7 @@ namespace DOL.GS.Commands
 
             string message = string.Join(" ", args, 2, args.Length - 2);
 
-            if (message == string.Empty)
+            if (message == "")
                 return;
 
             switch (args.GetValue(1).ToString().ToLower())

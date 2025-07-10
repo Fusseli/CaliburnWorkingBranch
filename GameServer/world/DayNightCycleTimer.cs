@@ -1,7 +1,6 @@
 ﻿using System;
 using log4net;
 using System.Reflection;
-using System.Threading;
 
 namespace DOL.GS
 {
@@ -20,7 +19,7 @@ namespace DOL.GS
         private uint _nightIncrement;
         private long _dayStartTime;
         private long _nextClientResync;
-        private readonly Lock _lock = new();
+        private object _lock = new();
         public uint CurrentGameTime { get; private set; }
         public uint DayIncrement { get; private set; }
 

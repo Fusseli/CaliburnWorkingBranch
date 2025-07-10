@@ -12,7 +12,7 @@ namespace DOL.AI.Brain
     {
         public bool IsScoutingInterrupted { get; set; } // Will be reset by `ScoutMobState_AGGRO`.
         public override int AggroRange => Math.Max(_aggroRange, 1000);
-        public override bool CanBaf => false;
+        public override bool CanBAF => false;
 
         public ScoutMobBrain() : base()
         {

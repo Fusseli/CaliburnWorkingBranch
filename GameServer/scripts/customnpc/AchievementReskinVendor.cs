@@ -300,7 +300,7 @@ public class AchievementReskinVendor : GameNPC
             DbInventoryItem newInventoryItem = GameInventoryItem.Create(unique as DbItemTemplate);
             if (item.IsCrafted)
                 newInventoryItem.IsCrafted = true;
-            if (item.Creator != string.Empty)
+            if (item.Creator != "")
                 newInventoryItem.Creator = item.Creator;
             newInventoryItem.Count = 1;
 
@@ -376,7 +376,7 @@ public class AchievementReskinVendor : GameNPC
             DbInventoryItem newInventoryItem = GameInventoryItem.Create(unique as DbItemTemplate);
             if (item.IsCrafted)
                 newInventoryItem.IsCrafted = true;
-            if (item.Creator != string.Empty)
+            if (item.Creator != "")
                 newInventoryItem.Creator = item.Creator;
             newInventoryItem.Count = 1;
             player.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, newInventoryItem);
@@ -457,7 +457,7 @@ public class AchievementReskinVendor : GameNPC
         display.ObjectState = eObjectState.Active;
         display.attackComponent.AttackState = true;
         display.BroadcastLivingEquipmentUpdate();
-        ClientService.UpdateNpcForPlayer(player, display);
+        ClientService.UpdateObjectForPlayer(player, display);
 
         //Uncomment this if you want animations
         // var animationThread = new Thread(() => LoopAnimation(player,item, display,tempAd));
@@ -561,7 +561,7 @@ public class AchievementReskinVendor : GameNPC
             foundItem = FindChoosenOptionOtherItems(str, item, playerRealm, noneRealm, damageType, characterClassUnknown, playerClass, playerRealmRank, accountRealmRank, playerDragonKills, playerOrbs, epicBossPlayerKills, masteredCrafts, isGM);
         }
 
-        // Console.Write("Item Type is" + item.Item_Type + "name is" + str + "damagetype is" + damageType + "objectType is " + item.Object_Type);
+        Console.Write("Item Type is" + item.Item_Type + "name is" + str + "damagetype is" + damageType + "objectType is " + item.Object_Type);
 
         switch (str.ToLower())
         {

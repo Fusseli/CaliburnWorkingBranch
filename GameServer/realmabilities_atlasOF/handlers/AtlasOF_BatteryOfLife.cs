@@ -5,6 +5,7 @@ using DOL.GS.Spells;
 
 namespace DOL.GS.RealmAbilities
 {
+
     public class AtlasOF_BatteryOfLife : TimedRealmAbility
     {
         public AtlasOF_BatteryOfLife(DbAbility dba, int level) : base(dba, level) { }
@@ -50,10 +51,11 @@ namespace DOL.GS.RealmAbilities
             tmpSpell.Range = 0;
             tmpSpell.Frequency = 500;
             tmpSpell.Description = "Creates a 1000HP buffer that is distributed to groupmembers within 1500 units as healing. Healing priority matches spreadheal.";
-            SpellLine spellLine = GlobalSpellsLines.RealmSpellsSpellLine;
-            return ScriptMgr.CreateSpellHandler(owner, new Spell(tmpSpell, 0) , spellLine) as SpellHandler;
+            SpellLine spellLine = new SpellLine("RAs", "RealmAbilities", "RealmAbilities", true);
+            SpellHandler tmpHandler = new SpellHandler(owner, new Spell(tmpSpell, 0) , spellLine); // make spell level 0 so it bypasses the spec level adjustment code
+            return tmpHandler;
         }
-
+        
         public override IList<string> DelveInfo
         {
             get

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Drawing;
 using System.Numerics;
 using DOL.AI.Brain;
 using DOL.Database;
@@ -121,7 +122,7 @@ namespace DOL.GS
 
                 if (_needsBroadcastUpdate)
                 {
-                    ClientService.UpdateNpcForPlayers(Owner);
+                    ClientService.UpdateObjectForPlayers(Owner);
                     _needsBroadcastUpdate = false;
                 }
             }
@@ -276,6 +277,10 @@ namespace DOL.GS
             double angle = Util.RandomDouble() * Math.PI * 2;
             double targetX = Owner.SpawnPoint.X + maxRoamingRadius * Math.Cos(angle);
             double targetY = Owner.SpawnPoint.Y + maxRoamingRadius * Math.Sin(angle);
+
+            if (Owner.CurrentRegion.GetZone((int)targetX, (int)targetY) == null)
+                return;
+
             WalkTo(new Point3D((int) targetX, (int) targetY, Owner.SpawnPoint.Z), speed);
         }
 

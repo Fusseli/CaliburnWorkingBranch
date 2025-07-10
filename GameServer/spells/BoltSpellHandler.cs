@@ -1,8 +1,10 @@
+using DOL.GS.Keeps;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.Bolt)]
+    [SpellHandlerAttribute("Bolt")]
     public class BoltSpellHandler : SpellHandler
     {
         private bool _combatBlock;
@@ -12,6 +14,13 @@ namespace DOL.GS.Spells
         public override void FinishSpellCast(GameLiving target)
         {
             Caster.Mana -= PowerCost(target);
+
+            if ((target is GameKeepDoor || target is GameKeepComponent) && Spell.SpellType != eSpellType.SiegeArrow && Spell.SpellType != eSpellType.SiegeDirectDamage)
+            {
+                MessageToCaster($"Your spell has no effect on the {target.Name}!", eChatType.CT_SpellResisted);
+                return;
+            }
+
             base.FinishSpellCast(target);
         }
 
@@ -19,7 +28,7 @@ namespace DOL.GS.Spells
         {
             foreach (GameLiving livingTarget in SelectTargets(target))
             {
-                if (livingTarget is GamePlayer playerTarget && Spell.Target is eSpellTarget.CONE)
+                if (livingTarget is GamePlayer playerTarget && Spell.Target == eSpellTarget.CONE)
                     playerTarget.Out.SendCheckLos(Caster, playerTarget, LosCheckCallback);
                 else
                     LaunchBolt(livingTarget);
@@ -49,24 +58,23 @@ namespace DOL.GS.Spells
             target.StartInterruptTimer(target.SpellInterruptDuration, ad.AttackType, Caster);
         }
 
-        public override double ModifyDamageWithTargetResist(AttackData ad, double damage)
+        public override int ModifyDamageWithTargetResist(AttackData ad, int damage)
         {
             // Modify half of the damage using magic resists. The other half is modified by the target's armor, or discarded if the target blocks.
             // Resources indicate that resistances aren't applied on the physical part of the damage.
-            double halfBaseDamage = damage * 0.5;
-            damage = base.ModifyDamageWithTargetResist(ad, halfBaseDamage);
+            damage = base.ModifyDamageWithTargetResist(ad, damage / 2);
 
-            if (!ad.Target.attackComponent.CheckBlock(ad) || ad.Target.attackComponent.CheckGuard(ad, false))
+            if (!ad.Target.attackComponent.CheckBlock(ad, 0) || ad.Target.attackComponent.CheckGuard(ad, false, 0))
             {
                 // This is normally set in 'AttackComponent.CalculateEnemyAttackResult', but we don't call it.
-                if (ad.Target is GamePlayer playerTarget)
+                if (ad.Target is IGamePlayer playerTarget)
                     ad.ArmorHitLocation = playerTarget.CalculateArmorHitLocation(ad);
 
                 // We need a fake weapon skill for the target's armor to have something to be compared with.
                 // Since 'damage' is already modified by intelligence, power relics, spell variance, and everything else; we can use a constant only modified by the caster's level.
-                double weaponSkill = Caster.Level * 2.5 + AttackComponent.INHERENT_WEAPON_SKILL;
+                double weaponSkill = Caster.attackComponent.CalculateWeaponSkill(Caster.Level * 5, 1.0, 1.0);
                 double targetArmor = AttackComponent.CalculateTargetArmor(ad.Target, ad.ArmorHitLocation, out _, out _);
-                damage += weaponSkill / targetArmor * halfBaseDamage;
+                damage += (int) (weaponSkill / targetArmor * damage / 2);
             }
             else
             {
@@ -78,11 +86,14 @@ namespace DOL.GS.Spells
             return damage;
         }
 
-        public override double CalculateToHitChance(GameLiving target)
+        public override int CalculateToHitChance(GameLiving target)
         {
-            double hitChance = base.CalculateToHitChance(target);
+            if (target is GameKeepDoor)
+                return 0;
 
-            if (Caster is GamePlayer && target is GamePlayer && target.InCombat)
+            int hitChance = base.CalculateToHitChance(target);
+
+            if (Caster is IGamePlayer && target is IGamePlayer && target.InCombat)
             {
                 // 200 unit range restriction added in 1.84.
                 // Kept for OpenDAoC to make bolts a little friendlier.

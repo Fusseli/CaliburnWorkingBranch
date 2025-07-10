@@ -22,6 +22,8 @@ namespace DOL.AI.Brain
             FSM.Add(new NecromancerPetState_DEFENSIVE(this));
             FSM.Add(new NecromancerPetState_AGGRO(this));
             FSM.Add(new NecromancerPetState_PASSIVE(this));
+            FSM.Add(new StandardMobState_DEAD(this));
+            FSM.SetCurrentState(eFSMStateType.WAKING_UP);
         }
 
         public override int ThinkInterval => 500;
@@ -88,7 +90,17 @@ namespace DOL.AI.Brain
         {
             base.Notify(e, sender, args);
 
-            if (e == GameLivingEvent.CastFinished)
+            if (e == GameLivingEvent.Dying)
+            {
+                // At necropet Die, we check DamageRvRMemory for transfer it to owner if necessary.
+                GamePlayer playerowner = GetPlayerOwner();
+
+                if (playerowner != null && Body.DamageRvRMemory > 0)
+                    playerowner.DamageRvRMemory = Body.DamageRvRMemory;
+
+                return;
+            }
+            else if (e == GameLivingEvent.CastFinished)
             {
                 // Instant cast spells bypass the queue.
                 if (args is CastingEventArgs cArgs && !cArgs.SpellHandler.Spell.IsInstantCast)
@@ -149,7 +161,10 @@ namespace DOL.AI.Brain
 
             if (shadeEffect != null)
             {
-                shadeEffect.SetTetherTimer(seconds);
+                lock (shadeEffect)
+                {
+                    shadeEffect.SetTetherTimer(seconds);
+                }
 
                 ArrayList effectList = new(1)
                 {

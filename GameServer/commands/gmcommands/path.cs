@@ -61,7 +61,7 @@ namespace DOL.GS.Commands
 			obj.Emblem = 0;
 			obj.AddToWorld();
 
-			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS);
+			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS, null);
 			if (objs == null)
 				objs = new ArrayList();
 			objs.Add(obj);
@@ -70,7 +70,7 @@ namespace DOL.GS.Commands
 
 		private void RemoveAllPathPointObjects(GameClient client)
 		{
-			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS);
+			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS, null);
 			if (objs == null)
 				return;
 
@@ -89,7 +89,7 @@ namespace DOL.GS.Commands
 
 		private void PathHide(GameClient client)
 		{
-			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS);
+			ArrayList objs = client.Player.TempProperties.GetProperty<ArrayList>(TEMP_PATH_OBJS, null);
 			if (objs == null)
 				return;
 
@@ -112,7 +112,7 @@ namespace DOL.GS.Commands
 
 		private void PathAdd(GameClient client, string[] args)
 		{
-			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST);
+			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST, null);
 			if (path == null)
 			{
 				DisplayMessage(client, "No path created yet! Use /path create first!");
@@ -182,7 +182,7 @@ namespace DOL.GS.Commands
 				return;
 			}
 
-			PathPoint pathpoint = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_FIRST);
+			PathPoint pathpoint = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_FIRST, null);
 
 			if (pathpoint == null)
 			{
@@ -203,7 +203,7 @@ namespace DOL.GS.Commands
 
 		private void PathTravel(GameClient client)
 		{
-			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST);
+			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST, null);
 			if (client.Player.TargetObject == null || !(client.Player.TargetObject is GameNPC))
 			{
 				DisplayMessage(client, "You need to select a mob first!");
@@ -221,7 +221,7 @@ namespace DOL.GS.Commands
 			((GameNPC)client.Player.TargetObject).CurrentWaypoint = null;
 
 			// set the new path
-			((GameNPC)client.Player.TargetObject).CurrentWaypoint = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_FIRST);
+			((GameNPC)client.Player.TargetObject).CurrentWaypoint = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_FIRST, null);
 
 			((GameNPC)client.Player.TargetObject).MoveOnPath(speed);
 
@@ -247,7 +247,7 @@ namespace DOL.GS.Commands
 
 		private void PathType(GameClient client, string[] args)
 		{
-			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST);
+			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST, null);
 			if (args.Length < 2)
 			{
 				DisplayMessage(client, "Usage: /path type <pathtype>");
@@ -321,7 +321,7 @@ namespace DOL.GS.Commands
 
 		private void PathSave(GameClient client, string[] args)
 		{
-			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST);
+			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST, null);
 			if (args.Length < 3)
 			{
 				DisplayMessage(client, "Usage: /path save <pathname>");
@@ -341,7 +341,7 @@ namespace DOL.GS.Commands
 
 		private void PathAssignTaxiRoute(GameClient client, string[] args)
 		{
-			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST);
+			PathPoint path = client.Player.TempProperties.GetProperty<PathPoint>(TEMP_PATH_LAST, null);
 			if (args.Length < 2)
 			{
 				DisplayMessage(client, "Usage: /path assigntaxiroute <destination>");
@@ -371,7 +371,7 @@ namespace DOL.GS.Commands
 			// With the new horse system, the stablemasters are using the item.Id_nb to find the horse route in the database
 			// So we have to save a path in the database with the Id_nb as a PathID
 			// The following string will contain the item Id_nb if it is found in the merchant list
-			string pathname = string.Empty;
+			string pathname = "";
 			if (merchant.TradeItems != null)
 			{
 				foreach (DbItemTemplate template in merchant.TradeItems.GetAllItems().Values)

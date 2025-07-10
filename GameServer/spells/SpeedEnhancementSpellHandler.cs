@@ -8,20 +8,20 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-	/// <summary>
-	/// Increases the target's movement speed.
-	/// </summary>
-	[SpellHandler(eSpellType.SpeedEnhancement)]
-	public class SpeedEnhancementSpellHandler : SpellHandler
-	{
-		/// <summary>
-		/// called after normal spell cast is completed and effect has to be started
-		/// </summary>
-		public override void FinishSpellCast(GameLiving target)
-		{
-			Caster.Mana -= PowerCost(target);
-			base.FinishSpellCast(target);
-		}
+    /// <summary>
+    /// Increases the target's movement speed.
+    /// </summary>
+    [SpellHandlerAttribute("SpeedEnhancement")]
+    public class SpeedEnhancementSpellHandler : SpellHandler
+    {
+        /// <summary>
+        /// called after normal spell cast is completed and effect has to be started
+        /// </summary>
+        public override void FinishSpellCast(GameLiving target)
+        {
+            Caster.Mana -= PowerCost(target);
+            base.FinishSpellCast(target);
+        }
 
         public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)
         {
@@ -54,29 +54,30 @@ namespace DOL.GS.Spells
 			if (target.EffectList.GetOfType<ChargeEffect>() != null)
 				return;
 
-			if (target.TempProperties.GetProperty<bool>("Charging"))
-				return;
+            if (target.TempProperties.GetProperty("Charging", false))
+                return;
 
-			if (target.EffectList.GetOfType<ArmsLengthEffect>() != null)
-				return;
+            if (target.EffectList.GetOfType<ArmsLengthEffect>() != null)
+                return;
 
-			if (target.effectListComponent.GetAllEffects().FirstOrDefault(x => x.GetType() == typeof(SpeedOfSoundECSEffect)) != null)
-				return;
+            if (target.effectListComponent.GetAllEffects().FirstOrDefault(x => x.GetType() == typeof(SpeedOfSoundECSEffect)) != null)
+                return;
 
-			if (target is GamePlayer && (target as GamePlayer).IsRiding)
-				return;
+            if (target is GamePlayer && (target as GamePlayer).IsRiding)
+                return;
 
-			if (target is Keeps.GameKeepGuard)
-				return;
+            if (target is Keeps.GameKeepGuard)
+                return;
 
-			// Graveen: archery speed shot
-			if ((Spell.Pulse != 0 || Spell.CastTime != 0) && target.InCombat)
-			{
-				MessageToLiving(target, "You've been in combat recently, the spell has no effect on you!", eChatType.CT_SpellResisted);
-				return;
-			}
-			base.ApplyEffectOnTarget(target);
-		}
+            // Graveen: archery speed shot
+            if ((Spell.Pulse != 0 || Spell.CastTime != 0) && target.InCombat)
+            {
+                MessageToLiving(target, "You've been in combat recently, the spell has no effect on you!", eChatType.CT_SpellResisted);
+                return;
+            }
+
+            base.ApplyEffectOnTarget(target);
+        }
 
 		/// <summary>
 		/// Handles attacks on player/by player
@@ -94,43 +95,43 @@ namespace DOL.GS.Spells
 			AttackData ad = null;
 			ISpellHandler sp = null;
 
-			if (attackedByEnemy != null)
-			{
-				ad = attackedByEnemy.AttackData;
-			}
-			else if (attackFinished != null)
-			{
-				ad = attackFinished.AttackData;
-			}
-			else if (castFinished != null)
-			{
-				sp = castFinished.SpellHandler;
-				ad = castFinished.LastAttackData;
-			}
+            if (attackedByEnemy != null)
+            {
+                ad = attackedByEnemy.AttackData;
+            }
+            else if (attackFinished != null)
+            {
+                ad = attackFinished.AttackData;
+            }
+            else if (castFinished != null)
+            {
+                sp = castFinished.SpellHandler;
+                ad = castFinished.LastAttackData;
+            }
 
-			// Speed should drop if the player casts an offensive spell
-			if (sp == null && ad == null)
-			{
-				return;
-			}
-			else if (sp == null && (ad.AttackResult != eAttackResult.HitStyle && ad.AttackResult != eAttackResult.HitUnstyled))
-			{
-				return;
-			}
-			else if (sp != null && (sp.HasPositiveEffect || ad == null))
-			{
-				return;
-			}
+            // Speed should drop if the player casts an offensive spell
+            if (sp == null && ad == null)
+            {
+                return;
+            }
+            else if (sp == null && (ad.AttackResult != eAttackResult.HitStyle && ad.AttackResult != eAttackResult.HitUnstyled))
+            {
+                return;
+            }
+            else if (sp != null && (sp.HasPositiveEffect || ad == null))
+            {
+                return;
+            }
 
-			if (living.effectListComponent.GetAllEffects().FirstOrDefault(x => x.GetType() == typeof(SpeedOfSoundECSEffect)) != null)
-				return;
-			
-			//GameSpellEffect speed = SpellHandler.FindEffectOnTarget(living, this);
-			ECSGameEffect speed = EffectListService.GetEffectOnTarget(living, eEffect.MovementSpeedBuff);
-			if (speed != null)
-				EffectService.RequestImmediateCancelEffect(speed);
-				//speed.Cancel(false);
-		}
+            if (living.effectListComponent.GetAllEffects().FirstOrDefault(x => x.GetType() == typeof(SpeedOfSoundECSEffect)) != null)
+                return;
+
+            //GameSpellEffect speed = SpellHandler.FindEffectOnTarget(living, this);
+            ECSGameEffect speed = EffectListService.GetEffectOnTarget(living, eEffect.MovementSpeedBuff);
+            if (speed != null)
+                EffectService.RequestImmediateCancelEffect(speed);
+            //speed.Cancel(false);
+        }
 
 		/// <summary>
 		/// Delve Info
@@ -141,33 +142,33 @@ namespace DOL.GS.Spells
 			{
 				/*
 				<Begin Info: Motivation Sng>
- 
+
 				The movement speed of the target is increased.
- 
+
 				Target: Group
 				Range: 2000
 				Duration: 30 sec
 				Frequency: 6 sec
 				Casting time:      3.0 sec
-				
+
 				This spell's effect will not take hold while the target is in combat.
 				<End Info>
 				*/
-				IList<string> list = base.DelveInfo;
+                IList<string> list = base.DelveInfo;
 
-				list.Add(" "); //empty line
-				list.Add("This spell's effect will not take hold while the target is in combat.");
+                list.Add(" "); //empty line
+                list.Add("This spell's effect will not take hold while the target is in combat.");
 
-				return list;
-			}
-		}
+                return list;
+            }
+        }
 
-		/// <summary>
-		/// The spell handler constructor
-		/// </summary>
-		/// <param name="caster"></param>
-		/// <param name="spell"></param>
-		/// <param name="line"></param>
-		public SpeedEnhancementSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
-	}
+        /// <summary>
+        /// The spell handler constructor
+        /// </summary>
+        /// <param name="caster"></param>
+        /// <param name="spell"></param>
+        /// <param name="line"></param>
+        public SpeedEnhancementSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
+    }
 }

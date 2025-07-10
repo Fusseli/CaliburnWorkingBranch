@@ -4,6 +4,7 @@ using System.Collections.Generic;
 
 using DOL.Events;
 using DOL.GS.Keeps;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Quests
 {
@@ -70,7 +71,7 @@ namespace DOL.GS.Quests
 
 			if (list.Count > 0)
 			{
-				if (hint != string.Empty)
+				if (hint != "")
 				{
 					foreach (AbstractGameKeep keep in list)
 					{
@@ -99,9 +100,10 @@ namespace DOL.GS.Quests
 			if (kargs.Keep != m_keep)
 				return;
 
-			GamePlayer testPlayer = null;
-			if (m_owner is GamePlayer)
-				testPlayer = m_owner as GamePlayer;
+			IGamePlayer testPlayer = null;
+
+			if (m_owner is IGamePlayer)
+				testPlayer = m_owner as IGamePlayer;
 			else if (m_owner is Group)
 				testPlayer = (m_owner as Group).Leader;
 

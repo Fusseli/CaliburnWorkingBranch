@@ -223,7 +223,7 @@ namespace DOL.GS
 			m_rwLock.EnterWriteLock();
 			try
 			{
-				m_list.SwapRemoveAt(index);
+				m_list.RemoveAt(index);
 			}
 			finally
 			{
@@ -355,7 +355,7 @@ namespace DOL.GS
 					m_rwLock.EnterWriteLock();
 					try
 					{
-						m_list.SwapRemoveAt(index);
+						m_list.RemoveAt(index);
 						removed = true;
 					}
 					finally

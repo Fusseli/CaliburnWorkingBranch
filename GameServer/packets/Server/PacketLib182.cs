@@ -22,7 +22,7 @@ namespace DOL.GS.PacketHandler
 		{
 		}
 
-		protected override void SendInventorySlotsUpdateRange(ICollection<eInventorySlot> slots, eInventoryWindowType windowType)
+		protected override void SendInventorySlotsUpdateRange(ICollection<int> slots, eInventoryWindowType windowType)
 		{
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.InventoryUpdate)))
 			{
@@ -143,8 +143,8 @@ namespace DOL.GS.PacketHandler
 
 						ushort icon1 = 0;
 						ushort icon2 = 0;
-						string spell_name1 = string.Empty;
-						string spell_name2 = string.Empty;
+						string spell_name1 = "";
+						string spell_name2 = "";
 						if (item.Object_Type != (int)eObjectType.AlchemyTincture)
 						{
 							if (item.SpellID > 0/* && item.Charges > 0*/)

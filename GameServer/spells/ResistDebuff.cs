@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DOL.AI.Brain;
+using DOL.GS.Scripts;
 using DOL.Language;
 
 namespace DOL.GS.Spells
@@ -50,23 +51,25 @@ namespace DOL.GS.Spells
 
             if (target is GameNPC npc && npc.Brain is StandardMobBrain brain)
                 brain.AddToAggroList(Caster, 1);
+			else if (target is MimicNPC mnpc)
+                    mnpc.MimicBrain.AddToAggroList(Caster, 1);
 
             if (Spell.CastTime > 0)
                 target.StartInterruptTimer(target.SpellInterruptDuration, AttackData.eAttackType.Spell, Caster);
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
-            double chance = base.CalculateSpellResistChance(target);
+            int basechance = base.CalculateSpellResistChance(target);
 
             /*
             GameSpellEffect rampage = SpellHandler.FindEffectOnTarget(target, "Rampage");
 
             if (rampage != null)
-                chance += rampage.Spell.Value;
+                basechance += rampage.Spell.Value;
             */
 
-            return Math.Min(100, chance);
+            return Math.Min(100, basechance);
         }
 
         protected override void SendUpdates(GameLiving target)
@@ -139,70 +142,70 @@ namespace DOL.GS.Spells
         }
     }
 
-    [SpellHandler(eSpellType.BodyResistDebuff)]
+    [SpellHandlerAttribute("BodyResistDebuff")]
     public class BodyResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Body;
         public override string DebuffTypeName => "Body";
     }
 
-    [SpellHandler(eSpellType.ColdResistDebuff)]
+    [SpellHandlerAttribute("ColdResistDebuff")]
     public class ColdResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Cold;
         public override string DebuffTypeName => "Cold";
     }
 
-    [SpellHandler(eSpellType.EnergyResistDebuff)]
+    [SpellHandlerAttribute("EnergyResistDebuff")]
     public class EnergyResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Energy;
         public override string DebuffTypeName => "Energy";
     }
 
-    [SpellHandler(eSpellType.HeatResistDebuff)]
+    [SpellHandlerAttribute("HeatResistDebuff")]
     public class HeatResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Heat;
         public override string DebuffTypeName => "Heat";
     }
 
-    [SpellHandler(eSpellType.MatterResistDebuff)]
+    [SpellHandlerAttribute("MatterResistDebuff")]
     public class MatterResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Matter;
         public override string DebuffTypeName => "Matter";
     }
 
-    [SpellHandler(eSpellType.SpiritResistDebuff)]
+    [SpellHandlerAttribute("SpiritResistDebuff")]
     public class SpiritResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Spirit;
         public override string DebuffTypeName => "Spirit";
     }
 
-    [SpellHandler(eSpellType.SlashResistDebuff)]
+    [SpellHandlerAttribute("SlashResistDebuff")]
     public class SlashResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Slash;
         public override string DebuffTypeName => "Slash";
     }
 
-    [SpellHandler(eSpellType.ThrustResistDebuff)]
+    [SpellHandlerAttribute("ThrustResistDebuff")]
     public class ThrustResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Thrust;
         public override string DebuffTypeName => "Thrust";
     }
 
-    [SpellHandler(eSpellType.CrushResistDebuff)]
+    [SpellHandlerAttribute("CrushResistDebuff")]
     public class CrushResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Crush;
         public override string DebuffTypeName => "Crush";
     }
 
-    [SpellHandler(eSpellType.CrushSlashThrustDebuff)]
+    [SpellHandlerAttribute("CrushSlashThrustDebuff")]
     public class CrushSlashThrustDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eBuffBonusCategory BonusCategory1 => eBuffBonusCategory.Debuff;
@@ -216,7 +219,7 @@ namespace DOL.GS.Spells
         public override string DebuffTypeName => "Crush/Slash/Thrust";
     }
 
-    [SpellHandler(eSpellType.EssenceSear)]
+    [SpellHandlerAttribute("EssenceSear")]
     public class EssenceResistDebuff(GameLiving caster, Spell spell, SpellLine line) : AbstractResistDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Resist_Natural;

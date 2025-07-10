@@ -7,7 +7,7 @@ namespace DOL.GS.Spells
     //http://www.camelotherald.com/masterlevels/ma.php?ml=Banelord
     //shared timer 1
     #region Banelord-1
-    [SpellHandler(eSpellType.CastingSpeedDebuff)]
+    [SpellHandlerAttribute("CastingSpeedDebuff")]
     public class CastingSpeedDebuff : MasterlevelDebuffHandling
     {
         public override eProperty Property1 { get { return eProperty.CastingSpeed; } }
@@ -25,7 +25,7 @@ namespace DOL.GS.Spells
 
     //shared timer 5 for ml2 - shared timer 3 for ml8
     #region Banelord-2/8
-    [SpellHandler(eSpellType.PBAEDamage)]
+    [SpellHandlerAttribute("PBAEDamage")]
     public class PBAEDamage : MasterlevelHandling
     {
         // constructor
@@ -94,7 +94,7 @@ namespace DOL.GS.Spells
             }
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 25;
         }
@@ -103,7 +103,7 @@ namespace DOL.GS.Spells
 
     //shared timer 3
     #region Banelord-3
-    [SpellHandler(eSpellType.Oppression)]
+    [SpellHandlerAttribute("Oppression")]
     public class OppressionSpellHandler : MasterlevelHandling
     {
         public override bool IsOverwritable(ECSGameSpellEffect compare)
@@ -115,17 +115,15 @@ namespace DOL.GS.Spells
             m_caster.Mana -= PowerCost(target);
             base.FinishSpellCast(target);
         }
-
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
-
         public override void OnEffectStart(GameSpellEffect effect)
         {
             base.OnEffectStart(effect);
             if (effect.Owner is GamePlayer)
-                ((GamePlayer)effect.Owner).UpdateEncumbrance();
+                ((GamePlayer)effect.Owner).UpdateEncumberance();
 			effect.Owner.StartInterruptTimer(effect.Owner.SpellInterruptDuration, AttackData.eAttackType.Spell, Caster);
         }
 
@@ -140,7 +138,7 @@ namespace DOL.GS.Spells
         public override int OnEffectExpires(GameSpellEffect effect, bool noMessages)
         {
             if (effect.Owner is GamePlayer)
-                ((GamePlayer)effect.Owner).UpdateEncumbrance();
+                ((GamePlayer)effect.Owner).UpdateEncumberance();
             return base.OnEffectExpires(effect, noMessages);
         }
         public OppressionSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -149,7 +147,7 @@ namespace DOL.GS.Spells
 
     //shared timer 1
     #region Banelord-4
-    [SpellHandler(eSpellType.MLFatDebuff)]
+    [SpellHandler("MLFatDebuff")]
     public class MLFatDebuffHandler : MasterlevelDebuffHandling
     {
         public override eProperty Property1 { get { return eProperty.FatigueConsumption; } }	
@@ -171,7 +169,7 @@ namespace DOL.GS.Spells
             base.OnEffectStart(effect);
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -183,7 +181,7 @@ namespace DOL.GS.Spells
 
     //shared timer 5
     #region Banelord-5
-    [SpellHandler(eSpellType.MissHit)]
+    [SpellHandlerAttribute("MissHit")]
     public class MissHit : MasterlevelBuffHandling
     {
         public override eProperty Property1 { get { return eProperty.MissHit; } }
@@ -196,7 +194,7 @@ namespace DOL.GS.Spells
     //shared timer 1
     #region Banelord-6
     #region ML6Snare
-    [SpellHandler(eSpellType.MLUnbreakableSnare)]
+    [SpellHandler("MLUnbreakableSnare")]
     public class MLUnbreakableSnare : BanelordSnare
     {
         protected override int CalculateEffectDuration(GameLiving target)
@@ -209,7 +207,7 @@ namespace DOL.GS.Spells
             return duration;
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -221,7 +219,7 @@ namespace DOL.GS.Spells
     }
     #endregion
     #region ML6Stun
-    [SpellHandler(eSpellType.UnrresistableNonImunityStun)]
+    [SpellHandler("UnrresistableNonImunityStun")]
     public class UnrresistableNonImunityStun : MasterlevelHandling
     {
         public override void FinishSpellCast(GameLiving target)
@@ -310,7 +308,7 @@ namespace DOL.GS.Spells
             return base.IsOverwritable(compare);
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -333,7 +331,7 @@ namespace DOL.GS.Spells
 
     //shared timer 3
     #region Banelord-7
-    [SpellHandler(eSpellType.BLToHit)]
+    [SpellHandlerAttribute("BLToHit")]
     public class BLToHit : MasterlevelBuffHandling
     {
         public override eProperty Property1 { get { return eProperty.ToHitBonus; } }
@@ -345,7 +343,7 @@ namespace DOL.GS.Spells
 
     //shared timer 5
     #region Banelord-9
-    [SpellHandler(eSpellType.EffectivenessDebuff)]
+    [SpellHandlerAttribute("EffectivenessDebuff")]
     public class EffectivenessDeBuff : MasterlevelHandling
     {
         /// <summary>
@@ -399,7 +397,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Banelord-10
-    [SpellHandler(eSpellType.Banespike)]
+    [SpellHandlerAttribute("Banespike")]
     public class BanespikeHandler : MasterlevelBuffHandling
     {
         public override eProperty Property1 { get { return eProperty.MeleeDamage; } }
@@ -431,7 +429,7 @@ namespace DOL.GS.PropertyCalc
                 +living.BaseBuffBonusCategory[(int)property]
                 + living.SpecBuffBonusCategory[(int)property]
                 - living.DebuffCategory[(int)property]
-                + living.OtherBonus[(int)property]);
+                + living.BuffBonusCategory4[(int)property]);
         }
     }
 }

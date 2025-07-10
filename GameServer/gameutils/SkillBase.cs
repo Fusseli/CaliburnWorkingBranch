@@ -26,7 +26,7 @@ namespace DOL.GS
 		private static bool m_loaded = false;
 
 		private static ReaderWriterLockSlim m_syncLockUpdates = new();
-		private static readonly Lock _loadingLock = new();
+		private static object m_loadingLock = new();
 
 		#region caches and static indexes
 
@@ -89,7 +89,7 @@ namespace DOL.GS
 
 		public static void LoadSkills()
 		{
-			lock (_loadingLock)
+			lock (m_loadingLock)
 			{
 				if (!m_loaded)
 				{
@@ -227,6 +227,7 @@ namespace DOL.GS
 						{
 							if (log.IsErrorEnabled)
 								log.ErrorFormat("LineXSpell Spell Adding Error : {0}, Line {1}, Spell {2}, Level {3}", e.Message, lxs.LineName, lxs.SpellID, lxs.Level);
+
 						}
 					}
 
@@ -251,7 +252,7 @@ namespace DOL.GS
 		/// Useful to load new spells added in preperation for ReloadSpellLine(linename) to update a spell line live
 		/// We want to add any new spells in the DB to the global spell list, m_spells, but not remove any added by scripts
 		/// </summary>
-		public static void ReloadSpells()
+		public static void ReloadDBSpells()
 		{
 			// lock skillbase for writes
 			m_syncLockUpdates.EnterWriteLock();
@@ -259,45 +260,47 @@ namespace DOL.GS
 			{
 				//load all spells
 				if (log.IsInfoEnabled)
-					log.Info("Reloading spells...");
+					log.Info("Reloading DB spells...");
 
 				IList<DbSpell> spelldb = GameServer.Database.SelectAllObjects<DbSpell>();
 
 				if (spelldb != null)
 				{
+
+					int count = 0;
+
 					foreach (DbSpell spell in spelldb)
 					{
-						try
+						if (m_spellIndex.ContainsKey(spell.SpellID) == false)
 						{
-							if (m_spellIndex.ContainsKey(spell.SpellID) == false)
-							{
-								// Add new spell
-								m_spellIndex.Add(spell.SpellID, new Spell(spell, 1));
-							}
+							// Add new spell
+							m_spellIndex.Add(spell.SpellID, new Spell(spell, 1));
+							count++;
+						}
+						else
+						{
+							// Replace Spell
+							m_spellIndex[spell.SpellID] = new Spell(spell, 1);
+						}
+
+						// Update tooltip index
+						if (spell.TooltipId != 0)
+						{
+							if (m_spellToolTipIndex.ContainsKey(spell.TooltipId))
+								m_spellToolTipIndex[spell.TooltipId] = spell.SpellID;
 							else
 							{
-								// Replace Spell
-								m_spellIndex[spell.SpellID] = new Spell(spell, 1);
+								m_spellToolTipIndex.Add(spell.TooltipId, spell.SpellID);
+								count++;
 							}
-
-							// Update tooltip index
-							if (spell.TooltipId != 0)
-							{
-								if (m_spellToolTipIndex.ContainsKey(spell.TooltipId))
-									m_spellToolTipIndex[spell.TooltipId] = spell.SpellID;
-								else
-									m_spellToolTipIndex.Add(spell.TooltipId, spell.SpellID);
-							}
-						}
-						catch (Exception e)
-						{
-							if (log.IsErrorEnabled)
-								log.ErrorFormat("{0} with spellid = {1} spell.TS= {2}", e.Message, spell.SpellID, spell.ToString());
 						}
 					}
 
 					if (log.IsInfoEnabled)
-						log.Info("Spells loaded: " + spelldb.Count);
+					{
+						log.Info("Spells loaded from DB: " + spelldb.Count);
+						log.Info("Spells added to global spell list: " + count);
+					}
 				}
 			}
 			finally
@@ -313,8 +316,9 @@ namespace DOL.GS
 		/// <param name="lineName"></param>
 		/// <returns></returns>
 		[RefreshCommandAttribute]
-		public static void ReloadSpellLines()
+		public static int ReloadSpellLines()
 		{
+			int count = 0;
 			// lock skillbase for writes
 			m_syncLockUpdates.EnterWriteLock();
 			try
@@ -354,12 +358,16 @@ namespace DOL.GS
 
 								// no replacement then add this
 								if (!added)
+								{
 									m_lineSpells[lineName].Add(spl);
+									count++;
+								}
 							}
 							catch (Exception e)
 							{
 								if (log.IsErrorEnabled)
 									log.ErrorFormat("LineXSpell Adding Error : {0}, Line {1}, Spell {2}, Level {3}", e.Message, lxs.LineName, lxs.SpellID, lxs.Level);
+
 							}
 						}
 
@@ -372,6 +380,8 @@ namespace DOL.GS
 			{
 				m_syncLockUpdates.ExitWriteLock();
 			}
+
+			return count;
 		}
 
 		/// <summary>

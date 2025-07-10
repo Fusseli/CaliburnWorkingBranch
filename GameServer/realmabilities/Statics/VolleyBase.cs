@@ -1,5 +1,10 @@
-﻿using DOL.Database;
+﻿using System;
+using System.Collections;
+using DOL.Database;
+using DOL.GS;
 using DOL.GS.Spells;
+using DOL.Events;
+using DOL.GS.PacketHandler;
 
 namespace DOL.GS.RealmAbilities.Statics
 {
@@ -30,7 +35,7 @@ namespace DOL.GS.RealmAbilities.Statics
 			dbs.CastTime = 0;
 			dbs.Range = WorldMgr.VISIBILITY_DISTANCE;
 			s = new Spell(dbs, 1);
-			sl = GlobalSpellsLines.RealmSpellsSpellLine;
+			sl = new SpellLine("RAs", "RealmAbilitys", "RealmAbilitys", true);
 		}
         protected override void CastSpell(GameLiving target)
 		{

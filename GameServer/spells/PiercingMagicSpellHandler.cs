@@ -1,6 +1,6 @@
 ﻿namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.PiercingMagic)]
+    [SpellHandler("PiercingMagic")]
     public class PiercingMagicSpellHandler : SpellHandler
     {
         public PiercingMagicSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

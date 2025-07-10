@@ -458,7 +458,9 @@ namespace DOL.GS
 			return true;
 		}
 		public override long ExperienceValue => 0;
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer)
+		{
+		}
 	}
 }
 namespace DOL.AI.Brain

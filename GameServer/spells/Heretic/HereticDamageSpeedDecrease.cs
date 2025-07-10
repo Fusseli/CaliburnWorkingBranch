@@ -5,7 +5,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.HereticDamageSpeedDecrease)]
+    [SpellHandlerAttribute("HereticDamageSpeedDecrease")]
 	public class HereticDamageSpeedDecrease : HereticSpeedDecreaseSpellHandler
 	{
         protected int m_lastdamage = 0;
@@ -18,7 +18,7 @@ namespace DOL.GS.Spells
             base.FinishSpellCast(target);
         }
 
-        public override double CalculateDamageVarianceOffsetFromLevelDifference(GameLiving caster, GameLiving target)
+        public override double GetLevelModFactor()
         {
             return 0;
         }
@@ -34,10 +34,10 @@ namespace DOL.GS.Spells
         {
             AttackData ad = base.CalculateDamageToTarget(target);
             ad.CriticalDamage = 0;
-            ad.CriticalChance = 0;
             ad.AttackType = AttackData.eAttackType.Unknown;
             return ad;
         }
+
 
         public override void CalculateDamageVariance(GameLiving target, out double min, out double max)
         {
@@ -163,7 +163,7 @@ namespace DOL.GS.Spells
         {
             if (target == null) return;
             if (!target.IsAlive || target.ObjectState != GameLiving.eObjectState.Active) return;
-            if (Util.ChanceDouble(CalculateSpellResistChance(target)))
+            if (Util.Chance(CalculateSpellResistChance(target)))
             {
                 OnSpellResist(target);
                 return;

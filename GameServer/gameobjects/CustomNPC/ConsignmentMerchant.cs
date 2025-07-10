@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using DOL.Database;
 using DOL.GS.Housing;
 using DOL.GS.PacketHandler;
@@ -20,7 +19,7 @@ namespace DOL.GS
 
         protected Dictionary<string, GamePlayer> _observers = [];
         protected long _money;
-        protected readonly Lock _moneyLock = new();
+        protected object _moneyLock = new();
 
         /// <summary>
         /// First slot of the client window that shows this inventory
@@ -42,8 +41,7 @@ namespace DOL.GS
         /// </summary>
         public virtual int LastDbSlot => (int) eInventorySlot.Consignment_Last;
 
-        private readonly Lock _lock = new();
-        public Lock Lock => _lock;
+        public object LockObject { get; } = new();
 
         private static Dictionary<string, GameLocation> _tokenDestinations =
             new()
@@ -197,7 +195,7 @@ namespace DOL.GS
             if (!CanHandleMove(player, fromClientSlot, toClientSlot))
                 return false;
 
-            lock (Lock)
+            lock (LockObject)
             {
                 if (fromClientSlot == toClientSlot)
                     return false;
@@ -208,12 +206,7 @@ namespace DOL.GS
                     {
                         // ... consignment merchant.
                         if (HasPermissionToMove(player))
-                        {
-                            var updatedItems = GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count);
-
-                            if (updatedItems.Count > 0)
-                                GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, updatedItems);
-                        }
+                            GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count));
                         else
                             return false;
                     }
@@ -237,10 +230,7 @@ namespace DOL.GS
                         {
                             // Allow a move only if the player with permission is standing in front of the CM.
                             // This prevents moves if player has owner permission but is viewing from the Market Explorer.
-                            var updatedItems = GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count);
-
-                            if (updatedItems.Count > 0)
-                                GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, updatedItems);
+                            GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count));
                         }
                         else
                         {
@@ -261,10 +251,7 @@ namespace DOL.GS
                             return false;
                         }
 
-                        var updatedItems = GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count);
-
-                        if (updatedItems.Count > 0)
-                            GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, updatedItems);
+                        GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, count));
                     }
                     else
                         return false;
@@ -417,7 +404,7 @@ namespace DOL.GS
             player.TempProperties.RemoveProperty(CONSIGNMENT_BUY_ITEM);
             DbInventoryItem item = null;
 
-            lock (Lock)
+            lock (LockObject)
             {
                 if (fromClientSlot != eInventorySlot.Invalid)
                 {
@@ -440,7 +427,7 @@ namespace DOL.GS
                 if (usingMarketExplorer && ServerProperties.Properties.MARKET_FEE_PERCENT > 0)
                     purchasePrice += purchasePrice * ServerProperties.Properties.MARKET_FEE_PERCENT / 100;
 
-                lock (player.Inventory.Lock)
+                lock (player.Inventory.LockObject)
                 {
                     if (purchasePrice <= 0)
                     {
@@ -496,10 +483,7 @@ namespace DOL.GS
                     if (ServerProperties.Properties.MARKET_ENABLE_LOG)
                         log.Debug($"CM: {player.Name}:{player.Client.Account.Name} purchased '{item.Name}' for {purchasePrice} from consignment merchant on lot {HouseNumber}.");
 
-                    var updatedItems = GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, (ushort) item.Count);
-
-                    if (updatedItems.Count > 0)
-                        GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, updatedItems);
+                    GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, GameInventoryObjectExtensions.MoveItem(this, player, fromClientSlot, toClientSlot, (ushort) item.Count));
                 }
             }
         }

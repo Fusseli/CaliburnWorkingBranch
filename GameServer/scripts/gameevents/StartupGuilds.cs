@@ -98,21 +98,23 @@ namespace DOL.GS.GameEvents
 		{
 			if (!STARTING_GUILD)
 				return;
-
-			if (args is not CharacterEventArgs chArgs)
+			
+			// Check Args
+			var chArgs = args as CharacterEventArgs;
+			
+			if (chArgs == null)
 				return;
+			
+			DbCoreCharacter ch = chArgs.Character;
+			DbAccount account = chArgs.GameClient.Account;
+			
 
-			DbCoreCharacter character = chArgs.Character;
-			string guildName = LanguageMgr.GetTranslation(Properties.SERV_LANGUAGE, string.Format("Guild.StartupGuild.{0}", GlobalConstants.RealmToName((eRealm) character.Realm)));
-			Guild guild = GuildMgr.GetGuildByName(guildName);
+			var guildname = LanguageMgr.GetTranslation(ServerProperties.Properties.SERV_LANGUAGE, string.Format("Guild.StartupGuild.{0}", GlobalConstants.RealmToName((eRealm)ch.Realm)));
+			ch.GuildID = GuildMgr.GuildNameToGuildID(guildname);
 
-			if (guild != null)
-			{
-				character.GuildID = guild.GuildID;
-
-				if (!string.IsNullOrEmpty(character.GuildID))
-					character.GuildRank = 8;
-			}
+			if (ch.GuildID != "")
+				ch.GuildRank = 8;
+			
 		}
 
 		/// <summary>

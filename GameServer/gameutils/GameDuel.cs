@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
 using DOL.AI.Brain;
+using DOL.GS.API;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.GS.Spells;
 using DOL.Language;
 
@@ -9,75 +11,76 @@ namespace DOL.GS
     public class GameDuel
     {
         private const string DUEL_PREVIOUS_LASTATTACKTICKPVP = "DUEL_PREVIOUS_LASTATTACKTICKPVP";
-        private const string DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP= "DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP";
-        public GamePlayer Starter { get; }
-        public GamePlayer Target { get; }
+        private const string DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP = "DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP";
 
-        public GameDuel(GamePlayer starter, GamePlayer target)
+        public GameLiving Starter { get; private set; }
+        public GameLiving Target { get; private set; }
+
+        public GameDuel(GameLiving starter, GameLiving target)
         {
             Starter = starter;
             Target = target;
         }
 
-        public GamePlayer GetPartnerOf(GameLiving living)
+        public GameLiving GetPartnerOf(GameLiving living)
         {
             if (living is GameNPC npc && npc.Brain is ControlledMobBrain brain)
-                living = brain.GetPlayerOwner();
+                living = brain.GetLivingOwner();
 
             return living == Starter ? Target : Starter;
         }
 
         public void Start()
         {
-            HandlePlayer(Starter, this);
-            HandlePlayer(Target, this);
+            HandleLiving(Starter, this);
+            HandleLiving(Target, this);
 
-            static void HandlePlayer(GamePlayer player, GameDuel duel)
+            static void HandleLiving(GameLiving living, GameDuel duel)
             {
-                player.OnDuelStart(duel);
-                player.TempProperties.SetProperty(DUEL_PREVIOUS_LASTATTACKTICKPVP, player.LastAttackTickPvP);
-                player.TempProperties.SetProperty(DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP, player.LastAttackedByEnemyTickPvP);
+                ((IGamePlayer)living).OnDuelStart(duel);
+                living.TempProperties.SetProperty(DUEL_PREVIOUS_LASTATTACKTICKPVP, living.LastAttackTickPvP);
+                living.TempProperties.SetProperty(DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP, living.LastAttackedByEnemyTickPvP);
             }
         }
 
         public void Stop()
         {
-            HandlePlayer(Starter, Target);
-            HandlePlayer(Target, Starter);
+            HandleLiving(Starter, Target);
+            HandleLiving(Target, Starter);
 
-            static void HandlePlayer(GamePlayer player, GamePlayer partner)
+            static void HandleLiving(GameLiving living, GameLiving partner)
             {
-                player.OnDuelStop();
-                player.LastAttackTickPvP = player.TempProperties.GetProperty<long>(DUEL_PREVIOUS_LASTATTACKTICKPVP);
-                player.LastAttackedByEnemyTickPvP = player.TempProperties.GetProperty<long>(DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP);
+                IGamePlayer player = living as IGamePlayer;
 
-                lock (player.XpGainersLock)
+                player.OnDuelStop();
+                living.LastAttackTickPvP = living.TempProperties.GetProperty<long>(DUEL_PREVIOUS_LASTATTACKTICKPVP);
+                living.LastAttackedByEnemyTickPvP = living.TempProperties.GetProperty<long>(DUEL_PREVIOUS_LASTATTACKEDBYENEMYTICKPVP);
+
+                lock (living.XPGainers.SyncRoot)
                 {
-                    player.XPGainers.Clear();
+                    living.XPGainers.Clear();
                 }
 
                 player.Out.SendMessage(LanguageMgr.GetTranslation(player.Client, "GamePlayer.DuelStop.DuelEnds"), eChatType.CT_Emote, eChatLoc.CL_SystemWindow);
-                StopEffects(player, partner);
+
+                StopEffects(living, partner);
             }
 
-            static void StopEffects(GamePlayer player, GamePlayer caster)
+            static void StopEffects(GameLiving living, GameLiving caster)
             {
-                Loop(player.effectListComponent.GetAllEffects(), caster);
+                Loop(living.effectListComponent.GetAllEffects(), caster);
 
-                IControlledBrain controlledBrain = player.ControlledBrain;
+                IControlledBrain controlledBrain = living.ControlledBrain;
 
                 if (controlledBrain != null)
                     Loop(controlledBrain.Body.effectListComponent.GetAllEffects(), caster);
 
-                static void Loop(List<ECSGameEffect> effects, GamePlayer caster)
+                static void Loop(List<ECSGameEffect> effects, GameLiving caster)
                 {
                     GameNPC petCaster = caster.ControlledBrain?.Body;
 
                     foreach (ECSGameEffect effect in effects)
                     {
-                        if (effect.HasPositiveEffect)
-                            continue;
-
                         ISpellHandler spellHandler = effect.SpellHandler;
 
                         if (spellHandler == null)

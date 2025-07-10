@@ -2,6 +2,7 @@ using System;
 using System.Reflection;
 using DOL.Events;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using log4net;
 
 namespace DOL.GS.Quests
@@ -55,13 +56,13 @@ namespace DOL.GS.Quests
 			get { return m_total; }
 		}
 
-		private string m_bossName = string.Empty;
+		private string m_bossName = "";
 		public string BossName
 		{
 			get { return m_bossName; }
 		}
 
-		private string m_targetName = string.Empty;
+		private string m_targetName = "";
 		public string TargetName
 		{
 			get { return m_targetName; }
@@ -73,7 +74,7 @@ namespace DOL.GS.Quests
 			: base(owner)
 		{
             log.Info("INFO: Successfully entered TaskDungeonMission!");
-			GamePlayer player = owner as GamePlayer;
+			IGamePlayer player = owner as IGamePlayer;
 
             if (owner is Group)
             {
@@ -115,22 +116,22 @@ namespace DOL.GS.Quests
 
                 if (npc.Name.ToLower() != npc.Name)
                 {
-                    if (m_bossName == string.Empty)
+                    if (m_bossName == "")
                         m_bossName = npc.Name; //Some instances have multiple bosses, eg Gregorian - why break?
                     else if (Util.Chance(50))
                         m_bossName = npc.Name;
                 } //else what if we aren't looking at a boss, but a normal mob?
                 else
-                    if (Util.Chance(20) || m_targetName == string.Empty)
+                    if (Util.Chance(20) || m_targetName == "")
                         m_targetName = npc.Name;
             }
 
 			int specificCount = 0;
             
             //Draw the mission type before we do anymore counting...
-            if (Util.Chance(40) && m_bossName != string.Empty)
+            if (Util.Chance(40) && m_bossName != "")
                 m_missionType = eTDMissionType.Boss;
-            else if (Util.Chance(20) && m_targetName != string.Empty)
+            else if (Util.Chance(20) && m_targetName != "")
                 m_missionType = eTDMissionType.Specific;
             else
                 m_missionType = eTDMissionType.Clear;
@@ -461,10 +462,13 @@ namespace DOL.GS.Quests
 
 		public override long RewardMoney
 		{
-			get {
-				GamePlayer player = m_owner as GamePlayer;
+			get 
+            {
+				IGamePlayer player = m_owner as IGamePlayer;
+
 				if (m_owner is Group)
 					player = (m_owner as Group).Leader;
+
 				return player.Level * player.Level * 100;
 			}
 		}
@@ -487,12 +491,16 @@ namespace DOL.GS.Quests
 		{
 			get
 			{
-				GamePlayer player = m_owner as GamePlayer;
+				IGamePlayer player = m_owner as IGamePlayer;
+
 				if (m_owner is Group)
 					player = (m_owner as Group).Leader;
+
 				long amount = XPMagicNumber * player.Level;
+
 				if (player.Level > 1)
 					amount += XPMagicNumber * (player.Level - 1);
+
 				return amount;
 				/*
 				long XPNeeded = (m_owner as GamePlayer).ExperienceForNextLevel - (m_owner as GamePlayer).ExperienceForCurrentLevel;
@@ -503,13 +511,13 @@ namespace DOL.GS.Quests
 
 		public override void FinishMission()
 		{
-			if (m_owner is GamePlayer)
+			if (m_owner is IGamePlayer)
 			{
-				(m_owner as GamePlayer).Out.SendMessage("Mission Complete", eChatType.CT_ScreenCenter, eChatLoc.CL_ChatWindow);
+				(m_owner as IGamePlayer).Out.SendMessage("Mission Complete", eChatType.CT_ScreenCenter, eChatLoc.CL_ChatWindow);
 			}
 			else if (m_owner is Group)
 			{
-				foreach (GamePlayer player in (m_owner as Group).GetPlayersInTheGroup())
+				foreach (IGamePlayer player in (m_owner as Group).GetPlayersInTheGroup())
 				{
 					player.Out.SendMessage("Mission Complete", eChatType.CT_ScreenCenter, eChatLoc.CL_ChatWindow);
 				}

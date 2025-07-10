@@ -2,7 +2,9 @@ using System.Collections;
 using System.Linq;
 using DOL.AI.Brain;
 using DOL.Database;
+using DOL.GS.Commands;
 using DOL.GS.Keeps;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.ServerRules
 {
@@ -12,9 +14,22 @@ namespace DOL.GS.ServerRules
 	[ServerRules(EGameServerType.GST_Normal)]
 	public class NormalServerRules : AbstractServerRules
 	{
-		public override string RulesDescription()
+        public static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
+        public override string RulesDescription()
 		{
 			return "standard Normal server rules";
+		}
+
+		/// <summary>
+		/// Invoked on NPC death and deals out
+		/// experience/realm points if needed
+		/// </summary>
+		/// <param name="killedNPC">npc that died</param>
+		/// <param name="killer">killer</param>
+		public override void OnNPCKilled(GameNPC killedNPC, GameObject killer)
+		{
+			base.OnNPCKilled(killedNPC, killer); 	
 		}
 
 		public override bool IsAllowedToAttack(GameLiving attacker, GameLiving defender, bool quiet)
@@ -32,37 +47,38 @@ namespace DOL.GS.ServerRules
 					quiet = true; // silence all attacks by controlled npc
 				}
 			}
-			if (defender is GameNPC)
-			{
-				IControlledBrain controlled = ((GameNPC)defender).Brain as IControlledBrain;
+
+            if (defender is GameNPC)
+            {
+                IControlledBrain controlled = ((GameNPC)defender).Brain as IControlledBrain;
 				if (controlled != null)
                     defender = controlled.GetLivingOwner();
 			}
 
 			//"You can't attack yourself!"
-			if(attacker == defender)
+			if (attacker == defender)
 			{
 				if (quiet == false) MessageToLiving(attacker, "You can't attack yourself!");
 				return false;
 			}
 
-			//Don't allow attacks on same realm members on Normal Servers
-			if (attacker.Realm == defender.Realm && !(attacker is GamePlayer && ((GamePlayer) attacker).IsDuelPartner(defender)))
+            //Don't allow attacks on same realm members on Normal Servers
+            if (attacker.Realm == defender.Realm && !(attacker is IGamePlayer && ((IGamePlayer)attacker).IsDuelPartner(defender)))
 			{
 				// allow confused mobs to attack same realm
 				if (attacker is GameNPC && (attacker as GameNPC).IsConfused)
 					return true;
-
+				
 				if (attacker.Realm == 0)
-				{
 					return FactionMgr.CanLivingAttack(attacker, defender);
-				}
 
-				if(quiet == false) MessageToLiving(attacker, "You can't attack a member of your realm!");
+				if (quiet == false) 
+					MessageToLiving(attacker, "You can't attack a member of your realm!");
+
 				return false;
 			}
 
-			return true;
+            return true;
 		}
 
 		public override bool IsSameRealm(GameLiving source, GameLiving target, bool quiet)
@@ -80,6 +96,7 @@ namespace DOL.GS.ServerRules
 					quiet = true; // silence all attacks by controlled npc
 				}
 			}
+
 			if (target is GameNPC)
 			{
 				IControlledBrain controlled = ((GameNPC)target).Brain as IControlledBrain;
@@ -104,11 +121,14 @@ namespace DOL.GS.ServerRules
 				if ((((GameNPC)source).Flags & GameNPC.eFlags.PEACE) != 0)
 					return true;
 
-			if(source.Realm != target.Realm)
+			if (source.Realm != target.Realm)
 			{
-				if(quiet == false) MessageToLiving(source, target.GetName(0, true) + " is not a member of your realm!");
+				if (quiet == false) 
+					MessageToLiving(source, target.GetName(0, true) + " is not a member of your realm!");
+
 				return false;
 			}
+
 			return true;
 		}
 
@@ -121,13 +141,16 @@ namespace DOL.GS.ServerRules
 			return false;
 		}
 
-		public override bool IsAllowedToGroup(GamePlayer source, GamePlayer target, bool quiet)
+		public override bool IsAllowedToGroup(IGamePlayer source, IGamePlayer target, bool quiet)
 		{
-			if(source == null || target == null) return false;
+			if (source == null || target == null)
+				return false;
 			
 			if (source.Realm != target.Realm)
 			{
-				if(quiet == false) MessageToLiving(source, "You can't group with a player from another realm!");
+				if (quiet == false) 
+					MessageToLiving((GameLiving)source, "You can't group with a player from another realm!");
+
 				return false;
 			}
 

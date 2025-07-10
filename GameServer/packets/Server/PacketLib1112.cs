@@ -22,13 +22,13 @@ namespace DOL.GS.PacketHandler
 		{
 		}
 
-		public override void SendUpdatePlayerSkills(bool updateInternalCache)
+		public override void SendUpdatePlayerSkills()
 		{
 			if (m_gameClient.Player == null)
 				return;
 
 			// Get Skills as "Usable Skills" which are in network order ! (with forced update)
-			List<Tuple<Skill, Skill>> usableSkills = m_gameClient.Player.GetAllUsableSkills(updateInternalCache);
+			List<Tuple<Skill, Skill>> usableSkills = m_gameClient.Player.GetAllUsableSkills(true);
 
 			bool sent = false; // set to true once we can't send packet anymore !
 			int index = 0; // index of our position in the list !
@@ -463,8 +463,8 @@ namespace DOL.GS.PacketHandler
 
 			ushort icon1 = 0;
 			ushort icon2 = 0;
-			string spell_name1 = string.Empty;
-			string spell_name2 = string.Empty;
+			string spell_name1 = "";
+			string spell_name2 = "";
 			if (item.Object_Type != (int)eObjectType.AlchemyTincture)
 			{
 				if (item.SpellID > 0/* && item.Charges > 0*/)
@@ -526,7 +526,7 @@ namespace DOL.GS.PacketHandler
 				else
 					name += "[" + Money.GetString(item.SellPrice) + "]";
 			}
-			if (name == null) name = string.Empty;
+			if (name == null) name = "";
 			if (name.Length > 55)
 				name = name.Substring(0, 55);
 			pak.WritePascalString(name);

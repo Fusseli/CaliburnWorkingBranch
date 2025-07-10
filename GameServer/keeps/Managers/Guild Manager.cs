@@ -46,7 +46,7 @@ namespace DOL.GS.Keeps
 		public static void SendChangeLevelTimeMessage(AbstractGameKeep keep)
 		{
             string message;
-            string changeleveltext = string.Empty;
+            string changeleveltext = "";
             int nextlevel = 0;
 
             byte maxlevel = (byte)ServerProperties.Properties.MAX_KEEP_LEVEL;

@@ -1,15 +1,16 @@
 using System;
 using DOL.AI.Brain;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
     /// <summary>
     /// Style taunt effect spell handler
     /// </summary>
-    [SpellHandler(eSpellType.StyleTaunt)]
+    [SpellHandler("StyleTaunt")]
     public class StyleTaunt : SpellHandler
     {
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -23,7 +24,7 @@ namespace DOL.GS.Spells
 
         public override void OnDirectEffect(GameLiving target)
         {
-            if (target is not GameNPC npc || npc.Brain is not IOldAggressiveBrain brain)
+            if (target is MimicNPC || target is not GameNPC npc || npc.Brain is not IOldAggressiveBrain brain)
                 return;
 
             // Style taunt and style detaunt default values are 17 and -19 respectively. The old formula multiplied that value to the (non-critical) damage, which resulted in excessively high threat changes.

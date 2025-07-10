@@ -876,17 +876,17 @@ namespace DOL.GS
 						// look for attribute
 						try
 						{
-							object[] objects = type.GetCustomAttributes(typeof(SpellHandlerAttribute), false);
+							object[] objs = type.GetCustomAttributes(typeof(SpellHandlerAttribute), false);
 
-							if (objects.Length == 0)
+							if (objs.Length == 0)
 								continue;
 
-							foreach (SpellHandlerAttribute attrib in objects)
+							foreach (SpellHandlerAttribute attrib in objs)
 							{
-								if (attrib.SpellType == spell.SpellType)
+								if (attrib.SpellType.Equals(spell.SpellType.ToString(), StringComparison.OrdinalIgnoreCase))
 								{
-									ParameterExpression[] constructorParams = [Expression.Parameter(typeof(GameLiving)), Expression.Parameter(typeof(Spell)), Expression.Parameter(typeof(SpellLine))];
-									ConstructorInfo constructor = type.GetConstructor([typeof(GameLiving), typeof(Spell), typeof(SpellLine)]);
+									ParameterExpression[] constructorParams = new ParameterExpression[] { Expression.Parameter(typeof(GameLiving)), Expression.Parameter(typeof(Spell)), Expression.Parameter(typeof(SpellLine)) };
+									ConstructorInfo constructor = type.GetConstructor(new[] { typeof(GameLiving), typeof(Spell), typeof(SpellLine) });
 									handlerConstructor = Expression.Lambda<Func<GameLiving, Spell, SpellLine, SpellHandler>>(Expression.New(constructor, constructorParams), constructorParams).Compile();
 
 									if (log.IsDebugEnabled)

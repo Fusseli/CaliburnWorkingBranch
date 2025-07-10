@@ -16,7 +16,7 @@ namespace DOL.GS.Effects
 
         public override void OnStartEffect()
         {
-            SpellLine RAspellLine = GlobalSpellsLines.RealmSpellsSpellLine;
+            SpellLine RAspellLine = new SpellLine("RAs", "RealmAbilities", "RealmAbilities", true);
             Spell Juggernaut = SkillBase.GetSpellByID(90801);
 
             if (Juggernaut != null)

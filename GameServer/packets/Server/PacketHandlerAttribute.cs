@@ -108,7 +108,7 @@ namespace DOL.GS.PacketHandler
 		{
 			m_type = type;
 			m_code = (int)code;
-			m_desc = string.Empty;
+			m_desc = "";
 			m_preprocessorId = (int)preprocessorId;
 		}
 		

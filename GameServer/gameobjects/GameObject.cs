@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using System.Threading;
 using DOL.Database;
 using DOL.Events;
 using DOL.GS.Housing;
@@ -242,9 +241,17 @@ namespace DOL.GS
 		/// </summary>
 		public virtual IList<IArea> CurrentAreas
 		{
-			get => CurrentZone.GetAreasOfSpot(this);
-			set { }
-		}
+            get
+            {
+
+                if (CurrentZone == null)
+                {
+                    return new List<IArea>();
+                }
+                return CurrentZone.GetAreasOfSpot(this);
+            }
+            set { }
+        }
 
 		protected House m_currentHouse;
 		/// <summary>
@@ -483,7 +490,7 @@ namespace DOL.GS
 			 */
 
 			if (Name.Length < 1)
-				return string.Empty;
+				return "";
 
 			// actually this should be only for Named mobs (like dragon, legion) but there is no way to find that out
 			if (char.IsUpper(Name[0]) && this is GameLiving) // proper noun
@@ -522,7 +529,7 @@ namespace DOL.GS
         {
             if (!capitalize) return text;
 
-            string result = string.Empty;
+            string result = "";
             if (text == null || text.Length <= 0) return result;
             result = text[0].ToString().ToUpper();
             if (text.Length > 1) result += text.Substring(1, text.Length - 1);
@@ -570,8 +577,6 @@ namespace DOL.GS
 			list.Add(LanguageMgr.GetTranslation(player.Client.Account.Language, "GameObject.GetExamineMessages.YouTarget", GetName(0, false)));
 			return list;
 		}
-
-		public virtual bool IsStealthed => false;
 
 		#endregion
 
@@ -823,7 +828,6 @@ namespace DOL.GS
 		/// List of DataQuests available for this object
 		/// </summary>
 		protected List<DataQuest> m_dataQuests = new List<DataQuest>();
-		protected readonly Lock _dataQuestsLock = new();
 
 		/// <summary>
 		/// Flag to prevent loading quests on every respawn
@@ -874,7 +878,7 @@ namespace DOL.GS
 						AddDataQuest(dq);
 	
 	                    // if a player forced the reload report any errors
-	                    if (player != null && dq.LastErrorText != string.Empty)
+	                    if (player != null && dq.LastErrorText != "")
 	                    {
 	                        ChatUtil.SendErrorMessage(player, dq.LastErrorText);
 	                    }
@@ -895,7 +899,7 @@ namespace DOL.GS
 						AddDataQuest(dq);
 	
 	                    // if a player forced the reload report any errors
-	                    if (player != null && dq.LastErrorText != string.Empty)
+	                    if (player != null && dq.LastErrorText != "")
 	                    {
 	                        ChatUtil.SendErrorMessage(player, dq.LastErrorText);
 	                    }
@@ -1056,7 +1060,7 @@ namespace DOL.GS
 			// Avoids server freeze.
 			if (CurrentRegion.GetZone(X, Y) == null)
 			{
-				if (this is GamePlayer player && !player.TempProperties.GetProperty<bool>("isbeingbanned"))
+				if (this is GamePlayer player && !player.TempProperties.GetProperty("isbeingbanned", false))
 				{
 					player.TempProperties.SetProperty("isbeingbanned", true);
 					player.MoveToBind();
@@ -1242,9 +1246,9 @@ namespace DOL.GS
 			//as standard! We want our mobs/items etc. at
 			//the same startingspots when we restart!
 			m_saveInDB = false;
-			m_name = string.Empty;
+			m_name = "";
 			m_ObjectState = eObjectState.Inactive;
-			m_boat_ownerid = string.Empty;
+			m_boat_ownerid = "";
 			ClearObjectsInRadiusCache();
 		}
 		public static bool PlayerHasItem(GamePlayer player, string str)
@@ -1257,8 +1261,8 @@ namespace DOL.GS
 		private static string m_boat_ownerid;
 		public static string ObjectHasOwner()
 		{
-			if (m_boat_ownerid == string.Empty)
-				return string.Empty;
+			if (m_boat_ownerid == "")
+				return "";
 			else
 				return m_boat_ownerid;
 		}

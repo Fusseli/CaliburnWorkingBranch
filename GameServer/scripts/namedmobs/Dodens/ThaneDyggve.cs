@@ -27,6 +27,7 @@ namespace DOL.GS.Scripts
 			Faction = FactionMgr.GetFactionByID(779);
 			RespawnInterval = ServerProperties.Properties.SET_EPIC_GAME_ENCOUNTER_RESPAWNINTERVAL * 60000;//1min is 60000 miliseconds
 
+			WeaponSkillScalingFactor = 60;
 			base.SetOwnBrain(new ThaneDyggveBrain());
 			LoadedFromScript = false; //load from database
 			SaveIntoDatabase();
@@ -86,7 +87,7 @@ namespace DOL.GS.Scripts
 			private bool CanCastSpell = false;
 			public ThaneDyggveBrain() : base()
 			{
-				CanBaf = false;
+				CanBAF = false;
 				m_MjollnirAnnounce = new String[]
 				{
 					"You feel your energy draining and {0} summons powerful lightning hammers!",

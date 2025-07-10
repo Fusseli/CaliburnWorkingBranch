@@ -22,7 +22,7 @@ namespace DOL.GS.Scripts
         /// </summary>
         protected virtual String Type
         {
-            get { return string.Empty; }
+            get { return ""; }
         }
 
         /// <summary>
@@ -103,7 +103,7 @@ namespace DOL.GS.Scripts
 
             TurnTo(player, 10000);
             
-            var message = string.Empty;
+            var message = "";
 
             switch (Realm)
             {

@@ -173,7 +173,7 @@ public class Player
     {
         var RR = realmLevel + 10;
 
-        var realmRank = string.Empty;
+        var realmRank = "";
 
         if (RR >= 100)
             realmRank = $"{RR.ToString().Substring(0, 2)}L{RR.ToString().Substring(2, 1)}";

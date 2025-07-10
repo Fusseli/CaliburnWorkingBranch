@@ -52,14 +52,14 @@ namespace DOL.GS.Commands
 
 			if (args.Length < 2)
             {
-				if (key != string.Empty)
+				if (key != "")
 					SendMessage(client, "Current instance key is " + key);
 					
 				DisplaySyntax(client);
                 return;
             }
 
-            if (key == string.Empty && args[1] != "key")
+            if (key == "" && args[1] != "key")
             {
                 SendMessage(client, "You must first assign an instance to work with using /instance key <ID>.");
                 return;
@@ -222,7 +222,7 @@ namespace DOL.GS.Commands
 								throw new Exception("You need to provide a skin id.  A skin is the ID of the region you want this instance to look like.");
 							}
 
-							Instance newInstance = player.TempProperties.GetProperty<Instance>(key);
+							Instance newInstance = player.TempProperties.GetProperty<Instance>(key, null);
 
 							if (newInstance != null)
 							{
@@ -255,7 +255,7 @@ namespace DOL.GS.Commands
 				#region close
 				case "close":
 					{
-						Instance newInstance = player.TempProperties.GetProperty<Instance>(key);
+						Instance newInstance = player.TempProperties.GetProperty<Instance>(key, null);
 
 						if (newInstance == null)
 						{
@@ -286,7 +286,7 @@ namespace DOL.GS.Commands
 							return;
 						}
 
-						Instance newInstance = player.TempProperties.GetProperty<Instance>(key);
+						Instance newInstance = player.TempProperties.GetProperty<Instance>(key, null);
 
 						if (newInstance == null)
 						{
@@ -344,7 +344,7 @@ namespace DOL.GS.Commands
 							return;
 						}
 
-						GameLocation saveLocation = player.TempProperties.GetProperty<GameLocation>(player.Name + "_exit");
+						GameLocation saveLocation = player.TempProperties.GetProperty<GameLocation>(player.Name + "_exit", null);
 
 						if (saveLocation == null)
 						{
@@ -367,12 +367,12 @@ namespace DOL.GS.Commands
 
         public string GetInstanceKey(GamePlayer p)
         {
-            string str = string.Empty;
+            string str = "";
             try
             {
-                str = p.TempProperties.GetProperty(INSTANCE_KEY, string.Empty);
+                str = p.TempProperties.GetProperty<string>(INSTANCE_KEY, "");
             }
-            catch { return string.Empty; }
+            catch { return ""; }
             return str;
         }
 

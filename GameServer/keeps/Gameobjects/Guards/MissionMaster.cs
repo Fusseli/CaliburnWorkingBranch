@@ -299,7 +299,7 @@ namespace DOL.GS.Keeps
 
 		protected override void SetAggression()
 		{
-			SetAggression(99, 400);
+			(Brain as KeepGuardBrain).SetAggression(90, 400);
 		}
 
 		protected override void SetName()

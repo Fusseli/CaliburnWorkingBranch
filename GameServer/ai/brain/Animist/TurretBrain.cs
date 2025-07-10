@@ -14,14 +14,23 @@ namespace DOL.AI.Brain
             _defensiveSpellTargets = new();
         }
 
-        public override int AggroRange => (Body as TurretPet).TurretSpell.Range;
+        public override int AggroRange => ((TurretPet) Body).TurretSpell.Range;
+
+        public override void Think()
+        {
+            if (AggressionState == eAggressionState.Aggressive)
+                CheckProximityAggro();
+
+            if (!CheckSpells(eCheckSpellType.Defensive))
+                CheckSpells(eCheckSpellType.Offensive);
+        }
 
         public override bool CheckSpells(eCheckSpellType type)
         {
-            if (Body == null || AggressionState is eAggressionState.Passive)
+            if (Body == null || AggressionState == eAggressionState.Passive)
                 return false;
 
-            Spell spell = (Body as TurretPet).TurretSpell;
+            Spell spell = ((TurretPet) Body).TurretSpell;
 
             if (spell == null || Body.GetSkillDisabledDuration(spell) != 0)
                 return false;
@@ -81,13 +90,8 @@ namespace DOL.AI.Brain
             {
                 GameLiving living = _defensiveSpellTargets[i];
 
-                if (GameServer.ServerRules.IsAllowedToAttack(Body, living, true) ||
-                    !living.IsAlive ||
-                    LivingHasEffect(living, spell) ||
-                    !Body.IsWithinRadius(living, (ushort) spell.Range))
-                {
-                    _defensiveSpellTargets.SwapRemoveAt(i);
-                }
+                if (GameServer.ServerRules.IsAllowedToAttack(Body, living, true) || !living.IsAlive || LivingHasEffect(living, spell) || !Body.IsWithinRadius(living, (ushort)spell.Range))
+                    _defensiveSpellTargets.RemoveAt(i);
             }
 
             foreach (GamePlayer player in Body.GetPlayersInRadius((ushort) spell.Range))

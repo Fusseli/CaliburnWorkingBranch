@@ -24,6 +24,7 @@ using DOL.GS.PacketHandler;
 using log4net;
 using System.Reflection;
 using DOL.Language;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -53,13 +54,13 @@ namespace DOL.GS
         {
             return player.CurrentZone.BonusBountypoints;
         }
-        public static int GetCoinBonus(GamePlayer player)
+        public static int GetCoinBonus(IGamePlayer player)
         {
             return player.CurrentZone.BonusCoin;
         } 
         #endregion
         #region Get Bonus Message
-        public static string GetBonusMessage(GamePlayer player, int bonusAmount, eZoneBonusType type)
+        public static string GetBonusMessage(IGamePlayer player, int bonusAmount, eZoneBonusType type)
         {
             System.Globalization.NumberFormatInfo format = System.Globalization.NumberFormatInfo.InvariantInfo;
             string bonusXP = bonusAmount.ToString("N0", format);

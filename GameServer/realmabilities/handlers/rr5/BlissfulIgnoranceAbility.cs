@@ -66,16 +66,16 @@ namespace DOL.GS.RealmAbilities
 						db.Duration = spell.Duration / 1000;
                         db.Power = 0;
 						db.Value = spell.Value;
-	                    db.Message1 = string.Empty;
-	                    db.Message2 = string.Empty;
-	                    db.Message3 = string.Empty;
-	                    db.Message4 = string.Empty;
+	                    db.Message1 = "";
+	                    db.Message2 = "";
+	                    db.Message3 = "";
+	                    db.Message4 = "";
                         db.Type = (spell.SpellType).ToString();
                         db.Target = "Self";
                         db.MoveCast = true;
                         db.Uninterruptible = true;
 						
-						SpellHandler handler = ScriptMgr.CreateSpellHandler(player, new Spell(db, 0), SkillBase.GetSpellLine("Savagery")) as SpellHandler;
+						SpellHandler handler = new SpellHandler(player, new Spell(db, 0), SkillBase.GetSpellLine("Savagery"));
                         if(handler!=null)
                             handler.StartSpell(player);
 					}

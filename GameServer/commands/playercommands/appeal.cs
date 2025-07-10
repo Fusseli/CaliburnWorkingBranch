@@ -93,27 +93,27 @@ namespace DOL.GS.Commands
                     case "harassment":
                         {
                             severity = (int)AppealMgr.eSeverity.High;
-                            args[1] = string.Empty;
+                            args[1] = "";
                             break;
                         }
                     case "naming":
                         {
                             severity = (int)AppealMgr.eSeverity.Low;
-                            args[1] = string.Empty;
+                            args[1] = "";
                             break;
                         }
                     case "other":
                     case "conduct":
                         {
                             severity = (int)AppealMgr.eSeverity.Medium;
-                            args[1] = string.Empty;
+                            args[1] = "";
                             break;
                         }
                     case "stuck":
                     case "emergency":
                         {
                             severity = (int)AppealMgr.eSeverity.Critical;
-                            args[1] = string.Empty;
+                            args[1] = "";
                             break;
                         }
                     default:
@@ -154,7 +154,7 @@ namespace DOL.GS.Commands
             }
     
             //send over the info to the /report command
-            args[1] = string.Empty;
+            args[1] = "";
             //strip these words if they are the first word in the bugreport text
             switch (args[2].ToLower())
             {
@@ -165,7 +165,7 @@ namespace DOL.GS.Commands
                 case "stuck":
                 case "emergency":
                     {
-                        args[2] = string.Empty;
+                        args[2] = "";
                         break;
                     }
             }
@@ -211,7 +211,7 @@ namespace DOL.GS.Commands
                 case "stuck":
                 case "emergency":
                     {
-                        args[1] = string.Empty;
+                        args[1] = "";
                         break;
                     }
             }
@@ -261,7 +261,7 @@ namespace DOL.GS.Commands
                             case "stuck":
                             case "emergency":
                                 {
-                                    args[2] = string.Empty;
+                                    args[2] = "";
                                     break;
                                 }
                         }
@@ -282,7 +282,7 @@ namespace DOL.GS.Commands
                             case "stuck":
                             case "emergency":
                                 {
-                                    args[2] = string.Empty;
+                                    args[2] = "";
                                     break;
                                 }
                         }
@@ -331,7 +331,7 @@ namespace DOL.GS.Commands
                 case "stuck":
                 case "emergency":
                     {
-                        args[1] = string.Empty;
+                        args[1] = "";
                         break;
                     }
             }
@@ -377,7 +377,7 @@ namespace DOL.GS.Commands
                 case "stuck":
                 case "emergency":
                     {
-                        args[1] = string.Empty;
+                        args[1] = "";
                         break;
                     }
             }

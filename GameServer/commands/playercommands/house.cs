@@ -132,7 +132,7 @@ namespace DOL.GS.Commands
 
 				if (args[1].ToLower() == "addhookpoints")
 				{
-					if (player.TempProperties.GetProperty<bool>(HousingConstants.AllowAddHouseHookpoint))
+					if (player.TempProperties.GetProperty<bool>(HousingConstants.AllowAddHouseHookpoint, false))
 					{
 						player.TempProperties.RemoveProperty(HousingConstants.AllowAddHouseHookpoint);
 						DisplayMessage(player.Client, "Add hookpoints turned off!");
@@ -191,7 +191,7 @@ namespace DOL.GS.Commands
 
 			if (args[1].ToLower() == "remove")
 			{
-				string confirm = string.Empty;
+				string confirm = "";
 
 				if (args.Length > 2)
 					confirm = args[2];

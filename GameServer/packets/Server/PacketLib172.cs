@@ -85,7 +85,7 @@ namespace DOL.GS.PacketHandler
 			SendObjectGuildID(playerToCreate, playerToCreate.Guild); //used for nearest friendly/enemy object buttons and name colors on PvP server
 		}
 
-		protected override void SendInventorySlotsUpdateRange(ICollection<eInventorySlot> slots, eInventoryWindowType windowType)
+		protected override void SendInventorySlotsUpdateRange(ICollection<int> slots, eInventoryWindowType windowType)
 		{
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.InventoryUpdate)))
 			{
@@ -261,7 +261,7 @@ namespace DOL.GS.PacketHandler
 				return;
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.TradeWindow)))
 			{
-				lock (m_gameClient.Player.TradeWindow.Lock)
+				lock (m_gameClient.Player.TradeWindow.Sync)
 				{
 					foreach (DbInventoryItem item in m_gameClient.Player.TradeWindow.TradeItems)
 					{

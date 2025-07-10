@@ -1,8 +1,9 @@
 ﻿using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.SiegeDirectDamage)]
+    [SpellHandlerAttribute("SiegeDirectDamage")]
     public class SiegeDirectDamageSpellHandler : DirectDamageSpellHandler
     {
         public SiegeDirectDamageSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -12,12 +13,12 @@ namespace DOL.GS.Spells
         /// </summary>
         /// <param name="target">the target of the spell</param>
         /// <returns>chance that spell will be resisted for specific target</returns>
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
 
-        public override double CalculateToHitChance(GameLiving target)
+        public override int CalculateToHitChance(GameLiving target)
         {
             return 100;
         }
@@ -25,11 +26,6 @@ namespace DOL.GS.Spells
         public override bool CasterIsAttacked(GameLiving attacker)
         {
             return false;
-        }
-
-        public override double CalculateDamageBase(GameLiving target)
-        {
-            return Spell.Damage;
         }
 
         public override void CalculateDamageVariance(GameLiving target, out double min, out double max)
@@ -41,9 +37,9 @@ namespace DOL.GS.Spells
         public override AttackData CalculateDamageToTarget(GameLiving target)
         {
             AttackData ad = base.CalculateDamageToTarget(target);
-            if (target is GamePlayer)
+            if (target is IGamePlayer)
             {
-                GamePlayer player = target as GamePlayer;
+                IGamePlayer player = target as IGamePlayer;
                 int id = player.CharacterClass.ID;
                 //50% reduction for tanks
                 if (id == (int)eCharacterClass.Armsman || id == (int)eCharacterClass.Warrior || id == (int)eCharacterClass.Hero)
@@ -54,9 +50,9 @@ namespace DOL.GS.Spells
                 //lvl 1 60%
                 //lvl 2 70%
                 //lvl 3 80%
-                if (player.IsRiding && player.Steed is GameSiegeRam)
+                if (player is GamePlayer gPlayer && gPlayer.IsRiding && gPlayer.Steed is GameSiegeRam)
                 {
-                    ad.Damage = (int)((double)ad.Damage * (1.0 - (50.0 + (double)player.Steed.Level * 10.0) / 100.0));
+                    ad.Damage = (int)((double)ad.Damage * (1.0 - (50.0 + (double)gPlayer.Steed.Level * 10.0) / 100.0));
                 }
             }
             return ad;
@@ -64,7 +60,7 @@ namespace DOL.GS.Spells
 
         public override void SendDamageMessages(AttackData ad)
         {
-            string modmessage = string.Empty;
+            string modmessage = "";
             if (ad.Modifier > 0)
                 modmessage = " (+" + ad.Modifier + ")";
             if (ad.Modifier < 0)

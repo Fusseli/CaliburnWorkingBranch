@@ -89,13 +89,13 @@ namespace DOL.Language
         private static string LangPath {
             get
             {
-                if (soleInstance.LangPathImpl == string.Empty)
+                if (soleInstance.LangPathImpl == "")
                     soleInstance.LangPathImpl = Path.Combine(GameServer.Instance.Configuration.RootDirectory, "languages");
 
                 return soleInstance.LangPathImpl;
             }
         }
-        protected string LangPathImpl = string.Empty;
+        protected string LangPathImpl = "";
         #endregion Variables
 
         #region Properties
@@ -499,7 +499,7 @@ namespace DOL.Language
                 {
                     if (client.ClientState == GameClient.eClientState.Playing)
                     {
-                        if (client.Player.TempProperties.GetProperty<bool>("LANGUAGEMGR-DEBUG"))
+                        if (client.Player.TempProperties.GetProperty("LANGUAGEMGR-DEBUG", false))
                             translation = "Id is " + translationId + " " + translation;
                     }
                 }

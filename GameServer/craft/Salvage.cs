@@ -136,7 +136,7 @@ namespace DOL.GS
 				salvageYield.MaterialId_nb = (string) ReturnSalvage.ID;
 			}
 
-			if (salvageYield.MaterialId_nb == string.Empty)
+			if (salvageYield.MaterialId_nb == "")
 			{
 				player.Out.SendMessage("No material set for this item", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				return 0;
@@ -178,7 +178,7 @@ namespace DOL.GS
             int Multiplier = 0;
             int ReturnCount = SalvageCount;
 
-            string iType = string.Empty;
+            string iType = "";
 
             // if (item.IsCrafted)
             // {
@@ -301,10 +301,10 @@ namespace DOL.GS
 		/// <returns></returns>
 		protected static int Proceed(ECSGameTimer timer)
 		{
-			GamePlayer player = timer.Properties.GetProperty<GamePlayer>(AbstractCraftingSkill.PLAYER_CRAFTER);
-			DbInventoryItem itemToSalvage = timer.Properties.GetProperty<DbInventoryItem>(SALVAGED_ITEM);
-			DbSalvageYield yield = timer.Properties.GetProperty<DbSalvageYield>(SALVAGE_YIELD);
-			IList<DbInventoryItem> itemList = player.TempProperties.GetProperty<IList<DbInventoryItem>>(SALVAGE_QUEUE);
+			GamePlayer player = timer.Properties.GetProperty<GamePlayer>(AbstractCraftingSkill.PLAYER_CRAFTER, null);
+			DbInventoryItem itemToSalvage = timer.Properties.GetProperty<DbInventoryItem>(SALVAGED_ITEM, null);
+			DbSalvageYield yield = timer.Properties.GetProperty<DbSalvageYield>(SALVAGE_YIELD, null);
+			IList<DbInventoryItem> itemList = player.TempProperties.GetProperty<IList<DbInventoryItem>>(SALVAGE_QUEUE, null);
 			int materialCount = yield.Count;
 
 			if (player == null || itemToSalvage == null || yield == null || materialCount == 0)
@@ -340,7 +340,7 @@ namespace DOL.GS
 			InventoryLogging.LogInventoryAction(player, "(salvage)", eInventoryActionType.Craft, itemToSalvage.Template, itemToSalvage.Count);
 
 			Dictionary<int, int> changedSlots = new Dictionary<int, int>(5); // value: < 0 = new item count; > 0 = add to old
-			lock (player.Inventory.Lock)
+			lock (player.Inventory.LockObject)
 			{
 				int count = materialCount;
 				foreach (DbInventoryItem item in player.Inventory.GetItemRange(eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
@@ -695,7 +695,7 @@ namespace DOL.GS
             #region SpecialFix MerchantList
 
             if (item.Bonus8 > 0)
-                if (item.Bonus8Type == 0 || item.Bonus8Type.ToString() == string.Empty)
+                if (item.Bonus8Type == 0 || item.Bonus8Type.ToString() == "")
                     maxCount = item.Bonus8;
 
             #endregion SpecialFix MerchantList

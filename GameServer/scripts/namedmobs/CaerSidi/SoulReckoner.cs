@@ -183,7 +183,7 @@ namespace DOL.AI.Brain
         {
             AggroLevel = 100;
             AggroRange = 400;
-            CanBaf = false;
+            CanBAF = false;
         }
 
         public static bool InRoom = false;
@@ -362,7 +362,9 @@ namespace DOL.GS
             --SoulCount;
             base.Die(killer);
         }
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer)
+        {
+        }
         public override short Quickness { get => base.Quickness; set => base.Quickness = 80; }
         public override short Strength { get => base.Strength; set => base.Strength = 150; }
         public static int SoulCount = 0;
@@ -408,7 +410,7 @@ namespace DOL.AI.Brain
         {
             AggroLevel = 100;
             AggroRange = 500;
-            CanBaf = false;
+            CanBAF = false;
         }
         public override void Think()
         {

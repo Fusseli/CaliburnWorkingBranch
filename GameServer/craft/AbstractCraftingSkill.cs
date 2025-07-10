@@ -10,10 +10,10 @@ using log4net;
 
 namespace DOL.GS
 {
-    /// <summary>
-    /// AbstractCraftingSkill is the base class for all crafting skill
-    /// </summary>
-    public abstract class AbstractCraftingSkill
+	/// <summary>
+	/// AbstractCraftingSkill is the base class for all crafting skill
+	/// </summary>
+	public abstract class AbstractCraftingSkill
 	{
 		protected static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -60,7 +60,7 @@ namespace DOL.GS
 		{
 			get
 			{
-				return string.Empty;
+				return "";
 			}
 		}
 		public eCraftingSkill eSkill
@@ -259,7 +259,7 @@ namespace DOL.GS
 			ArrayList missingMaterials = null;
 
 			long totalPrice = 0;
-			lock (player.Inventory.Lock)
+			lock (player.Inventory.LockObject)
 			{
 				foreach (var ingredient in recipe.Ingredients)
 				{
@@ -373,7 +373,7 @@ namespace DOL.GS
 		{
 			Dictionary<int, int?> dataSlots = new Dictionary<int, int?>(10);
 
-			lock (player.Inventory.Lock)
+			lock (player.Inventory.LockObject)
 			{
 				foreach (var ingredient in recipe.Ingredients)
 				{
@@ -443,7 +443,7 @@ namespace DOL.GS
 
 			Dictionary<int, int> changedSlots = new Dictionary<int, int>(5); // key : > 0 inventory ; < 0 ground || value: < 0 = new item count; > 0 = add to old
 
-			lock (player.Inventory.Lock)
+			lock (player.Inventory.LockObject)
 			{
 				int count = product.PackSize < 1 ? 1 : product.PackSize;
 				foreach (DbInventoryItem item in player.Inventory.GetItemRange(eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack))
@@ -634,9 +634,6 @@ namespace DOL.GS
 		}
 		public virtual int GetCraftingTime(GamePlayer player, Recipe recipe)
 		{
-			if ((ePrivLevel) player.Client.Account.PrivLevel >= ePrivLevel.GM)
-				return 0;
-
 			double baseMultiplier = (recipe.Level / 100) + 1;
 			if (baseMultiplier < 1) baseMultiplier = 1;
 

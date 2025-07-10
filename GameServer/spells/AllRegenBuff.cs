@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using DOL.AI.Brain;
 using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
@@ -7,7 +6,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// All Stats buff
 	/// </summary>
-	[SpellHandler(eSpellType.AllRegenBuff)]
+	[SpellHandlerAttribute("AllRegenBuff")]
 	public class AllRegenBuff : PropertyChangingSpell
 	{
 		public static List<int> RegenList = new List<int> {8084,8080,8076};
@@ -28,14 +27,17 @@ namespace DOL.GS.Spells
 			Spell healSpell = SkillBase.GetSpellByID(healID);
 			SpellHandler healthConSpellHandler = ScriptMgr.CreateSpellHandler(target, healSpell, potionEffectLine) as SpellHandler;
 
-			return pomSpellHandler.StartSpell(target) |
-				endSpellHandler.StartSpell(target) |
-				healthConSpellHandler.StartSpell(target);
-		}
+			pomSpellHandler.StartSpell(target);
+			endSpellHandler.StartSpell(target);
+			healthConSpellHandler.StartSpell(target);
 
+			return true;
+		}
         public override eProperty Property1 => eProperty.PowerRegenerationAmount;
         public override eProperty Property2 => eProperty.EnduranceRegenerationAmount;
         public override eProperty Property3 => eProperty.HealthRegenerationAmount;
+
+
 
         // constructor
         public AllRegenBuff(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line)
@@ -46,7 +48,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// All Stats buff
 	/// </summary>
-	[SpellHandler(eSpellType.BeadRegen)]
+	[SpellHandlerAttribute("BeadRegen")]
 	public class BeadRegen : PropertyChangingSpell 
 	{
 		public static List<int> BeadRegenList = new List<int> {31057,31056,31055};
@@ -88,23 +90,23 @@ namespace DOL.GS.Spells
 			Spell healSpell = SkillBase.GetSpellByID(healID);
 			SpellHandler healthConSpellHandler = ScriptMgr.CreateSpellHandler(target, healSpell, potionEffectLine) as SpellHandler;
 
-			bool success;
-			success = pomSpellHandler.StartSpell(target);
-			success = endSpellHandler.StartSpell(target) || success;
-			success = healthConSpellHandler.StartSpell(target) || success;
+			pomSpellHandler.StartSpell(target);
+			endSpellHandler.StartSpell(target);
+			healthConSpellHandler.StartSpell(target);
 
-			if (Caster.ControlledBrain is NecromancerPetBrain brain)
-			{
-				SpellHandler petHealHandler = ScriptMgr.CreateSpellHandler(brain.Body, healSpell, potionEffectLine) as SpellHandler;
-				success = petHealHandler.StartSpell(brain.Body) || success;
+			if(Caster.ControlledBrain != null && Caster.ControlledBrain is AI.Brain.NecromancerPetBrain necrop)
+            {
+				SpellHandler petHealHandler = ScriptMgr.CreateSpellHandler(necrop.Body, healSpell, potionEffectLine) as SpellHandler;
+				petHealHandler.StartSpell(necrop.Body);
 			}
 
-			return success;
+			return true;
 		}
-
 		public override eProperty Property1 => eProperty.PowerRegenerationAmount;
 		public override eProperty Property2 => eProperty.EnduranceRegenerationAmount;
 		public override eProperty Property3 => eProperty.HealthRegenerationAmount;
+
+
 
 		// constructor
 		public BeadRegen(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line)

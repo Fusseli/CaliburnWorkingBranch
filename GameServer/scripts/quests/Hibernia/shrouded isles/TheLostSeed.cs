@@ -92,7 +92,7 @@ namespace DOL.GS.Quests.Hibernia
             Terod = new GameNPC();
             Terod.Model = 382;
             Terod.Name = "Terod";
-            Terod.GuildName = string.Empty;
+            Terod.GuildName = "";
             Terod.Realm = eRealm.Hibernia;
             Terod.CurrentRegionID = 181;
             Terod.LoadEquipmentTemplateFromDatabase("Terod");
@@ -123,7 +123,7 @@ namespace DOL.GS.Quests.Hibernia
             Kredril = new GameNPC();
             Kredril.Model = 352;
             Kredril.Name = "Kredril";
-            Kredril.GuildName = string.Empty;
+            Kredril.GuildName = "";
             Kredril.Realm = eRealm.Hibernia;
             Kredril.CurrentRegionID = 181;
             Kredril.LoadEquipmentTemplateFromDatabase("Kredril");
@@ -156,7 +156,7 @@ namespace DOL.GS.Quests.Hibernia
             //Emolia.LoadEquipmentTemplateFromDatabase("Emolia");
             Emolia.Model = 714;
             Emolia.Name = "Emolia";
-            Emolia.GuildName = string.Empty;
+            Emolia.GuildName = "";
             Emolia.Realm = eRealm.Hibernia;
             Emolia.CurrentRegionID = 181;
             Emolia.Size = 50;
@@ -189,7 +189,7 @@ namespace DOL.GS.Quests.Hibernia
 	        Jandros.LoadEquipmentTemplateFromDatabase("d26b8dab-dbdd-4d82-b265-9376cab4deb7");
 	        Jandros.Model = 734;
 	        Jandros.Name = "Jandros";
-	        Jandros.GuildName = string.Empty;
+	        Jandros.GuildName = "";
 	        Jandros.Realm = eRealm.Hibernia;
 	        Jandros.CurrentRegionID = 181;
 	        Jandros.Size = 53;
@@ -307,13 +307,14 @@ namespace DOL.GS.Quests.Hibernia
 			Feairna_Athar = new SINeckBoss();
 			Feairna_Athar.Model = 767;
 			Feairna_Athar.Name = "Feairna-Athar";
-			Feairna_Athar.GuildName = string.Empty;
+			Feairna_Athar.GuildName = "";
 			Feairna_Athar.Realm = eRealm.None;
 			Feairna_Athar.Race = 2007;
 			Feairna_Athar.BodyType = (ushort) NpcTemplateMgr.eBodyType.Plant;
 			Feairna_Athar.CurrentRegionID = 181;
 			Feairna_Athar.Size = 100;
 			Feairna_Athar.Level = 65;
+			Feairna_Athar.WeaponSkillScalingFactor = 80;
 			Feairna_Athar.X = 288348;
 			Feairna_Athar.Y = 319950;
 			Feairna_Athar.Z = 2328;
@@ -384,7 +385,7 @@ namespace DOL.GS.Quests.Hibernia
 			if (existingCopy.Length > 0) return;
 
 			//only try to spawn him once per trigger even if multiple people enter at the same time
-			if (_spawnLock.TryEnter())
+			if (Monitor.TryEnter(spawnLock))
 			{
 				try
 				{
@@ -396,7 +397,7 @@ namespace DOL.GS.Quests.Hibernia
 				}
 				finally
 				{
-					_spawnLock.Exit();
+					Monitor.Exit(spawnLock);
 				}
 			}
 			else
@@ -405,7 +406,7 @@ namespace DOL.GS.Quests.Hibernia
 			}
 		}
 
-		private static readonly Lock _spawnLock = new();
+		static object spawnLock = new object();
 
 		protected static void TalkToTerod(DOLEvent e, object sender, EventArgs args)
 		{

@@ -2,6 +2,7 @@ using System;
 using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
@@ -18,7 +19,7 @@ namespace DOL.GS.Spells
                 return;
             }
 
-            if (target.EffectList.GetOfType<ChargeEffect>() != null || target.TempProperties.GetProperty<bool>("Charging"))
+            if (target.EffectList.GetOfType<ChargeEffect>() != null || target.TempProperties.GetProperty("Charging", false))
             {
                 MessageToCaster(target.Name + " is moving too fast for this spell to have any effect!", eChatType.CT_SpellResisted);
                 return;
@@ -71,7 +72,7 @@ namespace DOL.GS.Spells
             if (Spell.SpellType != eSpellType.StyleStun)
             {
                 // capping duration adjustment to 100%, live cap unknown - Tolakram
-                double hitChance = Math.Min(200, CalculateToHitChance(target));
+                int hitChance = Math.Min(200, CalculateToHitChance(target));
 
                 if (hitChance <= 0)
                 {
@@ -79,20 +80,20 @@ namespace DOL.GS.Spells
                 }
                 else if (hitChance < 55)
                 {
-                    duration -= duration * (55 - hitChance) * 0.01;
+                    duration -= (int)(duration * (55 - hitChance) * 0.01);
                 }
                 else if (hitChance > 100)
                 {
-                    duration += duration * (hitChance - 100) * 0.01;
+                    duration += (int)(duration * (hitChance - 100) * 0.01);
                 }
             }
 
             return (int)duration;
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
-            double resistChance;
+            int resistChance;
 
             /*
             GameSpellEffect fury = SpellHandler.FindEffectOnTarget(target, "Fury");
@@ -110,10 +111,10 @@ namespace DOL.GS.Spells
             if (HasPositiveEffect)
                 return 0;
 
-            double hitChance = CalculateToHitChance(target);
+            int hitchance = CalculateToHitChance(target);
 
             // Calculate the resist chance.
-            resistChance = 100 - hitChance;
+            resistChance = 100 - hitchance;
 
             if (resistChance > 100)
                 resistChance = 100;
@@ -121,6 +122,8 @@ namespace DOL.GS.Spells
             // Use ResurrectHealth = 1 if the CC should not be resisted.
             if (Spell.ResurrectHealth == 1)
                 resistChance = 0;
+            else if (resistChance < 1)
+                resistChance = 1;
 
             return resistChance;
         }
@@ -131,9 +134,12 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Mezz
     /// </summary>
-    [SpellHandler(eSpellType.Mesmerize)]
+    [SpellHandlerAttribute("Mesmerize")]
     public class MesmerizeSpellHandler : AbstractCCSpellHandler
     {
+        public const int FLUTE_MEZ_END_OF_CAST_MESSAGE_INTERVAL = 2000;
+        public long FluteMezLastEndOfCastMessage { get; set; } // Flute mez should probably have its own spell handler.
+
         public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)
         {
             return new MezECSGameEffect(initParams);
@@ -167,7 +173,7 @@ namespace DOL.GS.Spells
                 earlyResist = true;
             }
 
-            if (target is GameNPC && target.HealthPercent < 75)
+            if (target is GameNPC && target is not MimicNPC && target.HealthPercent < 75)
             {
                 MessageToCaster("Your target is enraged and resists the spell!", eChatType.CT_System);
                 earlyResist = true;
@@ -218,7 +224,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Stun
     /// </summary>
-    [SpellHandler(eSpellType.Stun)]
+    [SpellHandlerAttribute("Stun")]
     public class StunSpellHandler : AbstractCCSpellHandler
     {
         public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)

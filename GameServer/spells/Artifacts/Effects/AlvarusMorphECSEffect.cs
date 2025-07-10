@@ -4,6 +4,7 @@ public class AlvarusMorphECSEffect : MorphECSEffect
 {
     public AlvarusMorphECSEffect(ECSGameEffectInitParams initParams) : base(initParams)
     {
+        TickInterval = 500;
         NextTick = GameLoop.GameLoopTime;
         this.EffectType = eEffect.Morph;
         EffectService.RequestStartEffect(this);

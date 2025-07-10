@@ -12,7 +12,7 @@ namespace DOL.GS.Spells
 	//http://www.camelotherald.com/masterlevels/ma.php?ml=Convoker
 	//no shared timer
 	#region Convoker-1
-	[SpellHandler(eSpellType.SummonWood)]
+	[SpellHandlerAttribute("SummonWood")]
 	public class SummonWoodSpellHandler : SummonItemSpellHandler
 	{
 		public SummonWoodSpellHandler(GameLiving caster, Spell spell, SpellLine line)
@@ -37,7 +37,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-2
-	[SpellHandler(eSpellType.PrescienceNode)]
+	[SpellHandlerAttribute("PrescienceNode")]
 	public class PrescienceNodeSpellHandler : FontSpellHandler
 	{
 		// constructor
@@ -84,7 +84,7 @@ namespace DOL.GS.Spells
 			heal = ScriptMgr.CreateSpellHandler(m_caster, s, sl);
 		}
 	}
-	[SpellHandler(eSpellType.Prescience)]
+	[SpellHandlerAttribute("Prescience")]
 	public class PrescienceSpellHandler : SpellHandler
 	{
 		public override bool IsOverwritable(ECSGameSpellEffect compare)
@@ -113,7 +113,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-3
-	[SpellHandler(eSpellType.PowerTrap)]
+	[SpellHandlerAttribute("PowerTrap")]
 	public class PowerTrapSpellHandler : MineSpellHandler
 	{
 		// constructor
@@ -161,7 +161,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-4
-	[SpellHandler(eSpellType.SpeedWrapWard)]
+	[SpellHandlerAttribute("SpeedWrapWard")]
 	public class SpeedWrapWardSpellHandler : FontSpellHandler
 	{
 		// constructor
@@ -209,14 +209,13 @@ namespace DOL.GS.Spells
 			heal = ScriptMgr.CreateSpellHandler(m_caster, s, sl);
 		}
 	}
-	[SpellHandler(eSpellType.SpeedWrap)]
+	[SpellHandlerAttribute("SpeedWrap")]
 	public class SpeedWrapSpellHandler : SpellHandler
 	{
-		public override double CalculateSpellResistChance(GameLiving target)
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}
-
 		public override void OnEffectStart(GameSpellEffect effect)
 		{
 			base.OnEffectStart(effect);
@@ -235,13 +234,13 @@ namespace DOL.GS.Spells
 
 	//shared timer 1
 	#region Convoker-5
-	[SpellHandler(eSpellType.SummonWarcrystal)]
+	[SpellHandlerAttribute("SummonWarcrystal")]
 	public class SummonWarcrystalSpellHandler : SummonItemSpellHandler
 	{
 		public SummonWarcrystalSpellHandler(GameLiving caster, Spell spell, SpellLine line)
 			: base(caster, spell, line)
 		{
-			string ammo = string.Empty;
+			string ammo = "";
 			switch (Util.Random(1, 2))
 			{
 				case 1:
@@ -271,7 +270,7 @@ namespace DOL.GS.Spells
 
 	//shared timer 1
 	#region Convoker-6
-	[SpellHandler(eSpellType.Battlewarder)]
+	[SpellHandlerAttribute("Battlewarder")]
 	public class BattlewarderSpellHandler : SpellHandler
 	{
 		private GameNPC warder;
@@ -386,7 +385,7 @@ namespace DOL.GS.Spells
 			warder.Name = "Battle Warder";
 			warder.Model = 993;
 			warder.MaxSpeedBase = 0;
-			warder.GuildName = string.Empty;
+			warder.GuildName = "";
 			warder.Size = 50;
 		}
 	}
@@ -394,7 +393,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-7
-	[SpellHandler(eSpellType.DissonanceTrap)]
+	[SpellHandlerAttribute("DissonanceTrap")]
 	public class DissonanceTrapSpellHandler : MineSpellHandler
 	{
 		// constructor
@@ -442,7 +441,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-8
-	[SpellHandler(eSpellType.BrittleGuard)]
+	[SpellHandler("BrittleGuard")]
 	public class BrittleGuardSpellHandler : MasterlevelHandling
 	{
 		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -534,7 +533,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-9
-	[SpellHandler(eSpellType.SummonMastery)]
+	[SpellHandlerAttribute("SummonMastery")]
 	public class Convoker9Handler : MasterlevelHandling
 		//public class Convoker9Handler : MasterlevelBuffHandling
 	{
@@ -597,7 +596,7 @@ namespace DOL.GS.Spells
 
 	//no shared timer
 	#region Convoker-10
-	[SpellHandler(eSpellType.SummonTitan)]
+	[SpellHandler("SummonTitan")]
 	public class Convoker10SpellHandler : MasterlevelHandling
 	{
 		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -726,7 +725,7 @@ namespace DOL.GS.Spells
 			return 0;
 		}
 
-		public override double CalculateSpellResistChance(GameLiving target)
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}

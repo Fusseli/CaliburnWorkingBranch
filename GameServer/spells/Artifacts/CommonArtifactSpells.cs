@@ -1,3 +1,22 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
+
 using DOL.AI.Brain;
 using DOL.GS.Effects;
 
@@ -6,14 +25,13 @@ namespace DOL.GS.Spells
     /// <summary>
     /// All stats debuff spell handler
     /// </summary>
-    [SpellHandler(eSpellType.AllStatsDebuff)]
+    [SpellHandlerAttribute("AllStatsDebuff")]
     public class AllStatsDebuff : SpellHandler
     {
-		public override double CalculateSpellResistChance(GameLiving target)
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}
-
         public override void OnEffectStart(GameSpellEffect effect)
         {    
      		base.OnEffectStart(effect);            
@@ -33,7 +51,7 @@ namespace DOL.GS.Spells
             {
             	GamePlayer player = effect.Owner as GamePlayer;  
                 player.Out.SendCharStatsUpdate();
-                player.UpdateEncumbrance();
+                player.UpdateEncumberance();
                 player.UpdatePlayerStatus();
             	player.Out.SendUpdatePlayer();             	
             }
@@ -56,7 +74,7 @@ namespace DOL.GS.Spells
             {
             	GamePlayer player = effect.Owner as GamePlayer;    
                 player.Out.SendCharStatsUpdate();
-                player.UpdateEncumbrance();
+                player.UpdateEncumberance();
                 player.UpdatePlayerStatus();
             	player.Out.SendUpdatePlayer();  
             }                       
@@ -89,14 +107,13 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Lore debuff spell handler (Magic resist debuff)
     /// </summary>
-    [SpellHandler(eSpellType.LoreDebuff)]
+    [SpellHandlerAttribute("LoreDebuff")]
     public class LoreDebuff : SpellHandler
     {
- 		public override double CalculateSpellResistChance(GameLiving target)
+ 		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}
-
         public override void OnEffectStart(GameSpellEffect effect)
         {
         	base.OnEffectStart(effect);      
@@ -159,14 +176,13 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Strength/Constitution drain spell handler
     /// </summary>
-    [SpellHandler(eSpellType.StrengthConstitutionDrain)]
+    [SpellHandlerAttribute("StrengthConstitutionDrain")]
     public class StrengthConstitutionDrain : StrengthConDebuff
-    {
-		public override double CalculateSpellResistChance(GameLiving target)
+    {  	
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}
-
         public override void OnEffectStart(GameSpellEffect effect)
         {
         	base.OnEffectStart(effect);         
@@ -177,7 +193,7 @@ namespace DOL.GS.Spells
             {
             	GamePlayer player = Caster as GamePlayer;          	
              	player.Out.SendCharStatsUpdate(); 
-             	player.UpdateEncumbrance();
+             	player.UpdateEncumberance();
              	player.UpdatePlayerStatus();
             } 
         }
@@ -191,7 +207,7 @@ namespace DOL.GS.Spells
             {
             	GamePlayer player = Caster as GamePlayer;          	
              	player.Out.SendCharStatsUpdate(); 
-             	player.UpdateEncumbrance();
+             	player.UpdateEncumberance();
              	player.UpdatePlayerStatus();
             } 
             return base.OnEffectExpires(effect,noMessages);
@@ -203,7 +219,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// ABS Damage shield spell handler
     /// </summary>
-    [SpellHandler(eSpellType.ABSDamageShield)]
+    [SpellHandlerAttribute("ABSDamageShield")]
     public class ABSDamageShield : AblativeArmorSpellHandler
     {
         public override void OnDamageAbsorbed(AttackData ad, int DamageAmount)
@@ -225,7 +241,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Morph spell handler
     /// </summary>
-    [SpellHandler(eSpellType.Morph)]
+    [SpellHandlerAttribute("Morph")]
     public class Morph : SpellHandler
     {
         public override void OnEffectStart(GameSpellEffect effect)
@@ -256,7 +272,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Arcane leadership spell handler (range+resist pierce)
     /// </summary>
-    [SpellHandler(eSpellType.ArcaneLeadership)]
+    [SpellHandlerAttribute("ArcaneLeadership")]
     public class ArcaneLeadership : CloudsongAuraSpellHandler
     {
     	public ArcaneLeadership(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

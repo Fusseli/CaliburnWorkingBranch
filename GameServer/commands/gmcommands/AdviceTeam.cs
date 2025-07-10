@@ -17,7 +17,7 @@ namespace DOL.GS.Commands
             if (IsSpammingCommand(client.Player, "adviceteam"))
                 return;
 
-            string msg = string.Empty;
+            string msg = "";
 
             if (args.Length >= 2)
             {

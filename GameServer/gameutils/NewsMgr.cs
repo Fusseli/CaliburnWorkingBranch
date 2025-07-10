@@ -44,7 +44,7 @@ namespace DOL.GS
             for (int type = 0; type <= 2; type++)
             {
                 int index = 0;
-                string realm = string.Empty;
+                string realm = "";
                 //we can see all captures
                 IList<DbNews> newsList;
 

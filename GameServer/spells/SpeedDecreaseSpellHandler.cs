@@ -8,33 +8,16 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Spell handler for speed decreasing spells
 	/// </summary>
-	[SpellHandler(eSpellType.SpeedDecrease)]
+	[SpellHandler("SpeedDecrease")]
 	public class SpeedDecreaseSpellHandler : UnbreakableSpeedDecreaseSpellHandler
 	{
+		private bool crit = false;
 		public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)
 		{
+			if (crit)
+				initParams.Effectiveness *= 2; //critical hit effectiveness needs to be set after duration is calculated to prevent double duration
+
 			return new StatDebuffECSEffect(initParams);
-		}
-
-		protected override double GetDebuffEffectivenessCriticalModifier()
-		{
-			int criticalChance = Caster.DebuffCriticalChance;
-
-			if (criticalChance <= 0)
-				return 1.0;
-
-			int randNum = Util.CryptoNextInt(0, 100);
-			int critCap = Math.Min(50, criticalChance);
-			GamePlayer playerCaster = Caster as GamePlayer;
-
-			if (playerCaster?.UseDetailedCombatLog == true && critCap > 0)
-				playerCaster.Out.SendMessage($"Debuff crit chance: {critCap} random: {randNum}", eChatType.CT_DamageAdd, eChatLoc.CL_SystemWindow);
-
-			if (critCap <= randNum)
-				return 1.0;
-
-			playerCaster?.Out.SendMessage($"Your snare is doubly effective!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
-			return 2.0;
 		}
 
 		public override void ApplyEffectOnTarget(GameLiving target)
@@ -48,6 +31,7 @@ namespace DOL.GS.Spells
 				OnSpellResisted(target);
 				return;
 			}
+
 
 			//check for existing effect
 			// var debuffs = target.effectListComponent.GetSpellEffects(eEffect.MovementSpeedDebuff);
@@ -65,6 +49,24 @@ namespace DOL.GS.Spells
 			// 	}
 			// }
 
+			int criticalChance = Caster.DebuffCriticalChance;
+
+			if (criticalChance > 0)
+			{
+				int randNum = Util.CryptoNextInt(0, 100);
+				int critCap = Math.Min(50, criticalChance);
+				GamePlayer playerCaster = Caster as GamePlayer;
+
+				if (playerCaster?.UseDetailedCombatLog == true && critCap > 0)
+					playerCaster.Out.SendMessage($"Debuff crit chance: {critCap} random: {randNum}", eChatType.CT_DamageAdd, eChatLoc.CL_SystemWindow);
+
+				if (critCap > randNum)
+				{
+					crit = true;
+					playerCaster?.Out.SendMessage($"Your snare is doubly effective!", eChatType.CT_YouHit, eChatLoc.CL_SystemWindow);
+				}
+			}
+			
 			base.ApplyEffectOnTarget(target);
 		}
 
@@ -76,7 +78,7 @@ namespace DOL.GS.Spells
 		public override void OnEffectStart(GameSpellEffect effect)
 		{
 			// Cannot apply if the effect owner has a charging effect
-			if (effect.Owner.EffectList.GetOfType<ChargeEffect>() != null || effect.Owner.effectListComponent.Effects.ContainsKey(eEffect.SpeedOfSound) || effect.Owner.TempProperties.GetProperty<bool>("Charging"))
+			if (effect.Owner.EffectList.GetOfType<ChargeEffect>() != null || effect.Owner.effectListComponent.Effects.ContainsKey(eEffect.SpeedOfSound) || effect.Owner.TempProperties.GetProperty("Charging", false))
 			{
 				MessageToCaster(effect.Owner.Name + " is moving too fast for this spell to have any effect!", eChatType.CT_SpellResisted);
 				return;
@@ -88,7 +90,10 @@ namespace DOL.GS.Spells
 			ECSGameEffect mezz = EffectListService.GetEffectOnTarget(effect.Owner, eEffect.Mez);
 			if (mezz != null)
 				EffectService.RequestImmediateCancelEffect(mezz);
-				//mezz.Cancel(false);
+			//mezz.Cancel(false);
+
+			if (Spell.Value == 99)
+				effect.Owner.IsRooted = true;
 		}
 
 		/// <summary>
@@ -100,6 +105,9 @@ namespace DOL.GS.Spells
 		/// <returns>immunity duration in milliseconds</returns>
 		public override int OnEffectExpires(GameSpellEffect effect, bool noMessages)
 		{
+			if (effect.Owner.IsRooted)
+				effect.Owner.IsRooted = false;
+
 			GameEventMgr.RemoveHandler(effect.Owner, GameLivingEvent.AttackedByEnemy, new DOLEventHandler(OnAttacked));
 			return base.OnEffectExpires(effect, noMessages);
 		}

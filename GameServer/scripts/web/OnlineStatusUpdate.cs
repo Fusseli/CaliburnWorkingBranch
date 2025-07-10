@@ -204,12 +204,12 @@ namespace DOL.GS.GameEvents
 		{
 			string[] failed = new string[6];
 			int count = 0;
-			if (UserName == string.Empty || UserName == "null")
+			if (UserName == "" || UserName == "null")
 			{
 				failed[count] = "Username";
 				count++;
 			}
-			if (Password == string.Empty || Password == "null")
+			if (Password == "" || Password == "null")
 			{
 				failed[count] = "Password";
 				count++;

@@ -18,7 +18,7 @@
  */
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.Traldor)]
+    [SpellHandler("Traldor")]
     public class TraldorSpellHandler : DualStatBuff
     {
         public TraldorSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line)

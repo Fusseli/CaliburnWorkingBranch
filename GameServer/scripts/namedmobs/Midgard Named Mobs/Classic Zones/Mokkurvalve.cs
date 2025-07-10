@@ -210,7 +210,9 @@ namespace DOL.GS
 			base.AddToWorld();
 			return true;
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override long ExperienceValue => 0;
 	}
 }

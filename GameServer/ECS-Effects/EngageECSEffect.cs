@@ -5,7 +5,7 @@ namespace DOL.GS
 {
     public class EngageECSGameEffect : ECSGameAbilityEffect
     {
-        private bool _manualCancel;
+        private bool _startAttackAfterCancel;
 
         public GameLiving EngageTarget { get; set; }
         public override ushort Icon => 421;
@@ -13,12 +13,10 @@ namespace DOL.GS
         {
             get
             {
-                GamePlayer player = Owner as GamePlayer;
-
                 if (EngageTarget != null)
-                    return LanguageMgr.GetTranslation(player.Client, "Effects.EngageEffect.EngageName", EngageTarget.GetName(0, false));
+                    return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Effects.EngageEffect.EngageName", EngageTarget.GetName(0, false));
 
-                return LanguageMgr.GetTranslation(player.Client, "Effects.EngageEffect.Name");
+                return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Effects.EngageEffect.Name");
             }
         }
         public override bool HasPositiveEffect => true;
@@ -33,7 +31,9 @@ namespace DOL.GS
         {
             EngageTarget = Owner.TargetObject as GameLiving;
             Owner.IsEngaging = true;
-            OwnerPlayer?.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.ConcOnBlockingX", EngageTarget.GetName(0, false)), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
+            if (OwnerPlayer != null)
+                OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.ConcOnBlockingX", EngageTarget.GetName(0, false)), eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
             // Only emulate attack mode so it works more like on live servers.
             // Entering real attack mode while engaging someone stops engage.
@@ -49,26 +49,25 @@ namespace DOL.GS
 
         public override void OnStopEffect()
         {
-            if (OwnerPlayer != null)
-            {
-                if (_manualCancel)
-                    OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.YouNoConcOnBlock"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
-                else
-                    OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.YouNoAttemptToEngageT"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
-            }
-
             Owner.IsEngaging = false;
 
-            if (Owner.TargetObject != null)
-                Owner.attackComponent.RequestStartAttack();
-            else
-                Owner.attackComponent.StopAttack();
+            if (_startAttackAfterCancel)
+                Owner.attackComponent.RequestStartAttack(Owner.TargetObject);
         }
 
         public void Cancel(bool manualCancel, bool startAttackAfterCancel)
         {
-            _manualCancel = manualCancel;
+            _startAttackAfterCancel = startAttackAfterCancel;
             EffectService.RequestImmediateCancelEffect(this, manualCancel);
+
+
+            if (OwnerPlayer != null)
+            {
+                if (manualCancel)
+                    OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.YouNoConcOnBlock"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                else
+                    OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.EngageEffect.YouNoAttemptToEngageT"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            }
         }
     }
 }

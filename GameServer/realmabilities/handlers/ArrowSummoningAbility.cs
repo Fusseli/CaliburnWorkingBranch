@@ -53,7 +53,7 @@ namespace DOL.GS.RealmAbilities
 		{
 			GamePlayer player = sender as GamePlayer;
 			if (player == null) return;		
-			lock (player.Inventory.Lock)
+			lock (player.Inventory.LockObject)
 			{
                 DbInventoryItem item = player.Inventory.GetFirstItemByID("arrow_summoning1", eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
 				while (item != null)

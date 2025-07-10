@@ -25,7 +25,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// This pet is purely aesthetic and can't be cast in RvR zones
     /// </summary>
-    [SpellHandler(eSpellType.SummonNoveltyPet)]
+    [SpellHandler("SummonNoveltyPet")]
     public class SummonNoveltyPet : SummonSpellHandler
     {
         /// <summary>
@@ -58,7 +58,7 @@ namespace DOL.GS.Spells
                 return false;
             }
 
-			if (Caster.TempProperties.GetProperty<bool>(NoveltyPetBrain.HAS_PET))
+			if (Caster.TempProperties.GetProperty<bool>(NoveltyPetBrain.HAS_PET, false))
 			{
 				// no message
 				MessageToCaster("You already have a pet by your side!", PacketHandler.eChatType.CT_SpellResisted);

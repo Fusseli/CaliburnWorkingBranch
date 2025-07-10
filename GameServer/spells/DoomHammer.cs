@@ -3,7 +3,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.DoomHammer)]
+	[SpellHandlerAttribute("DoomHammer")]
 	public class DoomHammerSpellHandler : DirectDamageSpellHandler
 	{
 		public override bool CheckBeginCast(GameLiving selectedTarget)

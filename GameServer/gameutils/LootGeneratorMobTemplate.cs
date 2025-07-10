@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using DOL.Database;
 using DOL.AI.Brain;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -239,9 +240,11 @@ namespace DOL.GS
 
 			try
 			{
-				GamePlayer player = killer as GamePlayer;
+				IGamePlayer player = killer as IGamePlayer;
+
 				if (killer is GameNPC && ((GameNPC)killer).Brain is IControlledBrain)
-					player = ((ControlledMobBrain)((GameNPC)killer).Brain).GetPlayerOwner();
+					player = ((ControlledMobBrain)((GameNPC)killer).Brain).GetIPlayerOwner();
+
 				if (player == null)
 					return loot;
 
@@ -315,7 +318,7 @@ namespace DOL.GS
 		/// <param name="lootList">List to hold loot.</param>
 		/// <param name="player">Player used to determine realm</param>
 		/// <returns>lootList (for readability)</returns>
-		private static LootList GenerateLootFromMobXLootTemplates(DbMobDropTemplate mobXLootTemplates, List<DbDropTemplateXItemTemplate> lootTemplates, LootList lootList, GamePlayer player)
+		private static LootList GenerateLootFromMobXLootTemplates(DbMobDropTemplate mobXLootTemplates, List<DbDropTemplateXItemTemplate> lootTemplates, LootList lootList, IGamePlayer player)
 		{
 			if (mobXLootTemplates == null || lootTemplates == null || player == null)
 				return lootList;

@@ -1,4 +1,3 @@
-using DOL.AI;
 using DOL.Database;
 
 namespace DOL.GS
@@ -6,7 +5,8 @@ namespace DOL.GS
     public class DisplayModel : GameNPC
     {
         private GamePlayer m_displayedPlayer;
-
+        
+        
         public DisplayModel(GamePlayer player, DbInventoryItem item)
         {
             m_displayedPlayer = player;
@@ -39,12 +39,6 @@ namespace DOL.GS
             }
             
             this.Inventory = template.CloseTemplate();
-        }
-
-        public override ABrain SetOwnBrain(ABrain brain)
-        {
-            // Every created NPC receives a default brain trough this method.
-            return null;
         }
 
         public override bool Interact(GamePlayer player)

@@ -34,12 +34,12 @@ namespace DOL.GS
 			}
 		}
 
-		public override int SLOT_OFFSET
-		{
-			get
-			{
-				return 0;
-			}
-		}
-	}
+        public override int SLOT_OFFSET
+        {
+            get
+            {
+                return 0;
+            }
+        }
+    }
 }

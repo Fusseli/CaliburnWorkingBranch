@@ -25,7 +25,7 @@ using DOL.GS.Effects;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.TraitorsDaggerProc)]
+	[SpellHandlerAttribute("TraitorsDaggerProc")]
 	public class TraitorsDaggerProc : OffensiveProcSpellHandler
 	{
 		public override void OnEffectStart(GameSpellEffect effect)
@@ -65,7 +65,7 @@ namespace DOL.GS.Spells
 		public TraitorsDaggerProc(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
 	}
 
-    [SpellHandler(eSpellType.DdtProcDd)]
+    [SpellHandler("DdtProcDd")]
     public class DdtProcDd:DirectDamageSpellHandler
     {
         public DdtProcDd(GameLiving caster,Spell spell,SpellLine line) : base(caster,spell,line) { }
@@ -77,7 +77,7 @@ namespace DOL.GS.Spells
         }
     }
 
-    [SpellHandler(eSpellType.TraitorsDaggerSummon)]
+    [SpellHandler("TraitorsDaggerSummon")]
     public class TraitorsDaggerSummon : SummonSpellHandler
     {
         private ISpellHandler _trap;

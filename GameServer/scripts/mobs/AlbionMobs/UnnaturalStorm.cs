@@ -252,28 +252,26 @@ namespace DOL.AI.Brain
 		{
 			uint hour = WorldMgr.GetCurrentGameTime() / 1000 / 60 / 60;
 			uint minute = WorldMgr.GetCurrentGameTime() / 1000 / 60 % 60;
-
-			if (hour >= 7 && hour < 18)
+			//log.Warn("Current time: " + hour + ":" + minute);
+			foreach (GameNPC npc in Body.GetNPCsInRadius(8000))
 			{
-				foreach (GameNPC npc in Body.GetNPCsInRadius(WorldMgr.VISIBILITY_DISTANCE))
+				if (npc != null && npc.IsAlive && npc.Brain is UnnaturalStormBrain brain)
 				{
-					if (npc.IsAlive && npc.Brain is UnnaturalStormBrain brain)
+					if (!brain.HasAggro && hour >= 7 && hour < 18)
 					{
-						if (!brain.HasAggro)
-						{
-							npc.RemoveFromWorld();
+						npc.RemoveFromWorld();
 
-							foreach (GameNPC adds in Body.GetNPCsInRadius(WorldMgr.VISIBILITY_DISTANCE))
-							{
-								if (adds.IsAlive && adds.Brain is UnnaturalStormAddsBrain)
-									adds.RemoveFromWorld();
-							}
+						foreach (GameNPC adds in Body.GetNPCsInRadius(8000))
+						{
+							if (adds != null && adds.IsAlive && adds.Brain is UnnaturalStormAddsBrain)
+								adds.RemoveFromWorld();
 						}
 					}
 				}
 			}
-			else if (hour == 18 && minute == 30)
+			if (hour == 18 && minute == 30)
 				SpawnUnnaturalStorm();
+			
 		}
 
 		public override void KillFSM()

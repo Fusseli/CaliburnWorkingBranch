@@ -28,7 +28,7 @@ namespace DOL.GS.Spells
 	/// power).
 	/// </summary>
 	/// <author>Aredhel</author>
-	[SpellHandler(eSpellType.PowerDrain)]
+	[SpellHandlerAttribute("PowerDrain")]
 	public class PowerDrain : DirectDamageSpellHandler
 	{
 		public override void OnDirectEffect(GameLiving target)

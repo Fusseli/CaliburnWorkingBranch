@@ -6,7 +6,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	///
 	/// </summary>
-	[SpellHandler(eSpellType.PowerHeal)]
+	[SpellHandlerAttribute("PowerHeal")]
 	public class PowerHealSpellHandler : SpellHandler
 	{
 		// constructor

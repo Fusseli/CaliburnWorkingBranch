@@ -1,4 +1,5 @@
 ﻿using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.Language;
 
 namespace DOL.GS
@@ -15,7 +16,17 @@ namespace DOL.GS
         public const int DURATION = 3000;
 
         public override ushort Icon { get { return 0x0190; } }
-        public override string Name { get { return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Effects.QuickCastEffect.Name"); } }
+        public override string Name 
+        { 
+            get 
+            {
+                if (OwnerPlayer != null)
+                    return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Effects.QuickCastEffect.Name");
+                else
+                    return "Quickcast";
+            } 
+        }
+
         public override bool HasPositiveEffect { get { return true; } }
         public override long GetRemainingTimeForClient() { { return 0; } }
 

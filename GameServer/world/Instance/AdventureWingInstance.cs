@@ -18,6 +18,7 @@
  */
 
 using DOL.Database;
+using DOL.GS.Scripts;
 using log4net;
 
 namespace DOL.GS
@@ -53,12 +54,12 @@ namespace DOL.GS
 		/// <summary>
 		/// Player Owner or Group Leader
 		/// </summary>
-		private GamePlayer m_player;
+		private IGamePlayer m_player;
 		
 		/// <summary>
 		/// Player Owner or Group Leader
 		/// </summary>
-		public GamePlayer Player
+		public IGamePlayer Player
         {
             get { return m_player; }
             set { m_player = value; }
@@ -83,7 +84,7 @@ namespace DOL.GS
 			//there is still player inside search for owner or any change.
         	
         	//search vars
-        	GamePlayer arbitraryplayer = null;
+        	IGamePlayer arbitraryplayer = null;
             Group arbitrarygroup = null;
             bool stillOwner = false;
             
@@ -91,7 +92,7 @@ namespace DOL.GS
             if(m_group != null) 
             {
             	// check if group still inside
-				foreach(GamePlayer ininstance in this.PlayersInside) 
+				foreach (IGamePlayer ininstance in this.PlayersInside) 
 				{
 					if(ininstance.Group != null && m_group == ininstance.Group) 
 					{
@@ -99,7 +100,7 @@ namespace DOL.GS
 						stillOwner = true;
 						break;
 					}
-					else if(ininstance.Group != null) 
+					else if (ininstance.Group != null) 
 					{
 						arbitrarygroup = ininstance.Group;
 						arbitraryplayer = ininstance.Group.Leader;
@@ -108,17 +109,18 @@ namespace DOL.GS
             }
             
             // check if player owner is still inside
-            if(!stillOwner && m_player != null)
+            if (!stillOwner && m_player != null)
             {
-            	foreach(GamePlayer ininstance in this.PlayersInside) 
+            	foreach (IGamePlayer ininstance in this.PlayersInside) 
 				{
-					if(ininstance == m_player)
+					if (ininstance == m_player)
 					{
-						if(m_player.Group != null)
+						if (m_player.Group != null)
 						{
 							m_group = m_player.Group;
 							m_player = m_player.Group.Leader;
 						}
+
 						stillOwner = true;
 						break;
 					}
@@ -133,12 +135,12 @@ namespace DOL.GS
             if(!stillOwner) 
             {
             	//give ownership arbitrarly
-            	if(arbitrarygroup != null)
+            	if (arbitrarygroup != null)
             	{
             		m_group = arbitrarygroup;
             		m_player = arbitrarygroup.Leader;
             	}
-            	else if(arbitraryplayer != null)
+            	else if (arbitraryplayer != null)
             	{
             		m_group = null;
 					m_player = arbitraryplayer;
@@ -155,7 +157,7 @@ namespace DOL.GS
 			base.LoadFromDatabase(mobObjs, ref mobCount, ref merchantCount, ref itemCount, ref bindCount);
 			
 			// Set respawn to false
-			foreach(GameNPC mob in GetMobsInsideInstance(true))
+			foreach (GameNPC mob in GetMobsInsideInstance(true))
 			{
 				mob.RespawnInterval = -1;
 			}
@@ -184,7 +186,7 @@ namespace DOL.GS
             //Decrease the amount of players
             base.OnPlayerLeaveInstance(player);
             	
-            if(this.NumPlayers > 0) 
+            if (this.NumPlayers > 0) 
             {
             	UpdateInstanceOwner();
             }

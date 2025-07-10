@@ -7,7 +7,7 @@ using DOL.Language;
 namespace DOL.GS.Commands
 {
 	[CmdAttribute("&jump",
-		ePrivLevel.GM,
+		ePrivLevel.Player,
 		"GMCommands.Jump.Description",
 		"GMCommands.Jump.Information",
 		"GMCommands.Jump.Usage.ToPlayerName",
@@ -346,7 +346,7 @@ namespace DOL.GS.Commands
 				{
 					Stack<GameLocation> locations;
 
-					locations = client.Player.TempProperties.GetProperty<Stack<GameLocation>>(TEMP_KEY_JUMP);
+					locations = client.Player.TempProperties.GetProperty<Stack<GameLocation>>(TEMP_KEY_JUMP, null);
 
 					if (locations == null)
 					{
@@ -369,7 +369,7 @@ namespace DOL.GS.Commands
 				{
 					Stack<GameLocation> locations;
 
-					locations = client.Player.TempProperties.GetProperty<Stack<GameLocation>>(TEMP_KEY_JUMP);
+					locations = client.Player.TempProperties.GetProperty<Stack<GameLocation>>(TEMP_KEY_JUMP, null);
 
 					if (locations == null || locations.Count < 1)
 					{

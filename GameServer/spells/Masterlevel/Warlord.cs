@@ -1,3 +1,22 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
+
 using System.Collections.Generic;
 using DOL.AI.Brain;
 using DOL.GS.Effects;
@@ -12,7 +31,7 @@ namespace DOL.GS.Spells
 
     //shared timer 1 for 2 - shared timer 4 for 8
     #region Warlord-2/8
-    [SpellHandler(eSpellType.PBAEHeal)]
+    [SpellHandlerAttribute("PBAEHeal")]
     public class PBAEHealHandler : MasterlevelHandling
     {
         public override void FinishSpellCast(GameLiving target)
@@ -99,10 +118,10 @@ namespace DOL.GS.Spells
 
     //shared timer 2
     #region Warlord-3
-    [SpellHandler(eSpellType.CoweringBellow)]
+    [SpellHandlerAttribute("CoweringBellow")]
     public class CoweringBellowSpellHandler : FearSpellHandler
     {
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -126,7 +145,7 @@ namespace DOL.GS.Spells
 
     //shared timer 3
     #region Warlord-5
-    [SpellHandler(eSpellType.Critical)]
+    [SpellHandlerAttribute("Critical")]
     public class CriticalDamageBuff : MasterlevelDualBuffHandling
     {
         public override eProperty Property1 { get { return eProperty.CriticalSpellHitChance; } }
@@ -140,7 +159,7 @@ namespace DOL.GS.Spells
 
     //shared timer 3
     #region Warlord-7
-    [SpellHandler(eSpellType.CleansingAura)]
+    [SpellHandlerAttribute("CleansingAura")]
     public class CleansingAurauraSpellHandler : SpellHandler
     {
         public override bool IsOverwritable(ECSGameSpellEffect compare)
@@ -154,7 +173,7 @@ namespace DOL.GS.Spells
 
     //shared timer 5
     #region Warlord-9
-    [SpellHandler(eSpellType.EffectivenessBuff)]
+    [SpellHandlerAttribute("EffectivenessBuff")]
     public class EffectivenessBuff : MasterlevelHandling
     {
         /// <summary>
@@ -212,7 +231,7 @@ namespace DOL.GS.Spells
 
     //shared timer 5
     #region Warlord-10
-    [SpellHandler(eSpellType.MLABSBuff)]
+    [SpellHandlerAttribute("MLABSBuff")]
     public class MLABSBuff : MasterlevelBuffHandling
     {
         public override eProperty Property1 { get { return eProperty.ArmorAbsorption; } }

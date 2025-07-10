@@ -21,6 +21,7 @@ using System;
 using System.Collections;
 using DOL.Database;
 using System.Collections.Generic;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -34,7 +35,7 @@ namespace DOL.GS
 		/// </summary>
 		/// <param name="player"></param>
 		/// <returns></returns>
-		bool CheckValid(GamePlayer player);
+		bool CheckValid(IGamePlayer player);
 		/// <summary>
 		/// Can this player equip this item
 		/// </summary>
@@ -65,12 +66,12 @@ namespace DOL.GS
 		/// This item is being equipped
 		/// </summary>
 		/// <param name="player"></param>
-		void OnEquipped(GamePlayer player);
+		void OnEquipped(IGamePlayer player);
 		/// <summary>
 		/// This item is being un-equipped
 		/// </summary>
 		/// <param name="player"></param>
-		void OnUnEquipped(GamePlayer player);
+		void OnUnEquipped(IGamePlayer player);
 		/// <summary>
 		/// This item has struck a target
 		/// </summary>

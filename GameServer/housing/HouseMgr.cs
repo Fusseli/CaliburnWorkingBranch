@@ -103,7 +103,7 @@ namespace DOL.GS.Housing
 		/// <returns></returns>
 		public static string LoadHousingForRegion(ushort regionID)
 		{
-			string result = string.Empty;
+			string result = "";
 			var regionHousing = DOLDB<DbHouse>.SelectObjects(DB.Column("RegionID").IsEqualTo(regionID));
 
 			if (regionHousing == null || regionHousing.Count == 0)
@@ -427,9 +427,9 @@ namespace DOL.GS.Housing
 			RemoveHousePermissions(house);
 			ResetHouseData(house);
 
-			house.OwnerID = string.Empty;
+			house.OwnerID = "";
 			house.KeptMoney = 0;
-			house.Name = string.Empty; // not null !
+			house.Name = ""; // not null !
 			house.DatabaseItem.CreationTime = DateTime.Now;
 			house.DatabaseItem.LastPaid = DateTime.MinValue;
 
@@ -574,9 +574,9 @@ namespace DOL.GS.Housing
 			
 			// check every house in every region until we find
 			// a house that belongs to this player
-			foreach (KeyValuePair<ushort, Dictionary<int, House>> regs in _houseList.ToList())
+			foreach (var regs in _houseList.ToList())
 			{
-				foreach (KeyValuePair<int, House> entry in regs.Value.ToList())
+				foreach (var entry in regs.Value.ToList())
 				{
 					var house = entry.Value;
 
@@ -700,6 +700,7 @@ namespace DOL.GS.Housing
 
 			// save the guild and broadcast updates
 			player.Guild.SaveIntoDatabase();
+			player.Guild.UpdateGuildWindow();
 
 			// save the house and broadcast updates
 			playerHouse.SaveIntoDatabase();

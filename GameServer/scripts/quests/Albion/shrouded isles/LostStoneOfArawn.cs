@@ -109,7 +109,7 @@ public class LostStoneofArawn : BaseQuest
             Honaytrt = new GameNPC();
             Honaytrt.Model = 759;
             Honaytrt.Name = "Honayt\'rt";
-            Honaytrt.GuildName = string.Empty;
+            Honaytrt.GuildName = "";
             Honaytrt.Realm = eRealm.Albion;
             Honaytrt.CurrentRegionID = 51;
             Honaytrt.LoadEquipmentTemplateFromDatabase("097fe8c1-7d7e-4b82-a7ca-04a6e192afc1");
@@ -140,7 +140,7 @@ public class LostStoneofArawn : BaseQuest
             Nchever = new GameNPC();
             Nchever.Model = 752;
             Nchever.Name = "N\'chever";
-            Nchever.GuildName = string.Empty;
+            Nchever.GuildName = "";
             Nchever.Realm = eRealm.Albion;
             Nchever.CurrentRegionID = 51;
             Nchever.LoadEquipmentTemplateFromDatabase("a2639e94-f032-4041-ad67-15dfeaf004d2");
@@ -173,7 +173,7 @@ public class LostStoneofArawn : BaseQuest
             Ohonat.LoadEquipmentTemplateFromDatabase("a58ef747-80e0-4cda-9052-15711ea0f4f7");
             Ohonat.Model = 761;
             Ohonat.Name = "O\'honat";
-            Ohonat.GuildName = string.Empty;
+            Ohonat.GuildName = "";
             Ohonat.Realm = eRealm.Albion;
             Ohonat.CurrentRegionID = 51;
             Ohonat.Size = 52;
@@ -312,13 +312,14 @@ public class LostStoneofArawn : BaseQuest
         Nyaegha.LoadEquipmentTemplateFromDatabase("Nyaegha");
         Nyaegha.Model = 605;
         Nyaegha.Name = "Nyaegha";
-        Nyaegha.GuildName = string.Empty;
+        Nyaegha.GuildName = "";
         Nyaegha.Realm = eRealm.None;
         Nyaegha.Race = 2001;
         Nyaegha.BodyType = (ushort) NpcTemplateMgr.eBodyType.Demon;
         Nyaegha.CurrentRegionID = 51;
         Nyaegha.Size = 150;
         Nyaegha.Level = 65;
+        Nyaegha.WeaponSkillScalingFactor = 80;
         Nyaegha.X = 348381;
         Nyaegha.Y = 479838;
         Nyaegha.Z = 3320;
@@ -390,7 +391,7 @@ public class LostStoneofArawn : BaseQuest
         if (existingCopy.Length > 0) return;
 
         //only try to spawn him once per trigger even if multiple people enter at the same time
-        if (_spawnLock.TryEnter())
+        if (Monitor.TryEnter(spawnLock))
         {
             try
             {
@@ -402,7 +403,7 @@ public class LostStoneofArawn : BaseQuest
             }
             finally
             {
-                _spawnLock.Exit();
+                Monitor.Exit(spawnLock);
             }
         }
         else
@@ -411,8 +412,7 @@ public class LostStoneofArawn : BaseQuest
         }
     }
 
-    private static readonly Lock _spawnLock = new();
-
+    static object spawnLock = new object();
     private static void TalkToHonaytrt(DOLEvent e, object sender, EventArgs args)
     {
         //We get the player from the event arguments and check if he qualifies		

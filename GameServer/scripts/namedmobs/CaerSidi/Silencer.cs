@@ -164,7 +164,7 @@ namespace DOL.AI.Brain
             AggroLevel = 100;
             AggroRange = 500;
             ThinkInterval = 5000;
-            CanBaf = false;
+            CanBAF = false;
         }
         private bool ClearAttackers = false;
         public override void Think()

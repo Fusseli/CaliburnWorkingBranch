@@ -6,7 +6,7 @@ using DOL.Language;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.Chamber)]
+	[SpellHandlerAttribute("Chamber")]
 	public class ChamberSpellHandler : SpellHandler
 	{
 		private Spell m_primaryspell = null;

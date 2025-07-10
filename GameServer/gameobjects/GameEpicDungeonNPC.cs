@@ -2,6 +2,9 @@
 {
     public class GameEpicDungeonNPC : GameEpicNPC
     {
-        public GameEpicDungeonNPC() : base() { }
+        public GameEpicDungeonNPC() : base()
+        {
+            WeaponSkillScalingFactor = 80;
+        }
     }
 }

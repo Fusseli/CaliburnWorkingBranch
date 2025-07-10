@@ -165,7 +165,7 @@ namespace DOL.GS.ServerProperties
 		/// A serialised list of disabled expansion IDs
 		/// </summary>
 		[ServerProperty("system", "disabled_expansions", "Serialized list of disabled expansions IDs, expansion IDs are client type seperated by ;", "")]
-		public static string DISABLED_EXPANSIONS = string.Empty;
+		public static string DISABLED_EXPANSIONS = "";
 
 		/// <summary>
 		/// Server Language
@@ -659,7 +659,7 @@ namespace DOL.GS.ServerProperties
 		/// A serialised list of disabled RegionIDs
 		/// </summary>
 		[ServerProperty("world", "disabled_regions", "Serialized list of disabled region IDs, separated by semi-colon or a range with a dash (ie 1-5;7;9)", "")]
-		public static string DISABLED_REGIONS = string.Empty;
+		public static string DISABLED_REGIONS = "";
 
 		/// <summary>
 		/// Should the server disable the tutorial zone
@@ -769,10 +769,22 @@ namespace DOL.GS.ServerProperties
 		public static int XP_CAP_PERCENT;
 
 		/// <summary>
+		/// Xp Cap for a player in a group.  Given in percent of level.  Default is 125%
+		/// </summary>
+		[ServerProperty("rates", "XP_Group_Cap_Percent", "Maximum XP a player can earn while in a group, given in percent of their level. Default is 125%", 125)]
+		public static int XP_GROUP_CAP_PERCENT;
+
+		/// <summary>
 		/// Xp Cap for a player vs player kill.  Given in percent of level.  Default is 125%
 		/// </summary>
 		[ServerProperty("rates", "XP_PVP_Cap_Percent", "Maximum XP a player can earn killing another player, given in percent of their level. Default is 125%", 125)]
 		public static int XP_PVP_CAP_PERCENT;
+
+		/// <summary>
+		/// Hardcap XP a player can earn after all other adjustments are applied.  Given in percent of level, default is 500%  There is no live value that corresponds to this cap.
+		/// </summary>
+		[ServerProperty("rates", "XP_HardCap_Percent", "Hardcap XP a player can earn after all other adjustments are applied. Given in percent of their level. Default is 500%", 500)]
+		public static int XP_HARDCAP_PERCENT;
 
 		/// <summary>
 		/// The Experience Rate
@@ -817,6 +829,12 @@ namespace DOL.GS.ServerProperties
 		public static double PVE_SPELL_DAMAGE = 1.0;
 
 		/// <summary>
+		/// The percent per con difference (-1 = blue, 0 = yellow, 1 = OJ, 2 = red ...) subtracted to hitchance for spells in PVE.  0 is none, 5 is 5% per con, etc.  Default is 10%
+		/// </summary>
+		[ServerProperty("rates", "pve_spell_conhitpercent", "The percent per con (1 = OJ, 2 = red ...) subtracted to hitchance for spells in PVE  Must be >= 0.  0 is none, 5 is 5% per level, etc.  Default is 10%", (uint)10)]
+		public static uint PVE_SPELL_CONHITPERCENT;
+
+		/// <summary>
 		/// The damage players do against players with melee
 		/// </summary>
 		[ServerProperty("rates", "pvp_melee_damage", "The PvP Melee Damage Modifier - Edit this to change the amount of melee damage done when fighting players e.g 1.5 is 50% more damage 2.0 is twice the damage (100%) 0.5 is half the damage (50%)", 1.0)]
@@ -851,6 +869,12 @@ namespace DOL.GS.ServerProperties
 		/// </summary>
 		[ServerProperty("rates", "parry_cap", "Parry Rate Cap Modifier - Edit this to change the highest possible parry rate against an enemy (Hard Cap) in game e.g .50 = 50%", 0.50)]
 		public static double PARRY_CAP;
+
+		/// <summary>
+		/// Critical strike opening style effectiveness.  Increase this to make CS styles BS, BSII and Perf Artery more effective
+		/// </summary>
+		[ServerProperty("rates", "cs_opening_effectiveness", "Critical strike opening style effectiveness.  Increase this to make CS styles BS, BSII and Perf Artery more effective", 1.0)]
+		public static double CS_OPENING_EFFECTIVENESS;
 
 		/// <summary>
 		/// The money drop modifier
@@ -906,7 +930,7 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("rates", "mana_regen_amount_modifier", "Mana regen amount modifier", 1.0)]
 		public static double MANA_REGEN_AMOUNT_MODIFIER;
 
-		[ServerProperty("rates", "mana_regen_amount_halved_below_50_percent", "Should the mana regen amount be halved below 50%? Affects list casters only.", false)]
+		[ServerProperty("rates", "mana_regen_amount_halved_below_50_percent", "Should the mana regen amount be halved below 50%?", false)]
 		public static bool MANA_REGEN_AMOUNT_HALVED_BELOW_50_PERCENT;
 
 		/// <summary>
@@ -1333,37 +1357,37 @@ namespace DOL.GS.ServerProperties
 		/// <summary>
 		/// PvP Immunity Timer - Killed by Mobs
 		/// </summary>
-		[ServerProperty("pvp", "Timer_Killed_By_Mob", "Immunity Timer When player killed in PvP, in seconds", 30)]
+		[ServerProperty("pvp", "Timer_Killed_By_Mob", "Immunity Timer When player killed in PvP, in seconds", 30)] //30 seconds default
 		public static int TIMER_KILLED_BY_MOB;
 
 		/// <summary>
 		/// PvP Immunity Timer - Killed by Player
 		/// </summary>
-		[ServerProperty("pvp", "Timer_Killed_By_Player", "Immunity Timer When player killed in PvP, in seconds", 120)]
+		[ServerProperty("pvp", "Timer_Killed_By_Player", "Immunity Timer When player killed in PvP, in seconds", 120)] //2 min default
 		public static int TIMER_KILLED_BY_PLAYER;
 
 		/// <summary>
 		/// PvP Immunity Timer - Region Changed
 		/// </summary>
-		[ServerProperty("pvp", "Timer_Region_Changed", "Immunity Timer when player changes regions, in seconds", 10)]
+		[ServerProperty("pvp", "Timer_Region_Changed", "Immunity Timer when player changes regions, in seconds", 30)] //30 seconds default
 		public static int TIMER_REGION_CHANGED;
 
 		/// <summary>
 		/// PvP Immunity Timer - Game Entered
 		/// </summary>
-		[ServerProperty("pvp", "Timer_Game_Entered", "Immunity Timer when player enters the game, in seconds", 10)]
+		[ServerProperty("pvp", "Timer_Game_Entered", "Immunity Timer when player enters the game, in seconds", 10)] //10 seconds default
 		public static int TIMER_GAME_ENTERED;
 
 		/// <summary>
 		/// PvP Immunity Timer - Teleport
 		/// </summary>
-		[ServerProperty("pvp", "Timer_PvP_Teleport", "Immunity Timer when player teleports within the same region, in seconds", 30)]
+		[ServerProperty("pvp", "Timer_PvP_Teleport", "Immunity Timer when player teleports within the same region, in seconds", 30)] //30 seconds default
 		public static int TIMER_PVP_TELEPORT;
 
 		/// <summary>
 		/// Time after a relic lost in nature is returning to his ReturnRelicPad pad
 		/// </summary>
-		[ServerProperty("pvp", "Relic_Return_Time", "A lost relic will automatically returns to its defined point, in seconds", 20 * 60)]
+		[ServerProperty("pvp", "Relic_Return_Time", "A lost relic will automatically returns to its defined point, in seconds", 20 * 60)] //20 mins default
 		public static int RELIC_RETURN_TIME;
 
 		/// <summary>
@@ -1953,12 +1977,6 @@ namespace DOL.GS.ServerProperties
 		public static double MAX_CAMP_BONUS;
 
 		/// <summary>
-		/// Max camp bonus
-		/// </summary>
-		[ServerProperty("pve", "max_dungeon_camp_bonus", "Max camp bonus, 0.55 = 55%", 0.66)]
-		public static double MAX_DUNGEON_CAMP_BONUS;
-
-		/// <summary>
 		/// Minimum privilege level to be able to enter Atlantis through teleporters.
 		/// </summary>
 		[ServerProperty("pve", "atlantis_teleport_plvl", "Set the minimum privilege level required to enter Atlantis zones.", 2)]
@@ -2320,16 +2338,10 @@ namespace DOL.GS.ServerProperties
 		public static int GUILD_NUM;
 
 		/// <summary>
-		/// This enables or disables new guild dues.
+		/// This enables or disables new guild dues. Live standard is 2% dues
 		/// </summary>
-		[ServerProperty("guild", "new_guild_dues", "Guild dues can be set from 1-100% if enabled, or standard 2% if not", true)]
+		[ServerProperty("guild", "new_guild_dues", "Guild dues can be set from 1-100% if enabled, or standard 2% if not", false)]
 		public static bool NEW_GUILD_DUES;
-
-		/// <summary>
-		/// This sets the guild dues max value to 0~100%.
-		/// </summary>
-		[ServerProperty("guild", "guild_dues_max_value", "Guild dues can be set from 1-100%", 25)]
-		public static int GUILD_DUES_MAX_VALUE;
 
 		/// <summary>
 		/// Do we allow guild members from other realms

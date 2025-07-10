@@ -121,7 +121,7 @@ namespace DOL.GS.Commands
 						string material = args[3];
 						int count = Convert.ToInt32(args[4]);
 						byte realm = 0;
-						string package = string.Empty;
+						string package = "";
 
 						if (args.Length > 5)
 							realm = Convert.ToByte(args[5]);
@@ -155,7 +155,7 @@ namespace DOL.GS.Commands
 							salvage.Count = Math.Max(1, count);
 							salvage.Realm = realm;
 
-							if (package == string.Empty)
+							if (package == "")
 							{
 								package = client.Player.Name;
 							}
@@ -185,12 +185,12 @@ namespace DOL.GS.Commands
 							salvage.Count = Math.Max(1, count);
 							salvage.Realm = realm;
 
-							if (string.IsNullOrEmpty(salvage.PackageID) && package == string.Empty)
+							if (string.IsNullOrEmpty(salvage.PackageID) && package == "")
 							{
 								package = client.Player.Name;
 							}
 
-							if (package != string.Empty)
+							if (package != "")
 							{
 								salvage.PackageID = package;
 							}

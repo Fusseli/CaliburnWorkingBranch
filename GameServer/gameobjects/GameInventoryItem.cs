@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.GS.Spells;
 using DOL.Language;
 using log4net;
@@ -15,7 +16,7 @@ namespace DOL.GS
     public class GameInventoryItem : DbInventoryItem, IGameInventoryItem, ITranslatableObject {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        protected GamePlayer m_owner = null;
+        protected IGamePlayer m_owner = null;
 
         public GameInventoryItem()
             : base()
@@ -47,7 +48,7 @@ namespace DOL.GS
         /// <summary>
         /// Holds the translation id.
         /// </summary>
-        protected string m_translationId = string.Empty;
+        protected string m_translationId = "";
 
         /// <summary>
         /// Gets or sets the translation id.
@@ -63,7 +64,7 @@ namespace DOL.GS
         /// </summary>
         /// <param name="player"></param>
         /// <returns></returns>
-        public virtual bool CheckValid(GamePlayer player)
+        public virtual bool CheckValid(IGamePlayer player)
         {
             m_owner = player;
             return true;
@@ -229,7 +230,7 @@ namespace DOL.GS
         /// Player equips this item
         /// </summary>
         /// <param name="player"></param>
-        public virtual void OnEquipped(GamePlayer player)
+        public virtual void OnEquipped(IGamePlayer player)
         {
             CheckValid(player);
         }
@@ -238,7 +239,7 @@ namespace DOL.GS
         /// Player unequips this item
         /// </summary>
         /// <param name="player"></param>
-        public virtual void OnUnEquipped(GamePlayer player)
+        public virtual void OnUnEquipped(IGamePlayer player)
         {
             CheckValid(player);
         }
@@ -288,7 +289,7 @@ namespace DOL.GS
                             player.Out.SendMessage(LanguageMgr.GetTranslation(player.Client.Account.Language, "GamePlayer.Attack.NeedRepairDire", Name), eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
                         player.Out.SendUpdateWeaponAndArmorStats();
-                        player.Out.SendInventorySlotsUpdate([(eInventorySlot) SlotPosition]);
+                        player.Out.SendInventorySlotsUpdate(new int[] { SlotPosition });
                     }
                 }
             }
@@ -329,7 +330,7 @@ namespace DOL.GS
                             player.Out.SendMessage(LanguageMgr.GetTranslation(player.Client.Account.Language, "GamePlayer.Attack.NeedRepairDire", Name), eChatType.CT_System, eChatLoc.CL_SystemWindow);
 
                         player.Out.SendUpdateWeaponAndArmorStats();
-                        player.Out.SendInventorySlotsUpdate([(eInventorySlot) SlotPosition]);
+                        player.Out.SendInventorySlotsUpdate(new int[] { SlotPosition });
                     }
                 }
             }
@@ -375,7 +376,7 @@ namespace DOL.GS
                 delve.Add(LanguageMgr.GetTranslation(player.Client.Account.Language, "DetailDisplayHandler.HandlePacket.CrafterName", Creator));
                 delve.Add(" ");
             }
-            else if (Description != null && Description != string.Empty)
+            else if (Description != null && Description != "")
             {
                 delve.Add(Description);
                 delve.Add(" ");
@@ -603,7 +604,7 @@ namespace DOL.GS
                 #region Proc1
                 if (ProcSpellID != 0)
                 {
-                    string spellNote = string.Empty;
+                    string spellNote = "";
                     output.Add(LanguageMgr.GetTranslation(client.Account.Language, "DetailDisplayHandler.WriteMagicalBonuses.MagicAbility"));
                     if (GlobalConstants.IsWeapon(Object_Type))
                     {
@@ -642,7 +643,7 @@ namespace DOL.GS
                 #region Proc2
                 if (ProcSpellID1 != 0)
                 {
-                    string spellNote = string.Empty;
+                    string spellNote = "";
                     output.Add(LanguageMgr.GetTranslation(client.Account.Language, "DetailDisplayHandler.WriteMagicalBonuses.MagicAbility"));
                     if (GlobalConstants.IsWeapon(Object_Type))
                     {

@@ -6,7 +6,7 @@ namespace DOL.GS.Spells
     /// Spell handler for Facilitate Painworking.
     /// </summary>
     /// <author>Aredhel</author>
-    [SpellHandler(eSpellType.FacilitatePainworking)]
+    [SpellHandlerAttribute("FacilitatePainworking")]
     class FacilitatePainworking : SpellHandler
     {
         public FacilitatePainworking(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

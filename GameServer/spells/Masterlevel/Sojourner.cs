@@ -18,7 +18,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-4
-    [SpellHandler(eSpellType.UnmakeCrystalseed)]
+    [SpellHandlerAttribute("UnmakeCrystalseed")]
     public class UnmakeCrystalseedSpellHandler : SpellHandler
     {
         /// <summary>
@@ -52,7 +52,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-5
-    [SpellHandler(eSpellType.AncientTransmuter)]
+    [SpellHandlerAttribute("AncientTransmuter")]
     public class AncientTransmuterSpellHandler : SpellHandler
     {
         private GameMerchant merchant;
@@ -96,7 +96,7 @@ namespace DOL.GS.Spells
                 merchant.Name = "Ancient Transmuter";
                 merchant.Model = 993;
                 merchant.MaxSpeedBase = 0;
-                merchant.GuildName = string.Empty;
+                merchant.GuildName = "";
                 merchant.Size = 50;
                 merchant.Flags |= GameNPC.eFlags.PEACE;
                 merchant.TradeItems = new MerchantTradeItems("ML_transmuteritems");
@@ -107,7 +107,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-6
-    [SpellHandler(eSpellType.Port)]
+    [SpellHandlerAttribute("Port")]
     public class Port : MasterlevelHandling
     {
         // constructor
@@ -139,7 +139,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-7
-    [SpellHandler(eSpellType.EssenceResist)]
+    [SpellHandlerAttribute("EssenceResist")]
     public class EssenceResistHandler : AbstractResistBuff
     {
         public override eBuffBonusCategory BonusCategory1 { get { return eBuffBonusCategory.BaseBuff; } }
@@ -150,7 +150,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-8
-    [SpellHandler(eSpellType.Zephyr)]
+    [SpellHandlerAttribute("Zephyr")]
     public class FZSpellHandler : MasterlevelHandling
     {
         protected ECSGameTimer m_expireTimer;
@@ -302,7 +302,7 @@ namespace DOL.GS.Spells
             return new Point3D((int)targetX, (int)targetY, m_npc.Z);
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -313,7 +313,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-9
-    [SpellHandler(eSpellType.Phaseshift)]
+    [SpellHandlerAttribute("Phaseshift")]
     public class PhaseshiftHandler : MasterlevelHandling
     {
         private int endurance;
@@ -370,7 +370,7 @@ namespace DOL.GS.Spells
             }
         }
 
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -382,7 +382,7 @@ namespace DOL.GS.Spells
 
     //no shared timer
     #region Sojourner-10
-    [SpellHandler(eSpellType.Groupport)]
+    [SpellHandlerAttribute("Groupport")]
     public class Groupport : MasterlevelHandling
     {
         public Groupport(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

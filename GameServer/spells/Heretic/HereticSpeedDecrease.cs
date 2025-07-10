@@ -18,6 +18,18 @@ namespace DOL.GS.Spells
 			base.FinishSpellCast(target);
 		}
 
+		/// <summary>
+        /// Determines wether this spell is better than given one
+		/// </summary>
+		/// <param name="oldeffect"></param>
+		/// <param name="neweffect"></param>
+		/// <returns></returns>
+		public override bool IsNewEffectBetter(GameSpellEffect oldeffect, GameSpellEffect neweffect)
+		{
+			if (oldeffect.Owner is GamePlayer) return false; //no overwrite for players
+			return base.IsNewEffectBetter(oldeffect, neweffect);
+		}
+
 		public override void ApplyEffectOnTarget(GameLiving target)
 		{
 			if (target.Realm == 0 || Caster.Realm == 0)
@@ -35,7 +47,7 @@ namespace DOL.GS.Spells
                 MessageToCaster(target.Name + " is immune to this effect!", eChatType.CT_SpellResisted);
                 return;
             }
-            if (target.TempProperties.GetProperty<bool>("Charging"))
+            if (target.TempProperties.GetProperty("Charging", false))
             {
                 MessageToCaster(target.Name + " is moving to fast for this spell to have any effect!", eChatType.CT_SpellResisted);
                 return;
@@ -83,7 +95,7 @@ namespace DOL.GS.Spells
 		public HereticImmunityEffectSpellHandler(GameLiving caster, Spell spell, SpellLine spellLine) : base(caster, spell, spellLine) {}
 	}
 
-	[SpellHandler(eSpellType.HereticSpeedDecrease)]
+	[SpellHandler("HereticSpeedDecrease")]
 	public class HereticSpeedDecreaseSpellHandler : HereticImmunityEffectSpellHandler
 	{
 		private readonly object TIMER_PROPERTY;
@@ -113,7 +125,7 @@ namespace DOL.GS.Spells
 		{
 			base.OnEffectExpires(effect,noMessages);
 
-			ECSGameTimer timer = effect.Owner.TempProperties.GetProperty<ECSGameTimer>(EFFECT_PROPERTY);
+			ECSGameTimer timer = effect.Owner.TempProperties.GetProperty<ECSGameTimer>(EFFECT_PROPERTY, null);
 			effect.Owner.TempProperties.RemoveProperty(EFFECT_PROPERTY);
 			timer.Stop();
 

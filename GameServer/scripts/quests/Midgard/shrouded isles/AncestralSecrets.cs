@@ -94,7 +94,7 @@ namespace DOL.GS.Quests.Hibernia
             OtaYrling = new GameNPC();
             OtaYrling.Model = 230;
             OtaYrling.Name = "Ota Yrling";
-            OtaYrling.GuildName = string.Empty;
+            OtaYrling.GuildName = "";
             OtaYrling.Realm = eRealm.Midgard;
             OtaYrling.CurrentRegionID = 151;
             OtaYrling.LoadEquipmentTemplateFromDatabase("95ff9192-4787-4dca-bcbb-7a081d801074");
@@ -125,7 +125,7 @@ namespace DOL.GS.Quests.Hibernia
             Jaklyr = new GameNPC();
             Jaklyr.Model = 203;
             Jaklyr.Name = "Jaklyr";
-            Jaklyr.GuildName = string.Empty;
+            Jaklyr.GuildName = "";
             Jaklyr.Realm = eRealm.Midgard;
             Jaklyr.CurrentRegionID = 151;
             Jaklyr.LoadEquipmentTemplateFromDatabase("MidTownsperson4");
@@ -157,7 +157,7 @@ namespace DOL.GS.Quests.Hibernia
             Longbeard.LoadEquipmentTemplateFromDatabase("be600079-ca29-4093-953a-3ee3aa1552e8");
             Longbeard.Model = 232;
             Longbeard.Name = "Longbeard";
-            Longbeard.GuildName = string.Empty;
+            Longbeard.GuildName = "";
             Longbeard.Realm = eRealm.Midgard;
             Longbeard.CurrentRegionID = 151;
             Longbeard.Size = 53;
@@ -190,7 +190,7 @@ namespace DOL.GS.Quests.Hibernia
 	        Styr.LoadEquipmentTemplateFromDatabase("dbdb0127-cbbe-42b5-b60a-3cdc27256ae9");
 	        Styr.Model = 235;
 	        Styr.Name = "Styr";
-	        Styr.GuildName = string.Empty;
+	        Styr.GuildName = "";
 	        Styr.Realm = eRealm.Midgard;
 	        Styr.CurrentRegionID = 151;
 	        Styr.Size = 51;
@@ -334,13 +334,14 @@ namespace DOL.GS.Quests.Hibernia
 			AncestralKeeper = new SINeckBoss();
 			AncestralKeeper.Model = 951;
 			AncestralKeeper.Name = "Ancestral Keeper";
-			AncestralKeeper.GuildName = string.Empty;
+			AncestralKeeper.GuildName = "";
 			AncestralKeeper.Realm = eRealm.None;
 			AncestralKeeper.Race = 2003;
 			AncestralKeeper.BodyType = (ushort) NpcTemplateMgr.eBodyType.Elemental;
 			AncestralKeeper.CurrentRegionID = 151;
 			AncestralKeeper.Size = 140;
 			AncestralKeeper.Level = 65;
+			AncestralKeeper.WeaponSkillScalingFactor = 80;
 			AncestralKeeper.X = player.X;
 			AncestralKeeper.Y = player.Y;
 			AncestralKeeper.Z = player.Z;
@@ -436,7 +437,7 @@ namespace DOL.GS.Quests.Hibernia
 
 
 			//only try to spawn him once per trigger even if multiple people enter at the same time
-			if (_spawnLock.TryEnter())
+			if (Monitor.TryEnter(spawnLock))
 			{
 				try
 				{
@@ -448,7 +449,7 @@ namespace DOL.GS.Quests.Hibernia
 				}
 				finally
 				{
-					_spawnLock.Exit();
+					Monitor.Exit(spawnLock);
 				}
 			}
 			else
@@ -457,7 +458,7 @@ namespace DOL.GS.Quests.Hibernia
 			}
 		}
 
-		private static readonly Lock _spawnLock = new();
+		static object spawnLock = new object();
 
 		protected static void TalkToOtaYrling(DOLEvent e, object sender, EventArgs args)
 		{
@@ -486,7 +487,7 @@ namespace DOL.GS.Quests.Hibernia
 							OtaYrling.SayTo(player, "Hey "+player.Name+", don't listen to Longbeard and his friend Styr, they came from Dellingstad and fled.");
 							
 							int random = Util.Random(0, 3);
-							var message = string.Empty;
+							var message = "";
 							switch (random)
 							{
 								case 0:

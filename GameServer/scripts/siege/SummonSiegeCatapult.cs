@@ -3,7 +3,7 @@ using DOL.GS.Keeps;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.SummonSiegeCatapult)]
+    [SpellHandler("SummonSiegeCatapult")]
     public class SummonSiegeCatapult : SpellHandler
     {
 	    public SummonSiegeCatapult(GameLiving caster, Spell spell, SpellLine line)

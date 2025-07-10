@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.Spells;
@@ -25,8 +24,8 @@ namespace DOL.GS.Effects
 		/// <summary>
 		/// Default Lock Object
 		/// </summary>
-		public readonly Lock Lock = new();
-
+		private readonly object m_lockObject = new object();
+		
 		/// <summary>
 		/// Stores all effects
 		/// </summary>
@@ -69,7 +68,7 @@ namespace DOL.GS.Effects
 			if (!m_owner.IsAlive || m_owner.ObjectState != GameObject.eObjectState.Active)
 				return false;
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				if (m_effects == null)
 					m_effects = new List<IGameEffect>(5);
@@ -99,14 +98,14 @@ namespace DOL.GS.Effects
 
 			List<IGameEffect> changedEffects = new List<IGameEffect>();
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				int index = m_effects.IndexOf(effect);
 				
 				if (index < 0)
 					return false;
 				
-				m_effects.SwapRemoveAt(index);
+				m_effects.RemoveAt(index);
 				
 				// Register remaining effects for change
 				changedEffects.AddRange(m_effects.Skip(index));
@@ -128,7 +127,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return;
 			
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				fx = m_effects.ToArray();
 				m_effects.Clear();
@@ -208,7 +207,7 @@ namespace DOL.GS.Effects
 			if (player == null || m_effects == null)
 				return;
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				if (m_effects.Count < 1)
 					return;
@@ -305,7 +304,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return default(T);
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return (T)m_effects.FirstOrDefault(effect => effect.GetType().Equals(typeof(T)));
 			}
@@ -321,7 +320,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return new T[0];
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.Where(effect => effect.GetType().Equals(typeof(T))).Cast<T>().ToArray();
 			}
@@ -337,7 +336,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return 0;
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.Count(effect => effect.GetType().Equals(typeof(T)));
 			}
@@ -353,7 +352,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return 0;
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.Join(types, e => e.GetType(), t => t, (e, t) => e).Count();
 			}
@@ -369,7 +368,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return null;
 			
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.FirstOrDefault(effect => effect.GetType().Equals(effectType));
 			}
@@ -385,7 +384,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return new IGameEffect[0];
 
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.Where(effect => effect.GetType().Equals(effectType)).ToArray();
 			}
@@ -401,7 +400,7 @@ namespace DOL.GS.Effects
 				if (m_effects == null)
 					return 0;
 				
-				lock (Lock)
+				lock (m_lockObject)
 				{
 					return m_effects.Count;
 				}
@@ -419,7 +418,7 @@ namespace DOL.GS.Effects
 			if (m_effects == null)
 				return new IGameEffect[0].AsEnumerable().GetEnumerator();
 			
-			lock (Lock)
+			lock (m_lockObject)
 			{
 				return m_effects.ToArray().AsEnumerable().GetEnumerator();
 			}

@@ -271,8 +271,11 @@ namespace DOL.GS.Keeps
             }
             else
             {
-                guard.Realm = guard.CurrentZone.Realm;
-                guard.ModelRealm = guard.Realm;
+                if (guard.CurrentZone != null)
+                {
+                    guard.Realm = guard.CurrentZone.Realm;
+                    guard.ModelRealm = guard.Realm;
+                }
             }
         }
 
@@ -280,11 +283,11 @@ namespace DOL.GS.Keeps
         {
             if (guard.Component == null)
             {
-                guard.GuildName = string.Empty;
+                guard.GuildName = "";
             }
             else if (guard.Component.Keep == null || guard.Component.Keep.Guild == null)
             {
-                guard.GuildName = string.Empty;
+                guard.GuildName = "";
             }
             else
             {

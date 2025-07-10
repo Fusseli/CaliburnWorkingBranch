@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Reflection;
-using System.Threading;
 using DOL.Database;
 using DOL.GS.PacketHandler;
 using log4net;
@@ -19,7 +18,7 @@ namespace DOL.GS
 		/// </summary>
 		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-		public PlayerTradeWindow(GamePlayer owner, bool isRecipiantWindow, Lock sync)
+		public PlayerTradeWindow(GamePlayer owner, bool isRecipiantWindow, object sync)
 		{
 			if (owner == null)
 				throw new ArgumentNullException("owner");
@@ -31,7 +30,7 @@ namespace DOL.GS
 			m_combine = false;
 			m_repair = false;
 			m_recipiant = isRecipiantWindow;
-			_lock = sync;
+			m_sync = sync;
 		}
 
 		#region Fields
@@ -68,6 +67,10 @@ namespace DOL.GS
 		/// Holds the flag to know the it's a recipiant window
 		/// </summary>
 		protected bool m_recipiant;
+		/// <summary>
+		/// Holds the trade windows sync object
+		/// </summary>
+		protected object m_sync;
 		/// <summary>
 		/// Stores the begin changes count
 		/// </summary>
@@ -135,8 +138,13 @@ namespace DOL.GS
 			set { m_partnerWindow = value; }
 		}
 
-		private readonly Lock _lock = new();
-		public Lock Lock => _lock;
+		/// <summary>
+		/// Gets the access sync object for this and TradePartner windows
+		/// </summary>
+		public object Sync
+		{
+			get { return m_sync; }
+		}
 
 		/// <summary>
 		/// Gets the item count in trade window
@@ -259,7 +267,7 @@ namespace DOL.GS
                 // Luhz Crafting Update:
                 // Players may now have any, and all, "primary" crafting skills.
                 AbstractCraftingSkill skill = null;
-                lock (m_owner.TradeWindow.Lock)
+                lock (m_owner.TradeWindow.Sync)
                 {
                     foreach (DbInventoryItem i in (ArrayList)m_owner.TradeWindow.TradeItems.Clone())
                     {
@@ -319,7 +327,7 @@ namespace DOL.GS
 		/// <returns>true if added</returns>
 		public bool AddItemToTrade(DbInventoryItem itemForTrade)
 		{
-			lock(Lock)
+			lock(Sync)
 			{
 				// allow admin and gm account opened windows to trade any item
 				if (this.m_owner.Client.Account.PrivLevel == 1)
@@ -346,7 +354,7 @@ namespace DOL.GS
 		/// <param name="money">Array of money values to add</param>
 		public void AddMoneyToTrade(long money)
 		{
-			lock(Lock)
+			lock(Sync)
 			{
 				TradeMoney += money;
 				TradeUpdate();
@@ -362,7 +370,7 @@ namespace DOL.GS
 			if (itemToRemove == null)
 				return;
 
-			lock(Lock)
+			lock(Sync)
 			{
 				TradeItems.Remove(itemToRemove);
 				if(!m_tradeAccept || !m_partnerWindow.m_tradeAccept) TradeUpdate();
@@ -374,7 +382,7 @@ namespace DOL.GS
 		/// </summary>
 		public void TradeUpdate()
 		{
-			lock (Lock)
+			lock (Sync)
 			{
 				m_tradeAccept = false;
 				m_partnerWindow.m_tradeAccept = false;
@@ -401,7 +409,7 @@ namespace DOL.GS
 		/// </summary>
 		public bool AcceptTrade()
 		{
-			lock (Lock)
+			lock (Sync)
 			{
 				m_tradeAccept = true;
 				GamePlayer partner = m_partnerWindow.Owner;
@@ -462,7 +470,7 @@ namespace DOL.GS
                     // Players may now have any, and all, "primary" crafting skills.
                     // AbstractCraftingSkill skill = CraftingMgr.getSkillbyEnum(crafter.CraftingPrimarySkill);
                     AbstractCraftingSkill skill = null;
-                    lock (crafter.TradeWindow.Lock)
+                    lock (crafter.TradeWindow.Sync)
                     {
                         foreach (DbInventoryItem i in (ArrayList)crafter.TradeWindow.TradeItems.Clone())
                         {
@@ -549,7 +557,7 @@ namespace DOL.GS
 					// if inventory is full but removed items count >= received count
                     foreach (DbInventoryItem item in ownerTradeItems)
                     {
-                        lock (m_owner.Inventory.Lock)
+                        lock (m_owner.Inventory)
                         {
 							if (!m_owner.Inventory.RemoveItemWithoutDbDeletion(item))
 							{
@@ -565,7 +573,7 @@ namespace DOL.GS
                     }
                     foreach (DbInventoryItem item in partnerTradeItems)
                     {
-                        lock (partner.Inventory.Lock)
+                        lock (partner.Inventory)
                         {
 							if (!partner.Inventory.RemoveItemWithoutDbDeletion(item))
 							{
@@ -708,7 +716,7 @@ namespace DOL.GS
 		/// </summary>
 		public void CloseTrade()
 		{
-			lock(Lock)
+			lock(Sync)
 			{
 				m_owner.Out.SendCloseTradeWindow();
 				m_partnerWindow.Owner.Out.SendCloseTradeWindow();

@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Specialized;
 using System.Reflection;
-using System.Threading;
 using DOL.Database;
 using DOL.GS.PacketHandler;
 using log4net;
@@ -22,14 +21,12 @@ namespace DOL.GS
         /// <summary>
         /// ArrayList of all player boats in the game
         /// </summary>
-        private static readonly HybridDictionary m_boats = new HybridDictionary();
-        private static readonly Lock _boatsLock = new();
+        static private readonly HybridDictionary m_boats = new HybridDictionary();
 
         /// <summary>
         /// ArrayList of all boatid's to BoatNames
         /// </summary>
-        private static readonly HybridDictionary m_boatIds = new HybridDictionary();
-        private static readonly Lock _boatsIdsLock = new();
+        static private readonly HybridDictionary m_boatids = new HybridDictionary();
 
         /// <summary>
         /// Adds a player boat to the list of boats
@@ -41,12 +38,12 @@ namespace DOL.GS
             if (boat == null)
                 return false;
 
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 if (!m_boats.Contains(boat.Name))
                 {
                     m_boats.Add(boat.Name, boat);
-                    m_boatIds.Add(boat.BoatID, boat.Name);
+                    m_boatids.Add(boat.BoatID, boat.Name);
                     return true;
                 }
             }
@@ -64,10 +61,10 @@ namespace DOL.GS
             if (boat == null)
                 return false;
 
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 m_boats.Remove(boat.Name);
-                m_boatIds.Remove(boat.InternalID);
+                m_boatids.Remove(boat.InternalID);
             }
             return true;
         }
@@ -79,7 +76,7 @@ namespace DOL.GS
         /// <returns>true or false</returns>
         public static bool DoesBoatExist(string boatName)
         {
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 if (m_boats.Contains(boatName))
                     return true;
@@ -169,7 +166,7 @@ namespace DOL.GS
         public static GameBoat GetBoatByName(string boatName)
         {
             if (boatName == null) return null;
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 return (GameBoat)m_boats[boatName];
             }
@@ -183,13 +180,13 @@ namespace DOL.GS
         {
             if (boatid == null) return null;
 
-            lock (_boatsIdsLock)
+            lock (m_boatids.SyncRoot)
             {
-                if (m_boatIds[boatid] == null) return null;
+                if (m_boatids[boatid] == null) return null;
 
-                lock (_boatsLock)
+                lock (m_boats.SyncRoot)
                 {
-                    return (GameBoat)m_boats[m_boatIds[boatid]];
+                    return (GameBoat)m_boats[m_boatids[boatid]];
                 }
             }
         }
@@ -202,7 +199,7 @@ namespace DOL.GS
         {
             GameBoat b = GetBoatByName(boatName);
             if (b == null)
-                return string.Empty;
+                return "";
             return b.BoatID;
         }
 
@@ -214,7 +211,7 @@ namespace DOL.GS
         {
             if (owner == null) return null;
 
-            lock (_boatsIdsLock)
+            lock (m_boatids.SyncRoot)
             {
                 foreach (GameBoat boat in m_boats.Values)
                 {
@@ -239,7 +236,7 @@ namespace DOL.GS
         /// </summary>
         public static bool LoadAllBoats()
         {
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 m_boats.Clear();
             }
@@ -265,7 +262,7 @@ namespace DOL.GS
 
             try
             {
-                lock (_boatsLock)
+                lock (m_boats.SyncRoot)
                 {
                     foreach (GameBoat b in m_boats.Values)
                     {
@@ -286,7 +283,7 @@ namespace DOL.GS
         public static ArrayList GetAllBoats()
         {
             ArrayList boats = new ArrayList();
-            lock (_boatsLock)
+            lock (m_boats.SyncRoot)
             {
                 foreach (GameBoat boat in m_boats.Values)
                 {

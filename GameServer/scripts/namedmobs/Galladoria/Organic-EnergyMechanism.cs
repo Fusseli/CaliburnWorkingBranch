@@ -401,7 +401,9 @@ namespace DOL.GS
             get { return 5000; }
         }
         public override int MeleeAttackRange => 350;
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
         public override void Die(GameObject killer)
         {
             base.Die(null); //null to not gain experience
@@ -426,6 +428,7 @@ namespace DOL.GS
             Gender = eGender.Neutral;
             MeleeDamageType = eDamageType.Slash;
             Faction = FactionMgr.GetFactionByID(96);
+            IsWorthReward = false; //worth no reward
 
             BodyType = 1;
             MaxSpeedBase = 245;
@@ -453,6 +456,7 @@ namespace DOL.AI.Brain
 
         public override void Think()
         {
+            Body.IsWorthReward = false; //worth no reward
             if (Body.InCombat && HasAggro && Body.TargetObject != null)
             {
                 GameLiving target = Body.TargetObject as GameLiving;

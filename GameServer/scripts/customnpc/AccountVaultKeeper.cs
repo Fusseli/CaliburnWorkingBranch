@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using DOL.Database;
 using DOL.GS.Housing;
@@ -102,9 +101,6 @@ namespace DOL.GS
         /// <param name="dummyTemplate">An ItemTemplate to satisfy the base class's constructor</param>
         public AccountVault(GamePlayer player, int vaultNumber, DbItemTemplate dummyTemplate) : base(dummyTemplate, vaultNumber)
         {
-            if (vaultNumber is < 0 or > 1)
-                throw new ArgumentOutOfRangeException(nameof(vaultNumber), $"{nameof(vaultNumber)} must be either 0 or 1.");
-
             _vaultOwner = GetOwner(player);
             _vaultNumber = vaultNumber;
 
@@ -119,6 +115,26 @@ namespace DOL.GS
             };
 
             CurrentHouse = new House(dbHouse);
+        }
+
+        public override bool Interact(GamePlayer player)
+        {
+            if (!CanView(player))
+            {
+                player.Out.SendMessage("You don't have permission to view this vault!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return false;
+            }
+
+            player.ActiveInventoryObject?.RemoveObserver(player);
+
+            lock (LockObject)
+            {
+                _observers.TryAdd(player.Name, player);
+            }
+
+            player.ActiveInventoryObject = this;
+            player.Out.SendInventoryItemsUpdate(GetClientInventory(player), eInventoryWindowType.HouseVault);
+            return true;
         }
 
         /// <summary>
@@ -158,8 +174,18 @@ namespace DOL.GS
             return GameServer.Database.SelectObjects<DbInventoryItem>(DB.Column("OwnerID").IsEqualTo(GetOwner(player)).And(DB.Column("SlotPosition").IsGreaterOrEqualTo(FirstDbSlot).And(DB.Column("SlotPosition").IsLessOrEqualTo(LastDbSlot))));
         }
 
-        public override int FirstDbSlot => (int) eInventorySlot.AccountVault_First + VaultSize * _vaultNumber;
+        public override int FirstDbSlot => _vaultNumber switch
+        {
+            0 => 2500,
+            1 => 2600,
+            _ => 0,
+        };
 
-        public override int LastDbSlot => FirstDbSlot + (VaultSize -1);
+        public override int LastDbSlot => _vaultNumber switch
+        {
+            0 => 2599,
+            1 => 2699,
+            _ => 0,
+        };
     }
 }

@@ -50,7 +50,7 @@ namespace DOL.GS.SkillHandler
 				player.Out.SendCharStatsUpdate();
 				player.Out.SendCharResistsUpdate();
 				player.Out.SendUpdateWeaponAndArmorStats();
-				player.UpdateEncumbrance();
+				player.UpdateEncumberance();
 				player.UpdatePlayerStatus();
 			}
 

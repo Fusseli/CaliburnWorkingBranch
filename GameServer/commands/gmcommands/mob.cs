@@ -190,6 +190,7 @@ namespace DOL.GS.Commands
 						case "heal": heal(client, targetMob, args); break;
 						case "attack": attack(client, targetMob, args); break;
 						case "info": info(client, targetMob, args); break;
+						case "stats": stats(client, targetMob, args); break;
 						case "state": state(client, targetMob); break;
 						case "realm": realm(client, targetMob, args); break;
 						case "speed": speed(client, targetMob, args); break;
@@ -250,7 +251,7 @@ namespace DOL.GS.Commands
 				DisplaySyntax(client);
 			}
 		}
-        
+
 		private void create(GameClient client, string[] args)
 		{
 			string theType = "DOL.GS.GameNPC";
@@ -306,7 +307,7 @@ namespace DOL.GS.Commands
 
 			//Fill the living variables
 			mob.MaxSpeedBase = 200;
-			mob.GuildName = string.Empty;
+			mob.GuildName = "";
 			mob.Size = 50;
 			mob.Flags |= GameNPC.eFlags.PEACE;
 			mob.AddToWorld();
@@ -378,7 +379,7 @@ namespace DOL.GS.Commands
 			}
 
 			mob.MaxSpeedBase = 200;
-			mob.GuildName = string.Empty;
+			mob.GuildName = "";
 			mob.Size = 50;
 			mob.AddToWorld();
 
@@ -457,7 +458,7 @@ namespace DOL.GS.Commands
 				}
 
 				mob.MaxSpeedBase = 200;
-				mob.GuildName = string.Empty;
+				mob.GuildName = "";
 				mob.Size = 50;
 				mob.AddToWorld();
 				client.Out.SendMessage("Mob created: OID=" + mob.ObjectID, eChatType.CT_System, eChatLoc.CL_SystemWindow);
@@ -516,7 +517,7 @@ namespace DOL.GS.Commands
 				}
 
 				mob.MaxSpeedBase = 200;
-				mob.GuildName = string.Empty;
+				mob.GuildName = "";
 				mob.Size = 50;
 				mob.AddToWorld();
 			}
@@ -705,12 +706,12 @@ namespace DOL.GS.Commands
 		//        return;
 		//    }
 
-		//    string id = string.Empty;
+		//    string id = "";
 
 		//    if (args.Length > 2)
 		//        id = String.Join("", args, 2, args.Length - 2);
 
-		//    if (id != string.Empty)
+		//    if (id != "")
 		//    {
 		//        targetMob.TranslationId = id;
 		//        targetMob.SaveIntoDatabase();
@@ -727,12 +728,12 @@ namespace DOL.GS.Commands
 
 		private void name(GameClient client, GameNPC targetMob, string[] args)
 		{
-			string mobName = string.Empty;
+			string mobName = "";
 
 			if (args.Length > 2)
 				mobName = String.Join(" ", args, 2, args.Length - 2);
 
-			if (mobName != string.Empty)
+			if (mobName != "")
 			{
 				targetMob.Name = CheckName(mobName, client);
 				targetMob.SaveIntoDatabase();
@@ -752,12 +753,12 @@ namespace DOL.GS.Commands
 				return;
 			}
 
-			string suf = string.Empty;
+			string suf = "";
 
 			if (args.Length > 2)
 				suf = String.Join(" ", args, 2, args.Length - 2);
 
-			if (suf != string.Empty)
+			if (suf != "")
 			{
 				targetMob.Suffix = suf;
 				targetMob.SaveIntoDatabase();
@@ -769,12 +770,12 @@ namespace DOL.GS.Commands
 
 		private void guild(GameClient client, GameNPC targetMob, string[] args)
 		{
-			string guildName = string.Empty;
+			string guildName = "";
 
 			if (args.Length > 2)
 				guildName = String.Join(" ", args, 2, args.Length - 2);
 
-			if (guildName != string.Empty)
+			if (guildName != "")
 			{
 				targetMob.GuildName = CheckGuildName(guildName, client);
 				targetMob.SaveIntoDatabase();
@@ -782,9 +783,9 @@ namespace DOL.GS.Commands
 			}
 			else
 			{
-				if (targetMob.GuildName != string.Empty)
+				if (targetMob.GuildName != "")
 				{
-					targetMob.GuildName = string.Empty;
+					targetMob.GuildName = "";
 					targetMob.SaveIntoDatabase();
 					client.Out.SendMessage("Mob guild removed.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				}
@@ -803,12 +804,12 @@ namespace DOL.GS.Commands
 				return;
 			}
 
-			string exa = string.Empty;
+			string exa = "";
 
 			if (args.Length > 2)
 				exa = String.Join(" ", args, 2, args.Length - 2);
 
-			if (exa != string.Empty)
+			if (exa != "")
 			{
 				targetMob.ExamineArticle = exa;
 				targetMob.SaveIntoDatabase();
@@ -828,12 +829,12 @@ namespace DOL.GS.Commands
 				return;
 			}
 
-			string msg = string.Empty;
+			string msg = "";
 
 			if (args.Length > 2)
 				msg = String.Join(" ", args, 2, args.Length - 2);
 
-			if (msg != string.Empty)
+			if (msg != "")
 			{
 				targetMob.Suffix = msg;
 				targetMob.SaveIntoDatabase();
@@ -1125,10 +1126,12 @@ namespace DOL.GS.Commands
 		{
 			try
 			{
-				lock (targetMob.XpGainersLock)
+				lock (targetMob.XPGainers.SyncRoot)
 				{
+					targetMob.attackComponent.AddAttacker(client.Player);
 					targetMob.AddXPGainer(client.Player, targetMob.Health);
 					targetMob.Die(client.Player);
+					//targetMob.XPGainers.Clear();
 					client.Out.SendMessage("Mob '" + targetMob.Name + "' killed", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				}
 			}
@@ -1144,7 +1147,7 @@ namespace DOL.GS.Commands
 			{
 				targetMob.Health = targetMob.MaxHealth;
 				targetMob.SaveIntoDatabase();
-				ClientService.UpdateNpcForPlayer(client.Player, targetMob);
+				ClientService.UpdateObjectForPlayer(client.Player, targetMob);
 				client.Out.SendMessage("Mob '" + targetMob.Name + "' healed (" + targetMob.Health + "/" + targetMob.MaxHealth + ")", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 			}
 			catch (Exception e)
@@ -1183,6 +1186,9 @@ namespace DOL.GS.Commands
 
 			info.Add(" + Level: " + targetMob.Level);
 			info.Add(" + Brain: " + (targetMob.Brain == null ? "(null)" : targetMob.Brain.GetType().ToString()));
+
+			if (targetMob.DamageRvRMemory > 0)
+				info.Add("  - Damage RvR Memory: " + targetMob.DamageRvRMemory);
 
 			if (targetMob.Brain is IControlledBrain brain)
 			{
@@ -1237,8 +1243,8 @@ namespace DOL.GS.Commands
 				info.Add(" + Respawn: NPC will not respawn");
 			else
 			{
-				string days = string.Empty;
-				string hours = string.Empty;
+				string days = "";
+				string hours = "";
 
 				if (respawn.Days > 0)
 					days = respawn.Days + " days ";
@@ -1249,6 +1255,19 @@ namespace DOL.GS.Commands
 				info.Add(" + Respawn: " + days + hours + respawn.Minutes + " minutes " + respawn.Seconds + " seconds");
 				info.Add(" + SpawnPoint:  " + targetMob.SpawnPoint.X + ", " + targetMob.SpawnPoint.Y + ", " + targetMob.SpawnPoint.Z);
 			}
+
+			info.Add(" ");
+			info.Add(" +     STR      /      CON      /      DEX      /      QUI");
+			info.Add(" + " + targetMob.Strength + " (" + targetMob.GetModified(eProperty.Strength) + ")  /  " + targetMob.Constitution + " (" + targetMob.GetModified(eProperty.Constitution) + ")  /  " + targetMob.Dexterity + " (" + targetMob.GetModified(eProperty.Dexterity) + ")  /  " + targetMob.Quickness + " (" + targetMob.GetModified(eProperty.Quickness) + ")");
+			info.Add(" +     INT      /     EMP     /     PIE     /     CHR");
+			info.Add(" + " + targetMob.Intelligence + " (" + targetMob.GetModified(eProperty.Intelligence) + ")  /  " + targetMob.Empathy + " (" + targetMob.GetModified(eProperty.Empathy) + ")  /  " + targetMob.Piety + " (" + targetMob.GetModified(eProperty.Piety) + ")  /  " + targetMob.Charisma + " (" + targetMob.GetModified(eProperty.Charisma) + ")");
+			info.Add(" + Block / Parry / Evade %:  " + targetMob.BlockChance + " / " + targetMob.ParryChance + " / " + targetMob.EvadeChance);
+			info.Add($"+ Weapon Skill: {targetMob.GetWeaponSkill(targetMob.ActiveWeapon)}");
+			info.Add(" + Attack Speed (Melee Speed Increase %):  " + targetMob.AttackSpeed(targetMob.ActiveWeapon) + " (" + (100 - targetMob.GetModified(eProperty.MeleeSpeed)) + ")");
+			info.Add(" + Casting Speed Increase %:  " + targetMob.GetModified(eProperty.CastingSpeed));
+
+			if (targetMob.LeftHandSwingChance > 0)
+				info.Add(" + Left Swing %: " + targetMob.LeftHandSwingChance);
 
 			if (targetMob.Abilities != null && targetMob.Abilities.Count > 0)
 				info.Add(" + Abilities: " + targetMob.Abilities.Count);
@@ -1271,6 +1290,21 @@ namespace DOL.GS.Commands
 				info.Add(" + Body Type:  " + targetMob.BodyType);
 
 			info.Add(" ");
+
+			info.Add("Current Resists:");
+			info.Add(" +  Crush / Slash / Thrust:  " + targetMob.GetResist(eDamageType.Crush)
+			         + " / " + targetMob.GetResist(eDamageType.Slash)
+			         + " / " + targetMob.GetResist(eDamageType.Thrust));
+			info.Add(" +  Heat / Cold / Matter:  " + targetMob.GetResist(eDamageType.Heat)
+			         + " / " + targetMob.GetResist(eDamageType.Cold)
+			         + " / " + targetMob.GetResist(eDamageType.Matter));
+			info.Add(" +  Body / Spirit / Energy:  " + targetMob.GetResist(eDamageType.Body)
+			         + " / " + targetMob.GetResist(eDamageType.Spirit)
+			         + " / " + targetMob.GetResist(eDamageType.Energy));
+			info.Add(" +  Natural:  " + targetMob.GetResist(eDamageType.Natural));
+
+			info.Add(" ");
+
 			info.Add(" + Position (X, Y, Z, H):  " + targetMob.X + ", " + targetMob.Y + ", " + targetMob.Z + ", " + targetMob.Heading);
 
 			if (targetMob.GuildName != null && targetMob.GuildName.Length > 0)
@@ -1287,6 +1321,8 @@ namespace DOL.GS.Commands
 			info.Add(" + OID: " + targetMob.ObjectID);
 			info.Add(" + Active weapon slot: " + targetMob.ActiveWeaponSlot);
 			info.Add(" + Visible weapon slot: " + targetMob.VisibleActiveWeaponSlots);
+			info.Add(" + Speed(current/max): " + targetMob.CurrentSpeed + "/" + targetMob.MaxSpeedBase);
+			info.Add(" + Health: " + targetMob.Health + "/" + targetMob.MaxHealth);
 
 			if (targetMob.EquipmentTemplateID != null && targetMob.EquipmentTemplateID.Length > 0)
 				info.Add(" + Equipment Template ID: " + targetMob.EquipmentTemplateID);
@@ -1319,6 +1355,42 @@ namespace DOL.GS.Commands
 			client.Out.SendCustomTextWindow("[ " + targetMob.Name + " ]", info);
 		}
 		
+		private void stats(GameClient client, GameNPC targetMob, string[] args)
+		{
+			if (targetMob == null)
+			{
+				client.Out.SendMessage("No target selected.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+				return;
+			}
+			var info = new List<string>();
+			info.Add("Modified stats:");
+			info.Add("");
+			for (eProperty property = eProperty.Stat_First; property <= eProperty.Stat_Last; ++property)
+				info.Add(String.Format("{0}: {1}",
+				                       GlobalConstants.PropertyToName(property),
+				                       targetMob.GetModified(property)));
+			info.Add("");
+			info.Add("Modified resists:");
+			info.Add("");
+			for (eProperty property = eProperty.Resist_First + 1; property <= eProperty.Resist_Last; ++property)
+				info.Add(String.Format("{0}: {1}",
+				                       GlobalConstants.PropertyToName(property),
+				                       targetMob.GetModified(property)));
+			info.Add("");
+			info.Add("Miscellaneous:");
+			info.Add("");
+
+			if (targetMob.GetModified(eProperty.MeleeDamage) != 0)
+				info.Add($" + Damage Bonus: {targetMob.GetModified(eProperty.MeleeDamage)}");
+
+			info.Add(" + Attack Speed (Melee Speed Increase %):  " + targetMob.AttackSpeed(targetMob.ActiveWeapon) + " (" + (100 - targetMob.GetModified(eProperty.MeleeSpeed)) + ")");
+
+			info.Add(String.Format("Maximum Health: {0}", targetMob.MaxHealth));
+			info.Add(String.Format("Armor Factor (AF): {0}", targetMob.GetModified(eProperty.ArmorFactor)));
+			info.Add(String.Format("Absorption (ABS): {0}", targetMob.GetModified(eProperty.ArmorAbsorption)));
+			client.Out.SendCustomTextWindow("[ " + targetMob.Name + " ]", info);
+			return;
+		}
 
 		private void realm(GameClient client, GameNPC targetMob, string[] args)
 		{
@@ -1532,7 +1604,7 @@ namespace DOL.GS.Commands
 			}
 
 			client.Out.SendMessage("-------------------------------", eChatType.CT_System, eChatLoc.CL_PopupWindow);
-			string closed = string.Empty;
+			string closed = "";
 
 			if (targetMob.Inventory is GameNpcInventoryTemplate)
 			{
@@ -2012,7 +2084,7 @@ namespace DOL.GS.Commands
 				if (args.Length > 3 && args[3] == "inv")
 				{
 					targetMob.AddXPGainer(client.Player, 1);
-					GameServer.ServerRules.DropLoot(targetMob, client.Player, [new(client.Player, 0)]);
+					targetMob.DropLoot(client.Player);
 					return;
 				}
 
@@ -2591,7 +2663,7 @@ namespace DOL.GS.Commands
 			{
 				string pathname = String.Join(" ", args, 2, args.Length - 2);
 
-				if (pathname != string.Empty && MovementMgr.LoadPath(pathname) == null)
+				if (pathname != "" && MovementMgr.LoadPath(pathname) == null)
 				{
 					client.Out.SendMessage("The specified path does not exist", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				}
@@ -2758,7 +2830,7 @@ namespace DOL.GS.Commands
 			{
 				packageID = args[2];
 
-				if (packageID == string.Empty)
+				if (packageID == "")
 				{
 					DisplaySyntax(client, args[1]);
 					return;
@@ -2781,7 +2853,7 @@ namespace DOL.GS.Commands
 			{
 				ownerID = args[2];
 
-				if (ownerID == string.Empty)
+				if (ownerID == "")
 				{
 					DisplaySyntax(client, args[1]);
 					return;
@@ -2935,6 +3007,7 @@ namespace DOL.GS.Commands
 
 		private void state(GameClient client, GameNPC targetMob)
 		{
+
 			if (targetMob == null)
 			{
 				client.Out.SendMessage("You need a valid target!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
@@ -2966,11 +3039,13 @@ namespace DOL.GS.Commands
 
 			text.Add("InCombat: " + targetMob.InCombat);
 			text.Add("AttackState: " + targetMob.attackComponent.AttackState);
-			text.Add("LastCombatPVE: " + targetMob.LastCombatTickPvE);
-			text.Add("LastCombatPVP: " + targetMob.LastCombatTickPvP);
+			text.Add("LastCombatPVE: " + targetMob.LastAttackedByEnemyTickPvE);
+			text.Add("LastCombatPVP: " + targetMob.LastAttackedByEnemyTickPvP);
 
 			if (targetMob.InCombat || targetMob.attackComponent.AttackState)
+			{
 				text.Add("RegionTick: " + targetMob.CurrentRegion.Time);
+			}
 
 			text.Add("");
 
@@ -2982,11 +3057,6 @@ namespace DOL.GS.Commands
 
 			if (targetMob.Brain is StandardMobBrain standardBrain)
 			{
-				int pendingLosCheckCount = standardBrain.PendingLosCheckCount;
-				
-				if (pendingLosCheckCount != 0)
-					text.Add($"PendingLosCheckCount: {pendingLosCheckCount}");
-
 				List<(GameLiving, long)> aggroList = standardBrain.GetOrderedAggroList();
 
 				if (aggroList.Count > 0)
@@ -3027,7 +3097,7 @@ namespace DOL.GS.Commands
 
 		private void trigger(GameClient client, GameNPC targetMob, string[] args)
 		{
-			string text = string.Empty;
+			string text = "";
 			ushort emote = 0;
 			ushort chance = 0;
 			try
@@ -3076,7 +3146,7 @@ namespace DOL.GS.Commands
 					text = String.Join(" ", args, 5, args.Length - 5);
 				}
 
-				if (text == string.Empty)
+				if (text == "")
 				{
 					client.Out.SendMessage("You must specify some text for the trigger.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 					return;
@@ -3110,7 +3180,7 @@ namespace DOL.GS.Commands
 				DisplaySyntax(client);
 				return;
 			}
-			var triggers = client.Player.TempProperties.GetProperty<IList<DbMobXAmbientBehavior>>("mob_triggers");
+			var triggers = client.Player.TempProperties.GetProperty<IList<DbMobXAmbientBehavior>>("mob_triggers", null);
 			if (triggers == null)
 			{
 				ChatUtil.SendSystemMessage(client, "You must use '/mob trigger info' before using this command !");

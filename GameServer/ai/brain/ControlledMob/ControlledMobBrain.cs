@@ -2,11 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Threading;
+using DOL.Events;
 using DOL.GS;
 using DOL.GS.Effects;
 using DOL.GS.PacketHandler;
 using DOL.GS.RealmAbilities;
+using DOL.GS.Scripts;
 using DOL.GS.ServerProperties;
 using DOL.GS.SkillHandler;
 using DOL.GS.Spells;
@@ -24,33 +25,46 @@ namespace DOL.AI.Brain
 		/// </summary>
 		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-		public const int MAX_PET_AGGRO_DISTANCE = 512; // Tolakram - Live test with caby pet - I was extremely close before auto aggro
+        public override bool IsActive
+        {
+            get 
+            {
+                if (GetNPCOwner() is GameNPC npcOwner && npcOwner is MimicNPC)
+                {
+                    return Body != null && Body.IsAlive && Body.ObjectState == GameObject.eObjectState.Active;
+                }
+                else
+                    return base.IsActive;
+            }
+        }
+
+        public const int MAX_PET_AGGRO_DISTANCE = 512; // Tolakram - Live test with caby pet - I was extremely close before auto aggro
 		// note that a minimum distance is inforced in GameNPC
 		public const short MIN_OWNER_FOLLOW_DIST = 50;
 		//4000 - rough guess, needs to be confirmed
 		public const short MAX_OWNER_FOLLOW_DIST = 10000; // setting this to max stick distance
 
-		protected int m_tempX = 0;
-		protected int m_tempY = 0;
-		protected int m_tempZ = 0;
+        protected int m_tempX = 0;
+        protected int m_tempY = 0;
+        protected int m_tempZ = 0;
 
-		/// <summary>
-		/// Holds the controlling player of this brain
-		/// </summary>
-		protected readonly GameLiving m_owner;
+        /// <summary>
+        /// Holds the controlling player of this brain
+        /// </summary>
+        protected readonly GameLiving m_owner;
 
-		/// <summary>
-		/// Holds the walk state of the brain
-		/// </summary>
-		protected eWalkState m_walkState;
+        /// <summary>
+        /// Holds the walk state of the brain
+        /// </summary>
+        protected eWalkState m_walkState;
 
-		/// <summary>
-		/// Holds the aggression level of the brain
-		/// </summary>
-		protected eAggressionState m_aggressionState;
+        /// <summary>
+        /// Holds the aggression level of the brain
+        /// </summary>
+        protected eAggressionState m_aggressionState;
 
-		private HashSet<GameLiving> _buffedTargets = new();
-		private readonly Lock _buffedTargetsLock = new();
+        private HashSet<GameLiving> m_buffedTargets = new();
+        private object m_buffedTargetsLock = new();
 
 		/// <summary>
 		/// Constructs new controlled npc brain
@@ -62,51 +76,51 @@ namespace DOL.AI.Brain
 			m_aggressionState = eAggressionState.Defensive;
 			m_walkState = eWalkState.Follow;
 
-			if (owner is GameNPC npcOwner && npcOwner.Brain is StandardMobBrain npcOwnerBrain)
-				AggroLevel = npcOwnerBrain.AggroLevel;
-			else
-				AggroLevel = 99;
-			AggroRange = MAX_PET_AGGRO_DISTANCE;
+            if (owner is GameNPC npcOwner && npcOwner.Brain is StandardMobBrain npcOwnerBrain)
+                AggroLevel = npcOwnerBrain.AggroLevel;
+            else
+                AggroLevel = 99;
+            AggroRange = MAX_PET_AGGRO_DISTANCE;
 
 			FSM.ClearStates();
 			FSM.Add(new ControlledMobState_WAKING_UP(this));
 			FSM.Add(new ControlledMobState_DEFENSIVE(this));
 			FSM.Add(new ControlledMobState_AGGRO(this));
 			FSM.Add(new ControlledMobState_PASSIVE(this));
+			FSM.Add(new StandardMobState_DEAD(this));
+			FSM.SetCurrentState(eFSMStateType.WAKING_UP);
 		}
 
 		protected bool m_isMainPet = true;
 
-		public override int AggroRange => Math.Min(base.AggroRange, MAX_PET_AGGRO_DISTANCE);
+        public override int AggroRange => Math.Min(base.AggroRange, MAX_PET_AGGRO_DISTANCE);
 
-		/// <summary>
-		/// Checks if this NPC is a permanent/charmed or timed pet
-		/// </summary>
-		public bool IsMainPet
-		{
-			get { return m_isMainPet; }
-			set { m_isMainPet = value; }
-		}
+        /// <summary>
+        /// Checks if this NPC is a permanent/charmed or timed pet
+        /// </summary>
+        public bool IsMainPet
+        {
+            get { return m_isMainPet; }
+            set { m_isMainPet = value; }
+        }
 
-		/// <summary>
-		/// The interval for thinking, set via server property, default is 1500 or every 1.5 seconds
-		/// </summary>
-		public override int ThinkInterval
-		{
-			get { return GS.ServerProperties.Properties.PET_THINK_INTERVAL; }
-		}
+        /// <summary>
+        /// The interval for thinking, set via server property, default is 1500 or every 1.5 seconds
+        /// </summary>
+        public override int ThinkInterval
+        {
+            get { return GS.ServerProperties.Properties.PET_THINK_INTERVAL; }
+        }
 
-		protected override int ThinkOffsetOnStart => 0;
+        #region Control
 
-		#region Control
-
-		/// <summary>
-		/// Gets the controlling owner of the brain
-		/// </summary>
-		public GameLiving Owner
-		{
-			get { return m_owner; }
-		}
+        /// <summary>
+        /// Gets the controlling owner of the brain
+        /// </summary>
+        public GameLiving Owner
+        {
+            get { return m_owner; }
+        }
 
         /// <summary>
         /// Find the player owner of the pets at the top of the tree
@@ -115,7 +129,9 @@ namespace DOL.AI.Brain
         public virtual GamePlayer GetPlayerOwner()
         {
             GameLiving owner = Owner;
+
             int i = 0;
+
             while (owner is GameNPC && owner != null)
             {
                 i++;
@@ -129,13 +145,26 @@ namespace DOL.AI.Brain
                 else
                     break;
             }
+
             //Return if we found the gameplayer
             if (owner is GamePlayer)
                 return (GamePlayer)owner;
+
             //If the root owner was not a player or npc then make sure we know that something went wrong!
             if (!(owner is GameNPC))
                 throw new Exception("Unrecognized owner: " + owner.GetType().FullName);
+
             //No GamePlayer at the top of the tree
+            return null;
+        }
+
+        public virtual IGamePlayer GetIPlayerOwner()
+        {
+            GameLiving living = GetLivingOwner();
+
+            if (living != null && living is IGamePlayer player)
+                return player;
+
             return null;
         }
 
@@ -155,6 +184,7 @@ namespace DOL.AI.Brain
                     log.Error("Boucle itérative dans GetNPCOwner !");
                     break;
                 }
+
                 if (owner.Brain is IControlledBrain)
                 {
                     if ((owner.Brain as IControlledBrain).Owner is GamePlayer)
@@ -171,10 +201,12 @@ namespace DOL.AI.Brain
         public virtual GameLiving GetLivingOwner()
         {
             GamePlayer player = GetPlayerOwner();
+
             if (player != null)
                 return player;
 
             GameNPC npc = GetNPCOwner();
+
             if (npc != null)
                 return npc;
 
@@ -186,13 +218,11 @@ namespace DOL.AI.Brain
         /// </summary>
         public virtual eWalkState WalkState
         {
-            get => m_walkState;
+            get { return m_walkState; }
             set
             {
-                if (m_walkState != value)
-                    Body?.effectListComponent.RequestPlayerUpdate(EffectService.PlayerUpdate.ICONS);
-
                 m_walkState = value;
+                UpdatePetWindow();
             }
         }
 
@@ -204,12 +234,9 @@ namespace DOL.AI.Brain
             get => m_aggressionState;
             set
             {
-                if (m_aggressionState != value)
-                    Body?.effectListComponent.RequestPlayerUpdate(EffectService.PlayerUpdate.ICONS);
-
                 m_aggressionState = value;
 
-                if (m_aggressionState is eAggressionState.Passive)
+                if (m_aggressionState == eAggressionState.Passive)
                 {
                     Disengage();
 
@@ -229,27 +256,33 @@ namespace DOL.AI.Brain
         /// </summary>
         /// <param name="target"></param>
         public virtual void Attack(GameObject target)
-		{
-			if (AggressionState is eAggressionState.Passive)
-				AggressionState = eAggressionState.Defensive;
+        {
+            if (AggressionState == eAggressionState.Passive)
+            {
+                AggressionState = eAggressionState.Defensive;
+                UpdatePetWindow();
+            }
 
-			if (m_orderAttackTarget == target)
-				return;
+            if (m_orderAttackTarget == target)
+                return;
 
-			m_orderAttackTarget = target as GameLiving;
-			FSM.SetCurrentState(eFSMStateType.AGGRO);
+            m_orderAttackTarget = target as GameLiving;
+            FSM.SetCurrentState(eFSMStateType.AGGRO);
 
-			if (target != Body.TargetObject && Body.IsCasting)
-				Body.StopCurrentSpellcast();
+            if (target != Body.TargetObject && Body.IsCasting)
+                Body.StopCurrentSpellcast();
 
-			AttackMostWanted();
-		}
+            AttackMostWanted();
+        }
 
 		public virtual void CheckAggressionStateOnPlayerOrder()
 		{
 			// We switch to defensive mode if we're in aggressive and have a target, so that we don't immediately aggro back
-			if (AggressionState is eAggressionState.Aggressive && Body.TargetObject != null)
+			if (AggressionState == eAggressionState.Aggressive && Body.TargetObject != null)
+			{
 				AggressionState = eAggressionState.Defensive;
+				UpdatePetWindow();
+			}
 		}
 
 		public virtual void Disengage()
@@ -261,59 +294,60 @@ namespace DOL.AI.Brain
 			Body.TargetObject = null;
 		}
 
-		/// <summary>
-		/// Follow the target on command
-		/// </summary>
-		/// <param name="target"></param>
-		public virtual void Follow(GameObject target)
-		{
-			WalkState = eWalkState.Follow;
-			Body.Follow(target, MIN_OWNER_FOLLOW_DIST, MAX_OWNER_FOLLOW_DIST);
-		}
+        /// <summary>
+        /// Follow the target on command
+        /// </summary>
+        /// <param name="target"></param>
+        public virtual void Follow(GameObject target)
+        {
+            WalkState = eWalkState.Follow;
+            Body.Follow(target, MIN_OWNER_FOLLOW_DIST, MAX_OWNER_FOLLOW_DIST);
+        }
 
-		/// <summary>
-		/// Stay at current position on command
-		/// </summary>
-		public virtual void Stay()
-		{
-			m_tempX = Body.X;
-			m_tempY = Body.Y;
-			m_tempZ = Body.Z;
-			WalkState = eWalkState.Stay;
-			Body.StopMoving();
-		}
+        /// <summary>
+        /// Stay at current position on command
+        /// </summary>
+        public virtual void Stay()
+        {
+            m_tempX = Body.X;
+            m_tempY = Body.Y;
+            m_tempZ = Body.Z;
+            WalkState = eWalkState.Stay;
+            Body.StopMoving();
+        }
 
-		/// <summary>
-		/// Go to owner on command
-		/// </summary>
-		public virtual void ComeHere()
-		{
-			m_tempX = Owner.X;
-			m_tempY = Owner.Y;
-			m_tempZ = Owner.Z;
-			WalkState = eWalkState.ComeHere;
-			Body.StopFollowing();
-			Body.PathTo(Owner, Body.MaxSpeed);
-		}
+        /// <summary>
+        /// Go to owner on command
+        /// </summary>
+        public virtual void ComeHere()
+        {
+            m_tempX = Owner.X;
+            m_tempY = Owner.Y;
+            m_tempZ = Owner.Z;
+            WalkState = eWalkState.ComeHere;
+            Body.StopFollowing();
+            Body.PathTo(Owner, Body.MaxSpeed);
+        }
 
-		/// <summary>
-		/// Go to targets location on command
-		/// </summary>
-		/// <param name="target"></param>
-		public virtual void Goto(GameObject target)
-		{
-			m_tempX = target.X;
-			m_tempY = target.Y;
-			m_tempZ = target.Z;
-			WalkState = eWalkState.GoTarget;
-			Body.StopFollowing();
-			Body.PathTo(target, Body.MaxSpeed);
-		}
+        /// <summary>
+        /// Go to targets location on command
+        /// </summary>
+        /// <param name="target"></param>
+        public virtual void Goto(GameObject target)
+        {
+            m_tempX = target.X;
+            m_tempY = target.Y;
+            m_tempZ = target.Z;
+            WalkState = eWalkState.GoTarget;
+            Body.StopFollowing();
+            Body.PathTo(target, Body.MaxSpeed);
+        }
 
-		public virtual void SetAggressionState(eAggressionState state)
-		{
-			AggressionState = state;
-		}
+        public virtual void SetAggressionState(eAggressionState state)
+        {
+            AggressionState = state;
+            UpdatePetWindow();
+        }
 
 		/// <summary>
 		/// Updates the pet window
@@ -331,60 +365,74 @@ namespace DOL.AI.Brain
 			if (Body.IsAttacking)
 				Disengage();
 
-			if (Owner is GamePlayer
+			if (Owner is IGamePlayer
 			    && IsMainPet
-			    && ((GamePlayer)Owner).CharacterClass.ID != (int)eCharacterClass.Animist
-			    && ((GamePlayer)Owner).CharacterClass.ID != (int)eCharacterClass.Theurgist)
+			    && ((IGamePlayer)Owner).CharacterClass.ID != (int)eCharacterClass.Animist
+			    && ((IGamePlayer)Owner).CharacterClass.ID != (int)eCharacterClass.Theurgist)
 				Body.Follow(Owner, MIN_OWNER_FOLLOW_DIST, MAX_OWNER_FOLLOW_DIST);
 			else if (Owner is GameNPC)
 				Body.Follow(Owner, MIN_OWNER_FOLLOW_DIST, MAX_OWNER_FOLLOW_DIST);
 		}
 
-		#endregion
+        #endregion Control
 
-		#region AI
+        #region AI
 
-		/// <summary>
-		/// The attack target ordered by the owner
-		/// </summary>
-		protected GameLiving m_orderAttackTarget;
+        /// <summary>
+        /// The attack target ordered by the owner
+        /// </summary>
+        protected GameLiving m_orderAttackTarget;
 
-		public GameLiving OrderedAttackTarget {
-			get { return m_orderAttackTarget; }
-			set { m_orderAttackTarget = value; }
+        public GameLiving OrderedAttackTarget
+        {
+            get { return m_orderAttackTarget; }
+            set { m_orderAttackTarget = value; }
         }
 
-		/// <summary>
-		/// Starts the brain thinking and resets the inactivity countdown
-		/// </summary>
-		/// <returns>true if started</returns>
-		public override bool Start()
-		{
-			if (!base.Start())
-				return false;
+        /// <summary>
+        /// Starts the brain thinking and resets the inactivity countdown
+        /// </summary>
+        /// <returns>true if started</returns>
+        public override bool Start()
+        {
+            if (!base.Start() && Owner is not MimicNPC)
+                return false;
 
-			if (WalkState == eWalkState.Follow)
-				FollowOwner();
+            if (WalkState == eWalkState.Follow)
+                FollowOwner();
 
-			return true;
-		}
+            return true;
+        }
 
-		public override bool Stop()
-		{
-			if (!base.Stop())
-				return false;
+        /// <summary>
+        /// Stops the brain thinking
+        /// </summary>
+        /// <returns>true if stopped</returns>
+        public override bool Stop()
+        {
+            if (!base.Stop())
+                return false;
 
-			OnRelease();
-			return true;
-		}
+            StripCastedBuffs();
+            GameEventMgr.Notify(GameLivingEvent.PetReleased, Body);
+            return true;
+        }
 
-		/// <summary>
-		/// Checks the Abilities
-		/// </summary>
-		public override void CheckAbilities()
-		{
-			if (Body.Abilities == null || Body.Abilities.Count <= 0)
-				return;
+        /// <summary>
+        /// Do the mob AI
+        /// </summary>
+        public override void Think()
+        {
+            base.Think();
+        }
+
+        /// <summary>
+        /// Checks the Abilities
+        /// </summary>
+        public override void CheckAbilities()
+        {
+            if (Body.Abilities == null || Body.Abilities.Count <= 0)
+                return;
 
 			foreach (Ability ab in Body.Abilities.Values)
 			{
@@ -392,11 +440,11 @@ namespace DOL.AI.Brain
 				{
 					case Abilities.Intercept:
 					{
-						GamePlayer playerOwner = GetPlayerOwner();
+						IGamePlayer playerOwner = GetIPlayerOwner();
 
 						if (playerOwner != null)
 						{
-							InterceptAbilityHandler.CheckExistingEffectsOnTarget(Body, playerOwner, false, out bool foundOurEffect, out InterceptECSGameEffect existingEffectFromAnotherSource);
+							InterceptAbilityHandler.CheckExistingEffectsOnTarget(Body, (GameLiving)playerOwner, false, out bool foundOurEffect, out InterceptECSGameEffect existingEffectFromAnotherSource);
 
 							if (foundOurEffect)
 								break;
@@ -404,18 +452,37 @@ namespace DOL.AI.Brain
 							if (existingEffectFromAnotherSource != null)
 								EffectService.RequestImmediateCancelEffect(existingEffectFromAnotherSource);
 
-							new InterceptECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1), Body, playerOwner);
+							new InterceptECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1), Body, (GameLiving)playerOwner);
 						}
 
-						break;
-					}
-					case Abilities.Guard:
-					{
-						GamePlayer playerOwner = GetPlayerOwner();
+                        break;
+                    }
+                    case Abilities.Guard:
+                    {
+                        IGamePlayer playerOwner = GetIPlayerOwner();
+
+                        if (playerOwner != null)
+                        {
+                            GuardAbilityHandler.CheckExistingEffectsOnTarget(Body, (GameLiving)playerOwner, false, out bool foundOurEffect, out GuardECSGameEffect existingEffectFromAnotherSource);
+
+                            if (foundOurEffect)
+                                break;
+
+							if (existingEffectFromAnotherSource != null)
+								EffectService.RequestImmediateCancelEffect(existingEffectFromAnotherSource);
+
+							new GuardECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1, null), Body, (GameLiving)playerOwner);
+						}
+
+                        break;
+                    }
+                    case Abilities.Protect:
+                    {
+                        IGamePlayer playerOwner = GetIPlayerOwner();
 
 						if (playerOwner != null)
 						{
-							GuardAbilityHandler.CheckExistingEffectsOnTarget(Body, playerOwner, false, out bool foundOurEffect, out GuardECSGameEffect existingEffectFromAnotherSource);
+							ProtectAbilityHandler.CheckExistingEffectsOnTarget(Body, (GameLiving)playerOwner, false, out bool foundOurEffect, out ProtectECSGameEffect existingEffectFromAnotherSource);
 
 							if (foundOurEffect)
 								break;
@@ -423,47 +490,28 @@ namespace DOL.AI.Brain
 							if (existingEffectFromAnotherSource != null)
 								EffectService.RequestImmediateCancelEffect(existingEffectFromAnotherSource);
 
-							new GuardECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1, null), Body, playerOwner);
+							new ProtectECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1, null), Body, (GameLiving)playerOwner);
 						}
 
-						break;
-					}
-					case Abilities.Protect:
-					{
-						GamePlayer playerOwner = GetPlayerOwner();
+                        break;
+                    }
+                    case Abilities.ChargeAbility:
+                    {
+                        if (Body.TargetObject is GameLiving target &&
+                            GameServer.ServerRules.IsAllowedToAttack(Body, target, true) &&
+                            !Body.IsWithinRadius(target, 500))
+                        {
+                            ChargeAbility charge = Body.GetAbility<ChargeAbility>();
 
-						if (playerOwner != null)
-						{
-							ProtectAbilityHandler.CheckExistingEffectsOnTarget(Body, playerOwner, false, out bool foundOurEffect, out ProtectECSGameEffect existingEffectFromAnotherSource);
+                            if (charge != null && Body.GetSkillDisabledDuration(charge) <= 0)
+                                charge.Execute(Body);
+                        }
 
-							if (foundOurEffect)
-								break;
-
-							if (existingEffectFromAnotherSource != null)
-								EffectService.RequestImmediateCancelEffect(existingEffectFromAnotherSource);
-
-							new ProtectECSGameEffect(new ECSGameEffectInitParams(Body, 0, 1, null), Body, playerOwner);
-						}
-
-						break;
-					}
-					case Abilities.ChargeAbility:
-					{
-						if (Body.TargetObject is GameLiving target &&
-							GameServer.ServerRules.IsAllowedToAttack(Body, target, true) &&
-							!Body.IsWithinRadius(target, 500))
-						{
-							ChargeAbility charge = Body.GetAbility<ChargeAbility>();
-
-							if (charge != null && Body.GetSkillDisabledDuration(charge) <= 0)
-								charge.Execute(Body);
-						}
-
-						break;
-					}
-				}
-			}
-		}
+                        break;
+                    }
+                }
+            }
+        }
 
         protected override GameLiving FindTargetForDefensiveSpell(Spell spell)
         {
@@ -476,11 +524,8 @@ namespace DOL.AI.Brain
                 case eSpellType.AcuityBuff:
                 case eSpellType.AFHitsBuff:
                 case eSpellType.AllMagicResistBuff:
-                case eSpellType.AllSecondaryMagicResistsBuff:
                 case eSpellType.ArmorAbsorptionBuff:
-                case eSpellType.BaseArmorFactorBuff:
-                case eSpellType.SpecArmorFactorBuff:
-                case eSpellType.PaladinArmorFactorBuff:
+                case eSpellType.ArmorFactorBuff:
                 case eSpellType.BodyResistBuff:
                 case eSpellType.BodySpiritEnergyBuff:
                 case eSpellType.Buff:
@@ -508,6 +553,7 @@ namespace DOL.AI.Brain
                 case eSpellType.MeleeDamageBuff:
                 case eSpellType.MesmerizeDurationBuff:
                 case eSpellType.MLABSBuff:
+                case eSpellType.PaladinArmorFactorBuff:
                 case eSpellType.ParryBuff:
                 case eSpellType.PowerHealthEnduranceRegenBuff:
                 case eSpellType.PowerRegenBuff:
@@ -669,7 +715,7 @@ namespace DOL.AI.Brain
                     break;
                 }
 
-                #endregion
+                #endregion Disease Cure/Poison Cure/Summon
 
                 #region Heals
 
@@ -777,16 +823,24 @@ namespace DOL.AI.Brain
 
 		public override bool CanAggroTarget(GameLiving target)
 		{
+			// Only attack if target (or target's owner) is green+ to our owner
+			if (target is GameNPC npc && npc.Brain is IControlledBrain controlledBrain && controlledBrain.Owner != null)
+				target = controlledBrain.Owner;
+
 			GameLiving ownerToCheck = GetPlayerOwner();
 			ownerToCheck ??= Owner;
-			return AggroLevel > 0 && !ownerToCheck.IsObjectGreyCon(target) && GameServer.ServerRules.IsAllowedToAttack(Body, target, true);
-		}
+
+			if (!GameServer.ServerRules.IsAllowedToAttack(Body, target, true) || ownerToCheck.IsObjectGreyCon(target))
+				return false;
+
+            return AggroLevel > 0;
+        }
 
 		protected override bool ShouldBeRemovedFromAggroList(GameLiving living)
 		{
 			if (living.IsMezzed ||
 				!living.IsAlive ||
-				living.ObjectState is not GameObject.eObjectState.Active ||
+				living.ObjectState != GameObject.eObjectState.Active ||
 				living.CurrentRegion != Body.CurrentRegion ||
 				!Body.IsWithinRadius(living, MAX_AGGRO_LIST_DISTANCE) ||
 				!GameServer.ServerRules.IsAllowedToAttack(Body, living, true))
@@ -798,38 +852,38 @@ namespace DOL.AI.Brain
 			return root != null && root.SpellHandler.Spell.Value == 99;
 		}
 
-		/// <summary>
-		/// Perform some checks on 'm_orderAttackTarget'. Returns it if it's still a valid target, sets it to null otherwise.
-		/// </summary>
-		protected virtual GameLiving CheckAttackOrderTarget()
-		{
-			if (AggressionState != eAggressionState.Passive && m_orderAttackTarget != null)
-			{
-				if (m_orderAttackTarget.IsAlive &&
-					m_orderAttackTarget.ObjectState == GameObject.eObjectState.Active &&
-					GameServer.ServerRules.IsAllowedToAttack(Body, m_orderAttackTarget, true))
-					return m_orderAttackTarget;
+        /// <summary>
+        /// Perform some checks on 'm_orderAttackTarget'. Returns it if it's still a valid target, sets it to null otherwise.
+        /// </summary>
+        protected virtual GameLiving CheckAttackOrderTarget()
+        {
+            if (AggressionState != eAggressionState.Passive && m_orderAttackTarget != null)
+            {
+                if (m_orderAttackTarget.IsAlive &&
+                    m_orderAttackTarget.ObjectState == GameObject.eObjectState.Active &&
+                    GameServer.ServerRules.IsAllowedToAttack(Body, m_orderAttackTarget, true))
+                    return m_orderAttackTarget;
 
-				m_orderAttackTarget = null;
-			}
+                m_orderAttackTarget = null;
+            }
 
-			return null;
-		}
+            return null;
+        }
 
-		protected override GameLiving CalculateNextAttackTarget()
-		{
-			return CheckAttackOrderTarget() ?? base.CalculateNextAttackTarget();
-		}
+        protected override GameLiving CalculateNextAttackTarget()
+        {
+            return CheckAttackOrderTarget() ?? base.CalculateNextAttackTarget();
+        }
 
-		/// <summary>
-		/// Selects and attacks the next target or does nothing
-		/// </summary>
-		public override void AttackMostWanted()
-		{
-			if (!IsActive || m_aggressionState == eAggressionState.Passive)
-				return;
+        /// <summary>
+        /// Selects and attacks the next target or does nothing
+        /// </summary>
+        public override void AttackMostWanted()
+        {
+            if (!IsActive || m_aggressionState == eAggressionState.Passive)
+                return;
 
-			GameNPC owner_npc = GetNPCOwner();
+            GameNPC owner_npc = GetNPCOwner();
 
 			if (owner_npc != null && owner_npc.Brain is StandardMobBrain)
 			{
@@ -840,42 +894,43 @@ namespace DOL.AI.Brain
 				{
 					if (!CheckSpells(eCheckSpellType.Offensive))
 						Body.StartAttack(owner_npc.TargetObject);
+						Body.StartAttack(owner_npc.TargetObject);
 
-					return;
-				}
-			}
+                    return;
+                }
+            }
 
-			GameLiving target = CalculateNextAttackTarget();
-			
-			if (target != null)
-			{
-				if (!Body.IsAttacking || target != Body.TargetObject)
-				{
-					Body.TargetObject = target;
+            GameLiving target = CalculateNextAttackTarget();
 
-					List<GameSpellEffect> effects = new List<GameSpellEffect>();
+            if (target != null)
+            {
+                if (!Body.IsAttacking || target != Body.TargetObject)
+                {
+                    Body.TargetObject = target;
 
-					lock (Body.EffectList.Lock)
-					{
-						foreach (IGameEffect effect in Body.EffectList)
-						{
-							if (effect is GameSpellEffect gameSpellEffect && gameSpellEffect.SpellHandler is SpeedEnhancementSpellHandler)
-								effects.Add(gameSpellEffect);
-						}
-					}
+                    List<GameSpellEffect> effects = new List<GameSpellEffect>();
 
-					lock (Owner.EffectList.Lock)
-					{
-						foreach (IGameEffect effect in Owner.EffectList)
-						{
-							if (effect is GameSpellEffect gameSpellEffect && gameSpellEffect.SpellHandler is SpeedEnhancementSpellHandler)
-								effects.Add(gameSpellEffect);
-						}
-					}
+                    lock (Body.EffectList)
+                    {
+                        foreach (IGameEffect effect in Body.EffectList)
+                        {
+                            if (effect is GameSpellEffect gameSpellEffect && gameSpellEffect.SpellHandler is SpeedEnhancementSpellHandler)
+                                effects.Add(gameSpellEffect);
+                        }
+                    }
 
-					foreach (GameSpellEffect effect in effects)
-						effect.Cancel(false);
-				}
+                    lock (Owner.EffectList)
+                    {
+                        foreach (IGameEffect effect in Owner.EffectList)
+                        {
+                            if (effect is GameSpellEffect gameSpellEffect && gameSpellEffect.SpellHandler is SpeedEnhancementSpellHandler)
+                                effects.Add(gameSpellEffect);
+                        }
+                    }
+
+                    foreach (GameSpellEffect effect in effects)
+                        effect.Cancel(false);
+                }
 
 				if (!CheckSpells(eCheckSpellType.Offensive))
 					Body.StartAttack(target);
@@ -885,25 +940,27 @@ namespace DOL.AI.Brain
 				if (Body.IsAttacking)
 					Disengage();
 
-				if (WalkState == eWalkState.Follow)
-					FollowOwner();
-				else if (m_tempX > 0 && m_tempY > 0 && m_tempZ > 0)
-				{
-					Body.StopFollowing();
-					Body.WalkTo(new Point3D(m_tempX, m_tempY, m_tempZ), Body.MaxSpeed);
-					// TODO: Should the cached position be cleared?
-				}
-			}
-		}
+                if (WalkState == eWalkState.Follow)
+                    FollowOwner();
+                else if (m_tempX > 0 && m_tempY > 0 && m_tempZ > 0)
+                {
+                    Body.StopFollowing();
+                    Body.WalkTo(new Point3D(m_tempX, m_tempY, m_tempZ), Body.MaxSpeed);
+                    // TODO: Should the cached position be cleared?
+                }
+            }
+        }
 
-		public virtual void OnOwnerAttacked(AttackData ad)
-		{
-			if (FSM.GetCurrentState() == FSM.GetState(eFSMStateType.PASSIVE))
-				return;
+        public virtual void OnOwnerAttacked(AttackData ad)
+        {
+            if (FSM.GetState(eFSMStateType.PASSIVE) == FSM.GetCurrentState()) { return; }
 
-			// Theurgist pets don't help their owner.
-			if (Owner is GamePlayer playerOwner && (eCharacterClass) playerOwner.CharacterClass.ID is eCharacterClass.Theurgist)
-				return;
+            // Theurgist pets don't help their owner.
+            if (Owner is IGamePlayer && ((IGamePlayer)Owner).CharacterClass.ID == (int)eCharacterClass.Theurgist)
+                return;
+
+            if (ad.Target is IGamePlayer && ((ad.Target as IGamePlayer).ControlledBrain != this || (ad.Target as IGamePlayer).ControlledBrain.Body == Owner))
+                return;
 
 			switch (ad.AttackResult)
 			{
@@ -914,56 +971,48 @@ namespace DOL.AI.Brain
 				case eAttackResult.HitUnstyled:
 				case eAttackResult.Missed:
 				case eAttackResult.Parried:
-				{
-					ConvertAttackToAggroAmount(ad);
-				}
-
-				break;
+					AddToAggroList(ad.Attacker, ad.Damage + ad.CriticalDamage);
+					break;
 			}
-		}
 
-		public virtual void OnRelease()
-		{
-			StripCastedBuffs();
+            if (FSM.GetState(eFSMStateType.AGGRO) != FSM.GetCurrentState()) { FSM.SetCurrentState(eFSMStateType.AGGRO); }
+            AttackMostWanted();
+        }
 
-			foreach (ECSGameSpellEffect effect in Body.effectListComponent.GetSpellEffects())
-			{
-				if (effect.EffectType is eEffect.Pet or eEffect.Charm)
-					EffectService.RequestImmediateCancelEffect(effect);
-			}
-		}
+        public void AddBuffedTarget(GameLiving living)
+        {
+            if (living == Body)
+                return;
 
-		public void AddBuffedTarget(GameLiving living)
-		{
-			if (living == Body)
-				return;
+            lock (m_buffedTargetsLock)
+            {
+                m_buffedTargets.Add(living);
+            }
+        }
 
-			lock (_buffedTargetsLock)
-			{
-				_buffedTargets.Add(living);
-			}
-		}
+        public void StripCastedBuffs()
+        {
+            lock (m_buffedTargetsLock)
+            {
+                foreach (GameLiving living in m_buffedTargets)
+                {
+                    foreach (ECSGameEffect effect in living.effectListComponent.GetAllEffects().Where(x => x.SpellHandler != null && x.SpellHandler.Caster == Body))
+                        EffectService.RequestCancelEffect(effect);
+                }
 
-		public void StripCastedBuffs()
-		{
-			lock (_buffedTargetsLock)
-			{
-				foreach (GameLiving living in _buffedTargets)
-				{
-					foreach (ECSGameEffect effect in living.effectListComponent.GetAllEffects().Where(x => x.SpellHandler != null && x.SpellHandler.Caster == Body))
-						EffectService.RequestCancelEffect(effect);
-				}
+                m_buffedTargets.Clear();
+            }
+        }
 
-				_buffedTargets.Clear();
-			}
-		}
+        public virtual int ModifyDamageWithTaunt(int damage)
+        { return damage; }
 
-		public virtual int ModifyDamageWithTaunt(int damage) { return damage; }
+        protected override void BringFriends(GameLiving trigger)
+        { }
 
-		protected override void BringFriends(GameLiving trigger) { }
+        public override bool CheckFormation(ref int x, ref int y, ref int z)
+        { return false; }
 
-		public override bool CheckFormation(ref int x, ref int y, ref int z) { return false; }
-
-		#endregion
-	}
+        #endregion AI
+    }
 }

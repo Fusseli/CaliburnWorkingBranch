@@ -4,6 +4,7 @@ using DOL.AI.Brain;
 using DOL.Events;
 using DOL.GS.PacketHandler;
 using DOL.GS.Realm;
+using DOL.GS.Scripts;
 using DOL.Language;
 
 namespace DOL.GS
@@ -87,7 +88,7 @@ namespace DOL.GS
 		/// <summary>
 		/// The GamePlayer for this character
 		/// </summary>
-		public GamePlayer Player { get; private set; }
+		public IGamePlayer Player { get; private set; }
 
 		private static readonly string[] AutotrainableSkills = new string[0];
 
@@ -96,7 +97,7 @@ namespace DOL.GS
 			m_id = 0;
 			m_name = "Unknown Class";
 			m_basename = "Unknown Base Class";
-			m_profession = string.Empty;
+			m_profession = "";
 
 			// initialize members from attributes
 			Attribute[] attrs = Attribute.GetCustomAttributes(this.GetType(), typeof(CharacterClassAttribute));
@@ -114,7 +115,7 @@ namespace DOL.GS
 			}
 		}
 
-		public virtual void Init(GamePlayer player)
+		public virtual void Init(IGamePlayer player)
 		{
 			// TODO : Should Throw Exception Here.
 			if (Player != null && log.IsWarnEnabled)
@@ -157,7 +158,7 @@ namespace DOL.GS
 		{
 			get
 			{
-				return LanguageMgr.TryTranslateOrDefault(Player, m_profession, m_profession);
+				return LanguageMgr.TryTranslateOrDefault((GamePlayer)Player, m_profession, m_profession);
 			}
 		}
 
@@ -232,8 +233,6 @@ namespace DOL.GS
 			get { return eClassType.ListCaster; }
 		}
 
-		public virtual bool FocusCaster => false;
-
 		/// <summary>
 		/// Return the base list of Realm abilities that the class
 		/// can train in.  Added by Echostorm for RAs
@@ -298,7 +297,9 @@ namespace DOL.GS
 
 		public virtual void SetControlledBrain(IControlledBrain controlledBrain)
 		{
-			if (controlledBrain == Player.ControlledBrain) return;
+			if (controlledBrain == Player.ControlledBrain) 
+				return;
+
 			if (controlledBrain == null)
 			{
 				Player.Out.SendPetWindow(null, ePetWindowAction.Close, 0, 0);
@@ -311,12 +312,16 @@ namespace DOL.GS
 			{
 				if (controlledBrain.Owner != Player)
 					throw new ArgumentException("ControlledNpc with wrong owner is set (player=" + Player.Name + ", owner=" + controlledBrain.Owner.Name + ")", "controlledNpc");
+
 				if (Player.ControlledBrain == null)
-					Player.InitControlledBrainArray(1);
+					((GamePlayer)Player).InitControlledBrainArray(1);
+
 				Player.Out.SendPetWindow(controlledBrain.Body, ePetWindowAction.Open, controlledBrain.AggressionState, controlledBrain.WalkState);
+
 				if (controlledBrain.Body != null)
 				{
 					Player.Out.SendNPCCreate(controlledBrain.Body); // after open pet window again send creation NPC packet
+
 					if (controlledBrain.Body.Inventory != null)
 						Player.Out.SendLivingEquipmentUpdate(controlledBrain.Body);
 				}
@@ -331,15 +336,19 @@ namespace DOL.GS
 		/// </summary>
 		public virtual void CommandNpcRelease()
 		{
-			ControlledMobBrain controlledBrain;
+			IControlledBrain controlledBrain = ((IGamePlayer)Player).ControlledBrain;
 
-			if (Player.TargetObject is not GameNPC targetNpc || !Player.IsControlledNPC(targetNpc))
-				controlledBrain = Player.ControlledBrain as ControlledMobBrain;
-			else
-				controlledBrain = targetNpc.Brain as ControlledMobBrain;
+			if (controlledBrain == null)
+				return;
 
-			controlledBrain?.OnRelease();
-			return;
+			(controlledBrain as ControlledMobBrain)?.StripCastedBuffs();
+
+			GameNPC npc = controlledBrain.Body;
+
+			if (npc == null)
+				return;
+
+			Player.Notify(GameLivingEvent.PetReleased, npc);
 		}
 
 		/// <summary>
@@ -357,6 +366,7 @@ namespace DOL.GS
 			return true;
 		}
 
+
 		/// <summary>
 		/// Return the health percent of this character
 		/// </summary>
@@ -368,35 +378,47 @@ namespace DOL.GS
 			}
 		}
 
-		public virtual bool CreateShadeEffect(out ECSGameAbilityEffect effect)
+
+		/// <summary>
+		/// Create a shade effect for this player.
+		/// </summary>
+		/// <returns></returns>
+		public virtual ShadeECSGameEffect CreateShadeEffect()
 		{
-			effect = EffectListService.GetAbilityEffectOnTarget(Player, eEffect.Shade);
-
-			if (effect != null)
-				return false;
-
-			effect = new ShadeECSGameEffect(new ECSGameEffectInitParams(Player, 0, 1));
-			return effect.IsBuffActive;
+			return new ShadeECSGameEffect(new ECSGameEffectInitParams((GamePlayer)Player, 0, 1));
 		}
 
-		public virtual bool CancelShadeEffect(out ECSGameAbilityEffect effect)
+		/// <summary>
+		/// Changes shade state of the player.
+		/// </summary>
+		/// <param name="state">The new state.</param>
+		public virtual void Shade(bool makeShade)
 		{
-			effect = EffectListService.GetAbilityEffectOnTarget(Player, eEffect.Shade);
-			return effect != null && EffectService.RequestImmediateCancelEffect(effect);
-		}
-
-		public virtual bool Shade(bool makeShade, out ECSGameAbilityEffect effect)
-		{
-			if (Player.HasShadeModel == makeShade)
+			if (Player.IsShade == makeShade)
 			{
 				if (makeShade && (Player.ObjectState == GameObject.eObjectState.Active))
 					Player.Out.SendMessage(LanguageMgr.GetTranslation(Player.Client.Account.Language, "GamePlayer.Shade.AlreadyShade"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
-
-				effect = null;
-				return false;
+				return;
 			}
 
-			return makeShade ? CreateShadeEffect(out effect) : CancelShadeEffect(out effect);
+			if (makeShade)
+			{
+				// Turn into a shade.
+				Player.Model = Player.ShadeModel;
+				Player.ShadeEffect = CreateShadeEffect();
+			}
+			else
+			{
+				if (Player.ShadeEffect != null)
+				{
+					// Drop shade form.
+					EffectService.RequestImmediateCancelEffect(Player.ShadeEffect);
+					Player.ShadeEffect = null;
+				}
+				// Drop shade form.
+				Player.Model = Player.CreationModel;
+				Player.Out.SendMessage(LanguageMgr.GetTranslation(Player.Client.Account.Language, "GamePlayer.Shade.NoLongerShade"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+			}
 		}
 
 		/// <summary>

@@ -145,7 +145,8 @@ namespace DOL.GS
         public override void Die(GameObject killer)
         {
             CommanderPet commander = (this.Brain as IControlledBrain).Owner as CommanderPet;
-            commander.RemoveControlledBrain(this.Brain as IControlledBrain);
+            commander.RemoveControlledNpc(this.Brain as IControlledBrain);
+
             base.Die(killer);
         }
     }

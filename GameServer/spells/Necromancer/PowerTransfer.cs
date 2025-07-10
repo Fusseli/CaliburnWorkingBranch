@@ -24,7 +24,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Spell handler for power trasnfer.
 	/// </summary>
-	[SpellHandler(eSpellType.PowerTransferPet)]
+	[SpellHandlerAttribute("PowerTransferPet")]
 	class PowerTransferPet : PowerTransfer
 	{
 		public override void OnDirectEffect(GameLiving target)

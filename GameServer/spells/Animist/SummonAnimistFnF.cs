@@ -1,4 +1,7 @@
+using System;
+using System.Linq;
 using DOL.AI.Brain;
+using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.Keeps;
 using DOL.GS.PacketHandler;
@@ -10,7 +13,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Summon a fnf animist pet.
     /// </summary>
-    [SpellHandler(eSpellType.SummonAnimistFnF)]
+    [SpellHandler("SummonAnimistFnF")]
 	public class SummonAnimistFnF : SummonAnimistPet
 	{
 		public SummonAnimistFnF(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -85,7 +88,38 @@ namespace DOL.GS.Spells
 			Caster.UpdatePetCount(true);
 		}
 
-		protected override void SetBrainToOwner(IControlledBrain brain) { }
+		protected override void SetBrainToOwner(IControlledBrain brain)
+		{
+		}
+
+		/// <summary>
+		/// [Ganrod] Nidel: Can remove TurretFNF
+		/// </summary>
+		/// <param name="e"></param>
+		/// <param name="sender"></param>
+		/// <param name="arguments"></param>
+		protected override void OnNpcReleaseCommand(DOLEvent e, object sender, EventArgs arguments)
+		{
+			m_pet = sender as GameSummonedPet;
+			if (m_pet == null)
+				return;
+
+			if ((m_pet.Brain as TurretFNFBrain) == null)
+				return;
+
+			if (Caster.ControlledBrain == null)
+			{
+				((GamePlayer)Caster).Out.SendPetWindow(null, ePetWindowAction.Close, 0, 0);
+			}
+
+			GameEventMgr.RemoveHandler(m_pet, GameLivingEvent.PetReleased, OnNpcReleaseCommand);
+
+			//GameSpellEffect effect = FindEffectOnTarget(m_pet, this);
+			//if (effect != null)
+			//	effect.Cancel(false);
+			if (m_pet.effectListComponent.Effects.TryGetValue(eEffect.Pet, out var petEffect))
+				EffectService.RequestImmediateCancelEffect(petEffect.FirstOrDefault());
+		}
 
 		/// <summary>
 		/// When an applied effect expires.
@@ -110,6 +144,12 @@ namespace DOL.GS.Spells
 			return new TurretFNFBrain(owner);
 		}
 
-		public override void CastSubSpells(GameLiving target) { }
+		/// <summary>
+		/// Do not trigger SubSpells
+		/// </summary>
+		/// <param name="target"></param>
+		public override void CastSubSpells(GameLiving target)
+		{
+		}
 	}
 }

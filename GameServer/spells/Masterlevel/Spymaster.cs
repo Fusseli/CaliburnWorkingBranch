@@ -13,7 +13,7 @@ namespace DOL.GS.Spells
     #endregion
 
     #region Spymaster-2
-    [SpellHandler(eSpellType.Decoy)]
+    [SpellHandlerAttribute("Decoy")]
     public class DecoySpellHandler : SpellHandler
     {
         private GameDecoy decoy;
@@ -81,7 +81,7 @@ namespace DOL.GS.Spells
             decoy.X = caster.X;
             decoy.Y = caster.Y;
             decoy.Z = caster.Z;
-            string TemplateId = string.Empty;
+            string TemplateId = "";
             switch (caster.Realm)
             {
                 case eRealm.Albion:
@@ -108,7 +108,7 @@ namespace DOL.GS.Spells
                 decoy.BroadcastLivingEquipmentUpdate();
             }
             decoy.MaxSpeedBase = 0;
-            decoy.GuildName = string.Empty;
+            decoy.GuildName = "";
         }
     }
     #endregion
@@ -118,7 +118,7 @@ namespace DOL.GS.Spells
     #endregion
 
     #region Spymaster-4
-    [SpellHandler(eSpellType.Sabotage)]
+    [SpellHandlerAttribute("Sabotage")]
     public class SabotageSpellHandler : SpellHandler
     {
         public override void OnDirectEffect(GameLiving target)
@@ -138,7 +138,7 @@ namespace DOL.GS.Spells
 
     //shared timer 1
     #region Spymaster-5
-    [SpellHandler(eSpellType.TangleSnare)]
+    [SpellHandlerAttribute("TangleSnare")]
     public class TangleSnareSpellHandler : MineSpellHandler
     {
         // constructor
@@ -188,7 +188,7 @@ namespace DOL.GS.Spells
 
     //shared timer 1
     #region Spymaster-6
-    [SpellHandler(eSpellType.PoisonSpike)]
+    [SpellHandlerAttribute("PoisonSpike")]
     public class PoisonSpikeSpellHandler : MineSpellHandler
     {
         // constructor
@@ -235,12 +235,12 @@ namespace DOL.GS.Spells
         }
     }
     #region Subspell
-    [SpellHandler(eSpellType.PoisonspikeDot)]
+    [SpellHandlerAttribute("PoisonspikeDot")]
     public class Spymaster6DotHandler : DoTSpellHandler
     {
         // constructor
         public Spymaster6DotHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
-        public override double CalculateSpellResistChance(GameLiving target) { return 0; }
+        public override int CalculateSpellResistChance(GameLiving target) { return 0; }
         protected override GameSpellEffect CreateSpellEffect(GameLiving target, double effectiveness)
         {
             return new GameSpellEffect(this, m_spell.Duration, m_spellLine.IsBaseLine ? 5000 : 4000, effectiveness);
@@ -250,7 +250,7 @@ namespace DOL.GS.Spells
     #endregion
 
     #region Spymaster-7
-    [SpellHandler(eSpellType.Loockout)]
+    [SpellHandlerAttribute("Loockout")]
     public class LoockoutSpellHandler : SpellHandler
     {
         private GameLiving m_target;
@@ -299,7 +299,7 @@ namespace DOL.GS.Spells
 
     //shared timer 1
     #region Spymaster-8
-    [SpellHandler(eSpellType.SiegeWrecker)]
+    [SpellHandlerAttribute("SiegeWrecker")]
     public class SiegeWreckerSpellHandler : MineSpellHandler
     {
         public override void OnEffectPulse(GameSpellEffect effect)
@@ -373,7 +373,7 @@ namespace DOL.GS.Spells
     #endregion
 
     #region Spymaster-9
-    [SpellHandler(eSpellType.EssenceFlare)]
+    [SpellHandlerAttribute("EssenceFlare")]
     public class EssenceFlareSpellHandler : SummonItemSpellHandler
     {
         public EssenceFlareSpellHandler(GameLiving caster, Spell spell, SpellLine line)
@@ -397,7 +397,7 @@ namespace DOL.GS.Spells
     #endregion
 
         #region Spymaster-10
-        [SpellHandler(eSpellType.BlanketOfCamouflage)]
+        [SpellHandler("BlanketOfCamouflage")]
         public class GroupstealthHandler : MasterlevelHandling
         {
             public GroupstealthHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

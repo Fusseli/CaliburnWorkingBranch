@@ -512,12 +512,12 @@ namespace DOL.GS.Scripts
                     return "[40-50+]";
             }
 
-            return string.Empty;
+            return "";
         }
 
         public static string GetText()
         {
-            string realm = string.Empty;
+            string realm = "";
             switch (currentRvRRealm)
             {
                 case 1:
@@ -542,7 +542,7 @@ namespace DOL.GS.Scripts
         public static List<string> GetTextList()
         {
             List<string> temp = new List<string>();
-            string realm = string.Empty;
+            string realm = "";
             switch (currentRvRRealm)
             {
                 case 1:

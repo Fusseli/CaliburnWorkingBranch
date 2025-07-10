@@ -5,7 +5,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.BeltOfSun)]
+    [SpellHandler("BeltOfSun")]
     public class BeltOfSun : SummonItemSpellHandler
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);

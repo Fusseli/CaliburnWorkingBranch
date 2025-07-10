@@ -30,7 +30,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Summary description for ReanimateCorpe.
 	/// </summary>
-	[SpellHandler(eSpellType.ReanimateCorpse)]
+	[SpellHandlerAttribute("ReanimateCorpse")]
 	public class MonsterRez : ResurrectSpellHandler
 	{
 		// Constructor
@@ -60,7 +60,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Summary description for ReanimateCorpe.
 	/// </summary>
-	[SpellHandler(eSpellType.SummonMonster)]
+	[SpellHandlerAttribute("SummonMonster")]
 	public class SummonMonster : SpellHandler
 	{
 		private ushort m_model = 0;
@@ -176,7 +176,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Summary description for MonsterDoT.
 	/// </summary>
-	[SpellHandler(eSpellType.MonsterDoT)]
+	[SpellHandlerAttribute("MonsterDoT")]
 	public class MonsterDoT : DirectDamageSpellHandler
 	{
 		public override IList<GameLiving> SelectTargets(GameObject castTarget)
@@ -213,7 +213,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Summary description for MonsterDoT.
 	/// </summary>
-	[SpellHandler(eSpellType.MonsterDisease)]
+	[SpellHandlerAttribute("MonsterDisease")]
 	public class MonsterDisease : DiseaseSpellHandler
 	{
 		public override IList<GameLiving> SelectTargets(GameObject castTarget)

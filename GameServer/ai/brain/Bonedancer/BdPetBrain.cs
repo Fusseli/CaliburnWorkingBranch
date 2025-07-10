@@ -1,4 +1,5 @@
 using System;
+using DOL.Events;
 using DOL.GS;
 
 namespace DOL.AI.Brain
@@ -17,6 +18,26 @@ namespace DOL.AI.Brain
         /// </summary>
         public bool MinionsAssisting => Owner is CommanderPet commander && commander.MinionsAssisting;
 
+        public override void OnOwnerAttacked(AttackData ad)
+        {
+            // react only on these attack results
+            switch (ad.AttackResult)
+            {
+                case eAttackResult.Blocked:
+                case eAttackResult.Evaded:
+                case eAttackResult.Fumbled:
+                case eAttackResult.HitStyle:
+                case eAttackResult.HitUnstyled:
+                case eAttackResult.Missed:
+                case eAttackResult.Parried:
+                    AddToAggroList(ad.Attacker, ad.Damage + ad.CriticalDamage);
+                    break;
+            }
+
+            if (FSM.GetState(eFSMStateType.AGGRO) != FSM.GetCurrentState()) { FSM.SetCurrentState(eFSMStateType.AGGRO); }
+            AttackMostWanted();
+        }
+
         public override void SetAggressionState(eAggressionState state)
         {
             if (MinionsAssisting)
@@ -25,7 +46,7 @@ namespace DOL.AI.Brain
                 base.SetAggressionState(eAggressionState.Passive);
 
             // Attack immediately rather than waiting for the next Think()
-            if (AggressionState is not eAggressionState.Passive)
+            if (AggressionState != eAggressionState.Passive)
                 Attack(Owner.TargetObject);
         }
 
@@ -36,16 +57,30 @@ namespace DOL.AI.Brain
         /// <param name="ad">information about the attack</param>
         public override void OnAttackedByEnemy(AttackData ad)
         {
-            // Any attack on a subpet is handled as if it was the commander that was attacker.
-            // This will propagate the event to every subpet.
-            if (ad.CausesCombat && Owner is CommanderPet owner && owner.Brain is CommanderBrain ownerBrain)
-                ownerBrain.OnAttackedByEnemy(ad);
+            base.OnAttackedByEnemy(ad);
+
+            // Get help from the commander and other minions
+            if (ad.CausesCombat && Owner is GameSummonedPet own && own.Brain is CommanderBrain ownBrain)
+                ownBrain.DefendMinion(ad.Attacker);
         }
 
         /// <summary>
         /// Updates the pet window
         /// </summary>
         public override void UpdatePetWindow() { }
+
+        /// <summary>
+        /// Stops the brain thinking
+        /// </summary>
+        /// <returns>true if stopped</returns>
+        public override bool Stop()
+        {
+            if (!base.Stop())
+                return false;
+
+            GameEventMgr.Notify(GameLivingEvent.PetReleased, Body);
+            return true;
+        }
 
         /// <summary>
         /// Start following the owner
@@ -126,6 +161,21 @@ namespace DOL.AI.Brain
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Standard think method for all the pets
+        /// </summary>
+        public override void Think()
+        {
+            CheckAbilities();
+            base.Think();
+        }
+
+        public override void Attack(GameObject target)
+        {
+            base.Attack(target);
+            CheckAbilities();
         }
 
         public override eWalkState WalkState

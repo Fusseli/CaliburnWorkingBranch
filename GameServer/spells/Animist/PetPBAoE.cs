@@ -22,7 +22,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Summary description for TurretPBAoESpellHandler.
     /// </summary>
-    [SpellHandler(eSpellType.TurretPBAoE)]
+    [SpellHandler("TurretPBAoE")]
     public class PetPBAoE : DirectDamageSpellHandler
     {
         public PetPBAoE(GameLiving caster, Spell spell, SpellLine spellLine) : base(caster, spell, spellLine) { }

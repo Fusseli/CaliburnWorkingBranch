@@ -53,7 +53,7 @@ namespace DOL.GS.RealmAbilities
 				return;
 			}
 
-			//if (living.TempProperties.GetProperty<bool>("Charging")
+			//if (living.TempProperties.getProperty("Charging", false)
 			//	|| living.EffectList.CountOfType(typeof(SpeedOfSoundEffect), typeof(ArmsLengthEffect), typeof(ChargeEffect)) > 0)
 			//{
 			//	if (living is GamePlayer)

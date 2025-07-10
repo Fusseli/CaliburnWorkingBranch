@@ -3,7 +3,6 @@ using System.Collections;
 using System.Collections.Generic;
 using DOL.Database;
 using DOL.GS.Housing;
-using DOL.GS.PacketHandler;
 
 namespace DOL.GS
 {
@@ -12,6 +11,7 @@ namespace DOL.GS
     /// </summary>
     public class GameHouseVault : GameVault, IHouseHookpointItem
     {
+        private readonly object _vaultLock = new();
         private DbHouseHookPointItem _hookedItem;
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace DOL.GS
         /// <summary>
         /// Attach this vault to a hook point in a house.
         /// </summary>
-        public bool Attach(House house, uint hookPointId)
+        public bool Attach(House house, uint hookPointId, ushort heading)
         {
             if (house == null)
                 return false;
@@ -45,9 +45,9 @@ namespace DOL.GS
             {
                 HouseNumber = house.HouseNumber,
                 HookpointID = hookPointId,
-                Heading = (ushort) ((house.GetHookpointHeading(hookPointId) + 2048) % 4096),
+                Heading = (ushort)(heading % 4096),
                 ItemTemplateID = TemplateID,
-                Index = (byte) Index
+                Index = (byte)Index
             };
 
             IList<DbHouseHookPointItem> hookPoints = DOLDB<DbHouseHookPointItem>.SelectObjects(DB.Column("HouseNumber").IsEqualTo(house.HouseNumber).And(DB.Column("HookpointID").IsEqualTo(hookPointId)));
@@ -79,7 +79,7 @@ namespace DOL.GS
             X = position.X;
             Y = position.Y;
             Z = position.Z;
-            Heading = (ushort) ((hookedItem.Heading + 2048) % 4096);
+            Heading = (ushort) (hookedItem.Heading % 4096);
             AddToWorld();
             return true;
         }
@@ -92,7 +92,7 @@ namespace DOL.GS
             if (_hookedItem == null || CurrentHouse != player.CurrentHouse || CurrentHouse.CanEmptyHookpoint(player) == false)
                 return false;
 
-            lock (Lock)
+            lock (LockObject)
             {
                 foreach (GamePlayer observer in _observers.Values)
                     observer.ActiveInventoryObject = null;
@@ -119,7 +119,7 @@ namespace DOL.GS
 
         public override string Name
         {
-            get => $"{base.Name} {Index + 1}";
+            get => $"base.Name {Index + 1}";
             set => base.Name = value;
         }
 
@@ -128,13 +128,15 @@ namespace DOL.GS
         /// </summary>
         public override bool Interact(GamePlayer player)
         {
-            if (!CanView(player))
-            {
-                player.Out.SendMessage("You don't have permission to view this vault!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            if (!player.InHouse || !base.Interact(player) || CurrentHouse == null || CurrentHouse != player.CurrentHouse)
                 return false;
+
+            lock (_vaultLock)
+            {
+                _observers.TryAdd(player.Name, player);
             }
 
-            return base.Interact(player);
+            return true;
         }
 
         /// <summary>

@@ -115,9 +115,10 @@ namespace DOL.GS
                     case 415:
                     case 443:
                     case 489://lvl5-9 Demons breach
-                        return true;
+                    return true;
+
                     default:
-                        return false;
+                    return false;
                 }
             }
         }
@@ -128,31 +129,32 @@ namespace DOL.GS
             {
                 switch (ID)
                 {
-                    case 11://forest sauvage
-                    case 12://snowdonia
-                    case 14://pennine mountains
-                    case 15://hadrian's wall
-                    case 111://uppland
-                    case 112://yggdra forest
-                    case 113://jamtland mountains
-                    case 115://odin's gate
-                    case 210://mount collory
-                    case 211://cruachan gorge
-                    case 212://breifine
-                    case 214://emain macha
-                    case 233://summoner's hall
-                    case 244://passage of conflict
-                    case 246://dodens gruva
-                    case 250://caledonia
-                    case 251://murdaigean
+                    //case 11://forest sauvage
+                    //case 12://snowdonia
+                    //case 14://pennine mountains
+                    //case 15://hadrian's wall
+                    //case 111://uppland
+                    //case 112://yggdra forest
+                    //case 113://jamtland mountains
+                    //case 115://odin's gate
+                    //case 210://mount collory
+                    //case 211://cruachan gorge
+                    //case 212://breifine
+                    //case 214://emain macha
+                    //case 233://summoner's hall
+                    //case 244://passage of conflict
+                    //case 246://dodens gruva
+                    //case 250://caledonia
+                    //case 251://murdaigean
                     case 252://thidranki
-                    case 253://abermenai
-                    case 249://darkness falls
-                    case 276://marfach caverns
-                    case 277://hall of the corrupt
-                        return true;
+                    //case 253://abermenai
+                    //case 249://darkness falls
+                    //case 276://marfach caverns
+                    //case 277://hall of the corrupt
+                    return true;
+
                     default:
-                        return false;
+                    return false;
                 }
             }
         }
@@ -180,9 +182,10 @@ namespace DOL.GS
                     case 246://dodens gruva
                     case 276://marfach caverns
                     case 277://hall of the corrupt
-                        return true;
+                    return true;
+
                     default:
-                        return false;
+                    return false;
                 }
             }
         }
@@ -197,9 +200,10 @@ namespace DOL.GS
                     case 251://murdaigean
                     case 252://thidranki
                     case 253://abermenai
-                        return true;
+                    return true;
+
                     default:
-                        return false;
+                    return false;
                 }
             }
         }
@@ -213,7 +217,7 @@ namespace DOL.GS
         private int _objectCount;
         private bool _initialized = false;
 
-        #endregion
+        #endregion Fields and Properties
 
         #region Constructor
 
@@ -266,7 +270,7 @@ namespace DOL.GS
             _initialized = true;
         }
 
-        #endregion
+        #endregion Constructor
 
         #region Subzone Management
 
@@ -359,7 +363,7 @@ namespace DOL.GS
             if (!_initialized)
                 InitializeZone();
 
-            uint sqRadius = (uint) radius * radius;
+            uint sqRadius = (uint)radius * radius;
             int referenceSubZoneIndex = GetSubZoneIndex(x, y);
 
             int xInZone = x - XOffset; // x in zone coordinates.
@@ -522,24 +526,24 @@ namespace DOL.GS
             Interlocked.Decrement(ref _objectCount);
         }
 
-        #endregion
+        #endregion Relocation
 
         public static bool IsWithinSquaredRadius(int x1, int y1, int z1, int x2, int y2, int z2, uint sqDistance)
         {
             int xDiff = x1 - x2;
-            long dist = (long) xDiff * xDiff;
+            long dist = (long)xDiff * xDiff;
 
             if (dist > sqDistance)
                 return false;
 
             int yDiff = y1 - y2;
-            dist += (long) yDiff * yDiff;
+            dist += (long)yDiff * yDiff;
 
             if (dist > sqDistance)
                 return false;
 
             int zDiff = z1 - z2;
-            dist += (long) zDiff * zDiff;
+            dist += (long)zDiff * zDiff;
 
             return dist <= sqDistance;
         }
@@ -598,11 +602,11 @@ namespace DOL.GS
         {
             int xdiff = Math.Max(Math.Abs(x - xLeft), Math.Abs(x - xRight));
             int ydiff = Math.Max(Math.Abs(y - yTop), Math.Abs(y - yBottom));
-            long distance = (long) xdiff * xdiff + (long) ydiff * ydiff;
+            long distance = (long)xdiff * xdiff + (long)ydiff * ydiff;
             return distance <= squareRadius;
         }
 
-        #endregion
+        #endregion Subzone Management
 
         #region Area
 
@@ -624,7 +628,7 @@ namespace DOL.GS
             return ZoneRegion.GetAreasOfZone(this, spot, checkZ);
         }
 
-        #endregion
+        #endregion Area
 
         #region Get random NPC
 
@@ -688,7 +692,7 @@ namespace DOL.GS
                 {
                     foreach (LinkedListNode<GameObject> node in subZone[eGameObjectType.NPC])
                     {
-                        currentNPC = (GameNPC) node.Value;
+                        currentNPC = (GameNPC)node.Value;
 
                         for (int i = 0; i < realms.Length; i++)
                         {
@@ -726,6 +730,6 @@ namespace DOL.GS
             return list;
         }
 
-        #endregion
+        #endregion Get random NPC
     }
 }

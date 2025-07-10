@@ -28,7 +28,7 @@ namespace DOL.GS.Spells
 	/// The spell used by classic teleporters.
 	/// </summary>
 	/// <author>Aredhel</author>
-	[SpellHandler(eSpellType.UniPortal)]
+	[SpellHandlerAttribute("UniPortal")]
 	public class UniPortal : SpellHandler
 	{
 		private DbTeleport m_destination;
@@ -73,7 +73,7 @@ namespace DOL.GS.Spells
 		}
 	}
 	
-	[SpellHandler(eSpellType.UniPortalKeep)]
+	[SpellHandlerAttribute("UniPortalKeep")]
 	public class UniPortalKeep : SpellHandler
 	{
 		private DbKeepDoorTeleport m_destination;

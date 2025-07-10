@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -138,13 +139,13 @@ namespace DOL.GS
             allStatsRpEarnedFromHeal.Sort((ctc1, ctc2) => ctc1.count.CompareTo(ctc2.count));
             allStatsRpEarnedFromHeal.Reverse();
 
-            STATS_RP = string.Empty;
-            STATS_LRP = string.Empty;
-            STATS_KILL = string.Empty;
-            STATS_DEATH = string.Empty;
-            STATS_IRS = string.Empty;
-            STATS_HEAL = string.Empty;
-            STATS_RES = string.Empty;
+            STATS_RP = "";
+            STATS_LRP = "";
+            STATS_KILL = "";
+            STATS_DEATH = "";
+            STATS_IRS = "";
+            STATS_HEAL = "";
+            STATS_RES = "";
 
             for (int c = 0; c < allStatsRp.Count; c++)
             {
@@ -427,23 +428,23 @@ namespace DOL.GS.GameEvents
             if (killedPlayer.DeathTime + noExpSeconds > killedPlayer.PlayedTime)
                 return 0;
 
-            double totalDmg = 0;
+            float totalDmg = 0.0f;
 
-            lock (killedPlayer.XpGainersLock)
+            lock (killedPlayer.XPGainers.SyncRoot)
             {
-                foreach (var pair in killedPlayer.XPGainers)
-                    totalDmg += pair.Value;
+                foreach (DictionaryEntry de in killedPlayer.XPGainers)
+                    totalDmg += (float) de.Value;
 
-                foreach (var pair in killedPlayer.XPGainers)
+                foreach (DictionaryEntry de in killedPlayer.XPGainers)
                 {
-                    GamePlayer key = pair.Key as GamePlayer;
+                    GamePlayer key = de.Key as GamePlayer;
 
                     if (killer == key)
                     {
                         if (!killer.IsWithinRadius(killedPlayer, WorldMgr.MAX_EXPFORKILL_DISTANCE))
                             return 0;
 
-                        double damagePercent = pair.Value / totalDmg;
+                        double damagePercent = (float) de.Value / totalDmg;
 
                         if (!key.IsAlive)//Dead living gets 25% exp only
                             damagePercent *= 0.25;

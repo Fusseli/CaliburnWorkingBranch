@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.Effects;
@@ -13,7 +14,7 @@ namespace DOL.GS.Scripts
     {
         public override bool AddToWorld()
         {
-            if (!base.AddToWorld())
+            if (!(base.AddToWorld()))
                 return false;
 
             Level = 100;
@@ -104,20 +105,38 @@ namespace DOL.GS.Scripts
             set { m_ofAssistants = value; }
         }
 
-        private static Spell PORT_SPELL;
+        private DbSpell m_buffSpell;
+        private Spell m_portSpell;
+
         private ECSGameTimer castTimer;
         private ECSGameTimer followupTimer;
+
+        private Spell PortSpell
+        {
+            get
+            {
+                m_buffSpell = new DbSpell();
+                m_buffSpell.ClientEffect = 4468;
+                m_buffSpell.CastTime = 5;
+                m_buffSpell.Icon = 4468;
+                m_buffSpell.Duration = ReportInterval;
+                m_buffSpell.Target = "Self";
+                m_buffSpell.Type = "ArmorFactorBuff";
+                m_buffSpell.Name = "TELEPORTER_EFFECT";
+                m_buffSpell.RecastDelay = ReportInterval;
+                m_portSpell = new Spell(m_buffSpell, 0);
+                return m_portSpell;
+            }
+            set { m_portSpell = value; }
+        }
 
         public void StartTeleporting()
         {
             if (castTimer is null)
-                castTimer = new(this, CastTimerCallback);
+                castTimer = new ECSGameTimer(this);
 
-            if (followupTimer is null)
-                followupTimer = new(this, CastTimerCallback);
-
-            bool cast = CastSpell(PORT_SPELL, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells), false);
-            if (GetSkillDisabledDuration(PORT_SPELL) > 0)
+            bool cast = CastSpell(PortSpell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells), false);
+            if (GetSkillDisabledDuration(PortSpell) > 0)
                 cast = false;
 
             if (Assistants == null)
@@ -142,7 +161,7 @@ namespace DOL.GS.Scripts
 
             if (cast)
             {
-                string portMessage = string.Empty;
+                string portMessage = "";
 
                 switch (Realm)
                 {
@@ -171,9 +190,13 @@ namespace DOL.GS.Scripts
                         eChatLoc.CL_ChatWindow);
                 }
 
-                castTimer.Start(PORT_SPELL.CastTime);
-                followupTimer.Start(PORT_SPELL.CastTime + 10000);
-
+                castTimer.Interval = PortSpell.CastTime;
+                castTimer.Callback += new ECSGameTimer.ECSTimerCallback(CastTimerCallback);
+                castTimer.Start(PortSpell.CastTime);
+                followupTimer = new ECSGameTimer(this, CastTimerCallback);
+                followupTimer.Interval = m_portSpell.CastTime + 10000; //10s after
+                followupTimer.Callback = CastTimerCallback;
+                followupTimer.Start(followupTimer.Interval);
                 foreach (OFAssistant assi in Assistants)
                 {
                     assi.CastEffect();
@@ -689,25 +712,8 @@ namespace DOL.GS.Scripts
 
         public override bool AddToWorld()
         {
-            if (!base.AddToWorld())
+            if (!(base.AddToWorld()))
                 return false;
-
-            if (PORT_SPELL == null)
-            {
-                DbSpell buffSpell = new()
-                {
-                    ClientEffect = 4468,
-                    CastTime = 5,
-                    Icon = 4468,
-                    Duration = ReportInterval,
-                    Target = eSpellTarget.SELF.ToString(),
-                    Type = eSpellType.SpecArmorFactorBuff.ToString(),
-                    Name = "TELEPORTER_EFFECT",
-                    RecastDelay = ReportInterval
-                };
-
-                PORT_SPELL = new Spell(buffSpell, 0);
-            }
 
             if (Realm == eRealm.None)
                 Realm = eRealm.Albion;

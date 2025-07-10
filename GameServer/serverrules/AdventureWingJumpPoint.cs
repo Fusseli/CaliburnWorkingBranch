@@ -111,16 +111,17 @@ namespace DOL.GS.ServerRules
             	
             }
             
-           if(previousInstance == null) 
+           if (previousInstance == null) 
            {
             	// I have no instance to go to, create one !
             	previousInstance = (AdventureWingInstance)WorldMgr.CreateInstance(targetPoint.TargetRegion, typeof(AdventureWingInstance));
-            	if(targetPoint.SourceRegion != 0 && targetPoint.SourceRegion == player.CurrentRegionID) {
+
+            	if (targetPoint.SourceRegion != 0 && targetPoint.SourceRegion == player.CurrentRegionID) {
             		//source loc seems legit...
             		previousInstance.SourceEntrance = new GameLocation("source", targetPoint.SourceRegion, targetPoint.SourceX, targetPoint.SourceY, targetPoint.SourceZ);
             	}
             	
-        		if(player.Group != null) 
+        		if (player.Group != null) 
         		{
 	        		previousInstance.Group = player.Group;
 	        		previousInstance.Player = player.Group.Leader;

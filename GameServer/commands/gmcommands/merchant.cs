@@ -32,7 +32,7 @@ namespace DOL.GS.Commands
 				return;
 			}
 
-			string param = string.Empty;
+			string param = "";
 			if (args.Length > 2)
 				param = String.Join(" ", args, 2, args.Length - 2);
 

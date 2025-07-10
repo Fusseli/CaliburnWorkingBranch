@@ -237,7 +237,9 @@ namespace DOL.GS
 			--AddsCount;
 			base.Die(killer);
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override long ExperienceValue => 0;
 		public override bool AddToWorld()
 		{

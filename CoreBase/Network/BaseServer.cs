@@ -1,54 +1,102 @@
 using System;
-using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using DOL.Config;
 using log4net;
 
 namespace DOL.Network
 {
+    /// <summary>
+    /// Base class for a server using overlapped socket IO.
+    /// </summary>
     public class BaseServer
     {
-        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
-        public static readonly Encoding defaultEncoding = CodePagesEncodingProvider.Instance.GetEncoding(1252);
+        /// <summary>
+        /// Defines a logger for this class.
+        /// </summary>
+        private static readonly ILog Log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private const int UDP_RECEIVE_BUFFER_SIZE = 8192;
-        private const int UDP_RECEIVE_BUFFER_CHUNK_SIZE = 64; // This should be increased if someday clients send UDP packets larger than this.
-        private const string UDP_THREAD_NAME = "UDP";
+        /// <summary>
+        /// Holds the async accept callback delegate
+        /// </summary>
+        private readonly AsyncCallback _asyncAcceptCallback;
 
-        private Socket _listen;
-        private Socket _udpSocket;
-        private ConcurrentQueue<SocketAsyncEventArgs> _udpReceiveArgsPool = new();
-        private SocketAsyncEventArgs _udpReceiveArgs;
-        private static Thread _udpThread;
+        /// <summary>
+        /// The configuration of this server
+        /// </summary>
+        protected BaseServerConfig _config;
 
-        public BaseServerConfig Configuration { get; }
-        public bool IsRunning => _listen != null; // Not a great way to check if the server is running.
+        /// <summary>
+        /// Socket that receives connections
+        /// </summary>
+        protected Socket _listen;
 
+        /// <summary>
+        /// Constructor that takes a server configuration as parameter
+        /// </summary>
+        /// <param name="config">The configuraion for the server</param>
         protected BaseServer(BaseServerConfig config)
         {
-            Configuration = config ?? throw new ArgumentNullException(nameof(config));
+            _config = config ?? throw new ArgumentNullException(nameof(config));
+            _asyncAcceptCallback = new AsyncCallback(AcceptCallback);
         }
 
+        /// <summary>
+        /// Retrieves the server configuration
+        /// </summary>
+        public virtual BaseServerConfig Configuration => _config;
+
+        /// <summary>
+        /// Creates a new client object
+        /// </summary>
+        /// <returns>A new client object</returns>
+        protected virtual BaseClient GetNewClient()
+        {
+            return new BaseClient(this);
+        }
+
+        /// <summary>
+        /// Used to get packet buffer.
+        /// </summary>
+        /// <returns>byte array that will be used as packet buffer.</returns>
+        public virtual byte[] AcquirePacketBuffer()
+        {
+            return new byte[2048];
+        }
+
+        /// <summary>
+        /// Releases previously acquired packet buffer.
+        /// </summary>
+        public virtual void ReleasePacketBuffer(byte[] buf) { }
+
+        /// <summary>
+        /// Initializes and binds the socket, doesn't listen yet!
+        /// </summary>
+        /// <returns>true if bound</returns>
+        protected virtual bool InitSocket()
+        {
+            try
+            {
+                _listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                _listen.Bind(new IPEndPoint(_config.IP, _config.Port));
+            }
+            catch (Exception e)
+            {
+                Log.Error("InitSocket", e);
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Starts the server
+        /// </summary>
+        /// <returns>True if the server was successfully started</returns>
         public virtual bool Start()
         {
-            if (!InitializeListenSocket())
-                return false;
-
-            InitializeUdpSocket();
-            ConfigureUpnp();
-
-            if (!StartListen())
-                return false;
-
-            StartUdpThread();
-            return true;
-
-            void ConfigureUpnp()
+            if (Configuration.EnableUPnP)
             {
                 try
                 {
@@ -57,12 +105,17 @@ namespace DOL.Network
                     if (!nat.Discover())
                         throw new Exception("[UPNP] Unable to access the UPnP Internet Gateway Device");
 
-                    if (log.IsDebugEnabled)
-                    {
-                        log.Debug("[UPNP] Current UPnP mappings:");
+                    Log.Debug("[UPNP] Current UPnP mappings:");
 
-                        foreach (UpnpNat.PortForwarding info in nat.ListForwardedPort())
-                            log.Debug($"[UPNP] {info.description} - {info.externalPort} -> {info.internalIP}:{info.internalPort}({info.protocol}) ({(info.enabled ? "enabled" : "disabled")})");
+                    foreach (var info in nat.ListForwardedPort())
+                    {
+                        Log.DebugFormat("[UPNP] {0} - {1} -> {2}:{3}({4}) ({5})",
+                                        info.description,
+                                        info.externalPort,
+                                        info.internalIP,
+                                        info.internalPort,
+                                        info.protocol,
+                                        info.enabled ? "enabled" : "disabled");
                     }
 
                     IPAddress localAddress = Configuration.IP;
@@ -74,234 +127,106 @@ namespace DOL.Network
                         try
                         {
                             Configuration.RegionIP = nat.GetExternalIP();
-
-                            if (log.IsDebugEnabled)
-                                log.Debug($"[UPNP] Found the RegionIP: {Configuration.RegionIP}");
+                            Log.Debug("[UPNP] Found the RegionIP: " + Configuration.RegionIP);
                         }
-                        catch (Exception e)
+                        catch(Exception e)
                         {
-                            if (log.IsErrorEnabled)
-                                log.Error("[UPNP] Unable to detect the RegionIP, It is possible that no mappings exist yet", e);
+                            Log.Warn("[UPNP] Unable to detect the RegionIP, It is possible that no mappings exist yet", e);
                         }
                     }
                 }
-                catch (Exception e)
+                catch(Exception e)
                 {
-                    if (log.IsErrorEnabled)
-                        log.Error(e.Message, e);
+                    Log.Warn(e.Message, e);
                 }
             }
 
-            bool StartListen()
+            if (_listen == null && !InitSocket())
+                return false;
+
+            try
             {
-                try
-                {
-                    if (!_listen.IsBound)
-                        return false;
-
-                    _listen.Listen(100);
-                    log.Info("Server is now listening to incoming connections!");
-                    SocketAsyncEventArgs listenArgs = CreateSocketAsyncEventArgs();
-
-                    while (!_listen.AcceptAsync(listenArgs))
-                        OnListenCompletion(listenArgs);
-                }
-                catch (Exception e)
-                {
-                    if (log.IsErrorEnabled)
-                        log.Error(e);
-
-                    _listen?.Close();
-                    return false;
-                }
-
-                return true;
-
-                SocketAsyncEventArgs CreateSocketAsyncEventArgs()
-                {
-                    SocketAsyncEventArgs listenArgs = new();
-                    listenArgs.Completed += OnAsyncListenCompletion;
-                    return listenArgs;
-                }
+                _listen.Listen(100);
+                _listen.BeginAccept(_asyncAcceptCallback, this);
+                Log.Info("Server is now listening to incoming connections!");
+            }
+            catch (Exception e)
+            {
+                Log.Error("Start", e);
+                _listen?.Close();
+                return false;
             }
 
-            void StartUdpThread()
+            return true;
+        }
+
+        /// <summary>
+        /// Called when a client is trying to connect to the server
+        /// </summary>
+        /// <param name="ar">Async result of the operation</param>
+        private void AcceptCallback(IAsyncResult ar)
+        {
+            Socket socket = null;
+
+            try
             {
-                if (!_udpSocket.IsBound)
+                if (_listen == null)
                     return;
 
-                ConcurrentQueue<int> availablePositions = [];
-
-                for (int i = 0; i < UDP_RECEIVE_BUFFER_SIZE; i += UDP_RECEIVE_BUFFER_CHUNK_SIZE)
-                    availablePositions.Enqueue(i);
-
-                EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
-                byte[] buffer = new byte[UDP_RECEIVE_BUFFER_SIZE];
-                int position;
-
-                // This is probably a bit more complicated than it should be if we consider the fact that clients only send UDP packets to notify the server that they can receive UDP packets.
-                // Since only one buffer is used and shared, this requires some synchronization to prevent `ReceiveFromAsync` from overwriting data that isn't processed yet.
-                // For this reason, the buffer is split in chunks of `UDP_RECEIVE_BUFFER_CHUNK_SIZE` bytes. This assumes no packet can be larger than this.
-                // Keep in mind that this is ran by worker threads, outside of the game loop, which may cause issues if clients start sending other packets this way.
-
-                Task.Run(async () =>
-                {
-                    while (true)
-                    {
-                        try
-                        {
-                            // Spinning isn't great, but clients shouldn't send enough packets, or the buffer size be small enough, or tasks take long enough for this to happen regularly.
-                            while (!availablePositions.TryDequeue(out position))
-                                Thread.Yield();
-
-                            int offset = position;
-                            SocketReceiveFromResult result = await _udpSocket.ReceiveFromAsync(new ArraySegment<byte>(buffer, offset, UDP_RECEIVE_BUFFER_CHUNK_SIZE), endPoint);
-
-                            _ = Task.Run(() =>
-                            {
-                                OnUdpReceive(buffer, offset, result.ReceivedBytes, result.RemoteEndPoint, FreeBufferPosition);
-
-                                void FreeBufferPosition()
-                                {
-                                    availablePositions.Enqueue(offset);
-                                }
-                            });
-
-                            continue;
-                        }
-                        catch (ObjectDisposedException)
-                        {
-                            _udpThread = null;
-                        }
-                        catch (SocketException e)
-                        {
-                            if (log.IsDebugEnabled)
-                                log.Debug($"Socket exception on UDP receive (Code: {e.SocketErrorCode})");
-                        }
-                        catch (Exception e)
-                        {
-                            if (log.IsErrorEnabled)
-                                log.Error(e);
-
-                            _udpThread = null;
-
-                            if (_udpSocket != null)
-                            {
-                                try
-                                {
-                                    _udpSocket.Close();
-                                }
-                                catch (Exception) { }
-                            }
-                        }
-
-                        return;
-                    }
-                });
-            }
-
-            void OnAsyncListenCompletion(object sender, SocketAsyncEventArgs listenArgs)
-            {
-                OnListenCompletion(listenArgs);
-
-                try
-                {
-                    while (_listen != null && !_listen.AcceptAsync(listenArgs))
-                        OnListenCompletion(listenArgs);
-                }
-                catch (Exception e)
-                {
-                    if (log.IsErrorEnabled)
-                        log.Error(e);
-
-                    _listen?.Close();
-                }
-            }
-
-            void OnListenCompletion(SocketAsyncEventArgs listenArgs)
-            {
+                socket = _listen.EndAccept(ar);
+                socket.SendBufferSize = Constants.SendBufferSize;
+                socket.ReceiveBufferSize = Constants.ReceiveBufferSize;
+                socket.NoDelay = Constants.UseNoDelay;
                 BaseClient baseClient = null;
-                Socket socket = listenArgs.AcceptSocket;
 
                 try
                 {
-                    if (listenArgs.SocketError is SocketError.ConnectionReset)
-                        return;
+                    // Removing this message in favor of connection message in GameClient
+                    // This will also reduce spam when server is pinged with 0 bytes - Tolakram
+                    //string ip = sock.Connected ? sock.RemoteEndPoint.ToString() : "socket disconnected";
+                    //Log.Info("Incoming connection from " + ip);
 
-                    baseClient = GetNewClient(socket);
-                    baseClient.OnConnect(); // Must be called before `Receive` since `Receive` ends up calling `OnDisconnect` if it fails.
-                    // Don't call `Receive` here, the client service may be already doing it and it isn't thread safe.
+                    baseClient = GetNewClient();
+                    baseClient.Socket = socket;
+                    baseClient.OnConnect();
+                    baseClient.BeginReceive();
+                }
+                catch (SocketException)
+                {
+                    Log.Error("BaseServer SocketException");
+                    if (baseClient != null)
+                        Disconnect(baseClient);
                 }
                 catch (Exception e)
                 {
-                    if (log.IsErrorEnabled)
-                        log.Error(e);
+                    Log.Error("Client creation", e);
 
                     if (baseClient != null)
                         Disconnect(baseClient);
-
-                    if (socket != null)
-                    {
-                        try
-                        {
-                            socket.Close();
-                        }
-                        catch { }
-                    }
                 }
-                finally
+            }
+            catch
+            {
+                Log.Error("AcceptCallback: Catch");
+
+                if (socket != null) // Don't leave the socket open on exception
                 {
-                    listenArgs.AcceptSocket = null;
+                    try
+                    {
+                        socket.Close();
+                    }
+                    catch { }
                 }
             }
-        }
-
-        protected virtual BaseClient GetNewClient(Socket socket)
-        {
-            return new BaseClient(this, socket);
-        }
-
-        protected virtual bool InitializeListenSocket()
-        {
-            try
+            finally
             {
-                _listen = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                _listen.Bind(new IPEndPoint(Configuration.IP, Configuration.Port));
+                _listen?.BeginAccept(_asyncAcceptCallback, this);
             }
-            catch (Exception e)
-            {
-                if (log.IsErrorEnabled)
-                    log.Error(e);
-
-                return false;
-            }
-
-            return true;
         }
 
-        protected virtual bool InitializeUdpSocket()
-        {
-            try
-            {
-                _udpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                _udpSocket.Bind(new IPEndPoint(Configuration.UDPIP, Configuration.UDPPort));
-            }
-            catch (Exception e)
-            {
-                if (log.IsErrorEnabled)
-                    log.Error(e);
-
-                return false;
-            }
-
-            return true;
-        }
-
-        public bool SendUdp(SocketAsyncEventArgs socketAsyncEventArgs)
-        {
-            return _udpSocket.SendToAsync(socketAsyncEventArgs);
-        }
-
+        /// <summary>
+        /// Stops the server
+        /// </summary>
         public virtual void Stop()
         {
             /*if(Configuration.EnableUPNP)
@@ -327,42 +252,26 @@ namespace DOL.Network
             {
                 if (_listen != null)
                 {
-                    _listen.Close();
+                    Socket socket = _listen;
                     _listen = null;
-                    log.Info("Server is no longer listening for incoming connections");
+                    socket.Close();
+
+                    Log.Info("Server is no longer listening for incoming connections");
                 }
             }
             catch (Exception e)
             {
-                if (log.IsErrorEnabled)
-                    log.Error(e);
+                Log.Error("Stop", e);
             }
 
-            if (_udpThread != null)
-            {
-                _udpThread.Interrupt();
-                _udpThread.Join();
-                _udpThread = null;
-            }
-
-            try
-            {
-                if (_udpSocket != null)
-                {
-                    _udpSocket.Close();
-                    _udpSocket = null;
-                }
-            }
-            catch (Exception e)
-            {
-                if (log.IsErrorEnabled)
-                    log.Error(e);
-            }
-
-            if (log.IsInfoEnabled)
-                log.Info("Server stopped");
+            Log.Info("Server stopped");
         }
 
+        /// <summary>
+        /// Disconnects a client
+        /// </summary>
+        /// <param name="baseClient">Client to be disconnected</param>
+        /// <returns>True if the client was disconnected, false if it doesn't exist</returns>
         public virtual bool Disconnect(BaseClient baseClient)
         {
             try
@@ -372,15 +281,11 @@ namespace DOL.Network
             }
             catch (Exception e)
             {
-                if (log.IsErrorEnabled)
-                    log.Error("Exception", e);
-
+                Log.Error("Exception", e);
                 return false;
             }
 
             return true;
         }
-
-        protected virtual void OnUdpReceive(byte[] buffer, int offset, int size, EndPoint endPoint, Action freeBufferCallback) { }
     }
 }

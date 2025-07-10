@@ -3,6 +3,7 @@ using System.Linq;
 using DOL.Database;
 using DOL.Events;
 using DOL.GS.Keeps;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.ServerRules;
 
@@ -18,8 +19,8 @@ public class CoopWithRvr : AbstractServerRules
     public override bool IsAllowedCharsInAllRealms(GameClient client)
         => true;
 
-    public override bool IsAllowedToGroup(GamePlayer source, GamePlayer target, bool quiet)
-        => SelectRuleSet(source).IsAllowedToGroup(source, target, quiet);
+    public override bool IsAllowedToGroup(IGamePlayer source, IGamePlayer target, bool quiet)
+        => SelectRuleSet((GameObject)source).IsAllowedToGroup(source, target, quiet);
 
     public override bool IsAllowedToJoinGuild(GamePlayer source, Guild guild)
         => SelectRuleSet(source).IsAllowedToJoinGuild(source, guild);
@@ -31,14 +32,29 @@ public class CoopWithRvr : AbstractServerRules
         => SelectRuleSet(source).IsAllowedToUnderstand(source, target);
 
     public override bool IsSameRealm(GameLiving source, GameLiving target, bool quiet)
-        => SelectRuleSet(source).IsSameRealm(source, target, quiet);
+    {
+        if (source.Group != null && source.Group.IsInTheGroup(target))
+            return true;
 
-    public override byte GetColorHandling(GameClient client)
-        => SelectRuleSet(client.Player).GetColorHandling(client);
-
+        return SelectRuleSet(source).IsSameRealm(source, target, quiet);
+    }
 
     public override bool IsAllowedToAttack(GameLiving attacker, GameLiving defender, bool quiet)
-                => SelectRuleSet(attacker).IsAllowedToAttack(attacker, defender, quiet);
+    {
+        if (attacker is IGamePlayer iGamePlayerAttacker && iGamePlayerAttacker.IsDuelPartner(defender))
+            return true;
+
+        if (attacker.Group != null && attacker.Group.IsInTheGroup(defender))
+            return false;
+
+        return SelectRuleSet(attacker).IsAllowedToAttack(attacker, defender, quiet);
+    }
+
+    public override byte GetColorHandling(GameClient client)
+    => SelectRuleSet(client.Player).GetColorHandling(client);
+
+    public override bool IsAllowedToCastSpell(GameLiving caster, GameLiving target, Spell spell, SpellLine spellLine)
+                => SelectRuleSet(caster).IsAllowedToCastSpell(caster, target, spell, spellLine);
     public override bool IsAllowedToSpeak(GamePlayer source, string communicationType)
                 => SelectRuleSet(source).IsAllowedToSpeak(source, communicationType);
     public override bool IsAllowedToBind(GamePlayer player, DbBindPoint point)
@@ -55,12 +71,12 @@ public class CoopWithRvr : AbstractServerRules
                 => SelectRuleSet(player).CanTakeFallDamage(player);
     public override bool CheckAbilityToUseItem(GameLiving living, DbItemTemplate item)
                 => SelectRuleSet(living).CheckAbilityToUseItem(living, item);
-    public override int GetObjectSpecLevel(GamePlayer player, eObjectType objectType)
-                => SelectRuleSet(player).GetObjectSpecLevel(player, objectType);
-    public override int GetObjectBaseSpecLevel(GamePlayer player, eObjectType objectType)
-                => SelectRuleSet(player).GetObjectBaseSpecLevel(player, objectType);
-    public override void OnNpcKilled(GameNPC killedNPC, GameObject killer)
-                => SelectRuleSet(killedNPC).OnNpcKilled(killedNPC, killer);
+    public override int GetObjectSpecLevel(IGamePlayer player, eObjectType objectType)
+                => SelectRuleSet((GameObject)player).GetObjectSpecLevel(player, objectType);
+    public override int GetObjectBaseSpecLevel(IGamePlayer player, eObjectType objectType)
+                => SelectRuleSet((GameObject)player).GetObjectBaseSpecLevel(player, objectType);
+    public override void OnNPCKilled(GameNPC killedNPC, GameObject killer)
+                => SelectRuleSet(killedNPC).OnNPCKilled(killedNPC, killer);
     public override void OnLivingKilled(GameLiving killedLiving, GameObject killer)
                 => SelectRuleSet(killer).OnLivingKilled(killedLiving, killer);
     public override void OnPlayerKilled(GamePlayer killedPlayer, GameObject killer)
@@ -94,10 +110,13 @@ public class CoopWithRvr : AbstractServerRules
 
     private AbstractServerRules SelectRuleSet(GameObject obj)
     {
-        if (obj.CurrentRegion.IsRvR)
+        Zone currentZone = obj.CurrentZone;
+
+        if (obj.CurrentRegion.IsRvR || currentZone != null && currentZone.IsRvR)
         {
             return normalServerRules;
         }
+
         return pveServerRules;
     }
 

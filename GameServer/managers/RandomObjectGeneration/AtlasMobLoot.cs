@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DOL.Database;
+using DOL.GS.Scripts;
 
 namespace DOL.GS {
 
@@ -28,10 +29,11 @@ namespace DOL.GS {
 
             try
             {
-                GamePlayer player = killer as GamePlayer;
+                IGamePlayer player = killer as IGamePlayer;
+
                 if (killer is GameNPC && ((GameNPC)killer).Brain is IControlledBrain)
                 {
-                    player = ((ControlledMobBrain)((GameNPC)killer).Brain).GetPlayerOwner();
+                    player = ((ControlledMobBrain)((GameNPC)killer).Brain).GetIPlayerOwner();
                 }
 
                 if (player == null)
@@ -58,8 +60,16 @@ namespace DOL.GS {
                 int chance = BASE_ROG_CHANCE + ((killedcon < 0 ? killedcon + 1 : killedcon) * 3);
 
                 //chance = 100;
-                
-                BattleGroup bg = player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                BattleGroup bg = null;
+                if (player?.TempProperties != null)
+                {
+                    bg = player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                }
+
+                if (player == null)
+                {
+                    return loot;
+                }
 
                 if (bg != null)
                 {
@@ -70,9 +80,9 @@ namespace DOL.GS {
                     chance = 2;
 
                     int numDrops = 0;
-                    foreach (GamePlayer bgMember in bg.Members.Keys)
+                    foreach (IGamePlayer bgMember in bg.Members.Keys)
                     {
-                        if(bgMember.GetDistance(player) > WorldMgr.VISIBILITY_DISTANCE)
+                        if(bgMember.GetDistance((GameLiving)player) > WorldMgr.VISIBILITY_DISTANCE)
                             continue;
                         
                         if (Util.Chance(chance) && numDrops < maxDropCap)
@@ -102,9 +112,9 @@ namespace DOL.GS {
 
                     int numDrops = 0;
                     //roll for an item for each player in the group
-                    foreach (var groupPlayer in player.Group.GetPlayersInTheGroup())
+                    foreach (var groupPlayer in player.Group.GetNearbyPlayersInTheGroup(player))
                     {
-                        if(groupPlayer.GetDistance(player) > WorldMgr.VISIBILITY_DISTANCE)
+                        if (groupPlayer.GetDistance((GameLiving)player) > WorldMgr.VISIBILITY_DISTANCE)
                             continue;
                         
                         if (Util.Chance(chance) && numDrops < MaxDropCap)
@@ -143,6 +153,7 @@ namespace DOL.GS {
                     chance += 10; //solo drop bonus
                     
                     DbItemTemplate item = null;
+
                     if (Util.Chance(chance))
                     {
                         GeneratedUniqueItem tmp = AtlasROGManager.GenerateMonsterLootROG(player.Realm, classForLoot, (byte)(mob.Level + 1), player.CurrentZone?.IsOF ?? false);
@@ -166,7 +177,7 @@ namespace DOL.GS {
                         loot.AddRandom(chance, item, 1);
                         */
 
-                    if(player.Level < 50 || mob.Level < 50)
+                    if (player.Level < 50 || mob.Level < 50)
                     {
                         item = AtlasROGManager.GenerateBeadOfRegeneration();
                         loot.AddRandom(2, item, 1);
@@ -187,10 +198,9 @@ namespace DOL.GS {
         }
 
 
-        private DbItemTemplate GenerateItemTemplate(GamePlayer player, eCharacterClass classForLoot, byte lootLevel, int killedcon)
+        private DbItemTemplate GenerateItemTemplate(IGamePlayer player, eCharacterClass classForLoot, byte lootLevel, int killedcon)
         {
             DbItemTemplate item = null;
-                
                 
             GeneratedUniqueItem tmp = AtlasROGManager.GenerateMonsterLootROG(GetRealmFromClass(classForLoot), classForLoot, lootLevel, player.CurrentZone?.IsOF ?? false);
             tmp.GenerateItemQuality(killedcon);
@@ -242,10 +252,11 @@ namespace DOL.GS {
         {
             List<eCharacterClass> validClasses = new List<eCharacterClass>();
 
-            foreach (GamePlayer player in group.GetMembersInTheGroup())
+            foreach (IGamePlayer player in group.GetMembersInTheGroup())
             {
                 validClasses.Add((eCharacterClass)player.CharacterClass.ID);
             }
+
             eCharacterClass ranClass = validClasses[Util.Random(validClasses.Count - 1)];
 
             return ranClass;
@@ -255,10 +266,11 @@ namespace DOL.GS {
         {
             List<eCharacterClass> validClasses = new List<eCharacterClass>();
 
-            foreach (GamePlayer player in battlegroup.Members.Keys)
+            foreach (IGamePlayer player in battlegroup.Members.Keys)
             {
                 validClasses.Add((eCharacterClass)player.CharacterClass.ID);
             }
+
             eCharacterClass ranClass = validClasses[Util.Random(validClasses.Count - 1)];
 
             return ranClass;

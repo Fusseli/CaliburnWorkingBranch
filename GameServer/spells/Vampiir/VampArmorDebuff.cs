@@ -25,7 +25,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.VampiirArmorDebuff)]
+	[SpellHandlerAttribute("VampiirArmorDebuff")]
 	public class VampiirArmorDebuff : SpellHandler
 	{
 		private static eArmorSlot[] slots = new eArmorSlot[] { eArmorSlot.HEAD, eArmorSlot.TORSO, eArmorSlot.LEGS,  };

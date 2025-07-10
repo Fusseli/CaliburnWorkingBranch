@@ -26,7 +26,7 @@ using DOL.AI.Brain;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.BolsteringRoar)]
+    [SpellHandlerAttribute("BolsteringRoar")]
     public class BolsteringRoarSpellHandler : RemoveSpellEffectHandler
     {
         public override IList<GameLiving> SelectTargets(GameObject castTarget)

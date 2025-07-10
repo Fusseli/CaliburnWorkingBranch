@@ -1,12 +1,30 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
+﻿/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
+using System;
 using System.Reflection;
-using System.Threading;
+using System.Linq;
+using System.Collections.Generic;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Timers;
+
 using log4net;
 
 namespace DOL.GS.Scheduler
@@ -29,7 +47,7 @@ namespace DOL.GS.Scheduler
 		/// <summary>
 		/// Internal Timer Object
 		/// </summary>
-		private System.Timers.Timer Timer { get; set; }
+		private Timer Timer { get; set; }
 		
 		/// <summary>
 		/// Timers Pending for Schedule.
@@ -49,7 +67,7 @@ namespace DOL.GS.Scheduler
 		/// <summary>
 		/// Collection Locking Object
 		/// </summary>
-		private readonly Lock _schedulerLock = new();
+		private readonly object SchedulerLock = new object();
 		
 		/// <summary>
 		/// Next Timer Tick Due Time
@@ -65,7 +83,7 @@ namespace DOL.GS.Scheduler
 			ScheduledTimers = new SortedDictionary<long, List<ScheduledTask>>();
 			RunningTimers = new List<Tuple<long, Task>>();
 			
-			Timer = new System.Timers.Timer();
+			Timer = new Timer();
 			Timer.Interval = 1;
 			Timer.AutoReset = false;
 			Timer.Elapsed += OnTick;
@@ -82,7 +100,7 @@ namespace DOL.GS.Scheduler
 			System.Threading.Interlocked.Exchange(ref NextDueTick, long.MaxValue);
 			
 			var nextDueTime = long.MaxValue;
-			lock (_schedulerLock)
+			lock (SchedulerLock)
 			{
 				ResolveRunningTimers();
 				ResolvePendingTimers();
@@ -270,7 +288,7 @@ namespace DOL.GS.Scheduler
 		/// <summary>
 		/// Lock Object Synchronzing Stopping Task
 		/// </summary>
-		private readonly Lock _lockObject = new();
+		private readonly object LockObject = new object();
 		
 		/// <summary>
 		/// Task Active Flag
@@ -284,7 +302,7 @@ namespace DOL.GS.Scheduler
 		{
 			get
 			{
-				lock (_lockObject)
+				lock (LockObject)
 					return m_active;
 			}
 		}
@@ -304,7 +322,7 @@ namespace DOL.GS.Scheduler
 		/// </summary>
 		public void Stop()
 		{
-			lock(_lockObject)
+			lock(LockObject)
 				m_active = false;
 		}
 		
@@ -315,7 +333,7 @@ namespace DOL.GS.Scheduler
 		internal int Run()
 		{
 			var result = 0;
-			lock(_lockObject)
+			lock(LockObject)
 			{
 				try
 				{

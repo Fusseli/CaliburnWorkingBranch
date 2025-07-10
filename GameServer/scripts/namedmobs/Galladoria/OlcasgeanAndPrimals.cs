@@ -23,7 +23,9 @@ namespace DOL.GS
         {
             get { return 10000; }
         }
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer)//no loot
+        {
+        }
         public override void Die(GameObject killer)
         {
             base.Die(null); // null to not gain experience
@@ -3271,7 +3273,9 @@ namespace DOL.GS
             get { return 5000; }
         }
         public override int MeleeAttackRange => 200;
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer)//no loot
+        {
+        }
         public override void Die(GameObject killer)
         {
             base.Die(null); // null to not gain experience

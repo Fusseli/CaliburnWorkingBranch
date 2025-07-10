@@ -99,7 +99,12 @@ namespace DOL.GS.PacketHandler
 				pak.WriteInt(0);
 
 				foreach (GamePlayer plr in player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-					plr.Out.SendTCP(pak);
+				{
+					if (player != plr)
+						plr.Client.PacketProcessor.SendTCP(pak);
+				}
+
+				SendTCP(pak);
 			}
 		}
 
@@ -526,7 +531,7 @@ namespace DOL.GS.PacketHandler
 				else if (loc == eChatLoc.CL_PopupWindow)
 					str = "##";
 				else
-					str = string.Empty;
+					str = "";
 
 				pak.WriteString(str + msg);
 				SendTCP(pak);

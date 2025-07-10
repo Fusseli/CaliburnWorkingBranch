@@ -27,7 +27,7 @@ namespace DOL.GS.Commands
                 return;
             }
 
-            string keepname = string.Empty;
+            string keepname = "";
             if (args.Length == 3)
             {
                 keepname = args[1] + " " + args[2];

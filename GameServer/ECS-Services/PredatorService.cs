@@ -28,19 +28,19 @@ public class PredatorService
             foreach (var activePreds in PredatorManager.ActiveBounties.ToList())
             {
                 GamePlayer activePlayer = activePreds.Predator;
-                
+
                 if (activePlayer == null) continue;
 
                 AbstractArea area = activePlayer.CurrentZone?.GetAreasOfSpot(activePlayer.X, activePlayer.Y, activePlayer.Z)
                     .FirstOrDefault() as AbstractArea;
-                
+
                 //if user is not in an RvR zone, or is in DF
                 if (ConquestService.ConquestManager.IsPlayerInSafeZone(activePlayer))
                 {
-                    if(!activePlayer.PredatorTimeoutTimer.IsAlive)
+                    if (!activePlayer.PredatorTimeoutTimer.IsAlive)
                         PredatorManager.StartTimeoutCountdownFor(activePlayer);
                 }
-                else if(activePlayer.PredatorTimeoutTimer.IsAlive)
+                else if (activePlayer.PredatorTimeoutTimer.IsAlive)
                 {
                     PredatorManager.StopTimeoutCountdownFor(activePlayer);
                 }

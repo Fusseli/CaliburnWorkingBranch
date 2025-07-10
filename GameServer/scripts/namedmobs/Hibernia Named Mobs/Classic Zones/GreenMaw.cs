@@ -191,7 +191,9 @@ namespace DOL.GS
 				SpawnCopies();
 			base.Die(killer);
         }
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		private void SpawnCopies()
 		{
 			for (int i = 0; i < 4; i++)
@@ -286,7 +288,9 @@ namespace DOL.GS
 				SpawnCopies();
 			base.Die(killer);
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		private void SpawnCopies()
 		{
 			for (int i = 0; i < 2; i++)
@@ -374,7 +378,9 @@ namespace DOL.GS
 			base.AddToWorld();
 			return true;
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 	}
 }
 namespace DOL.AI.Brain

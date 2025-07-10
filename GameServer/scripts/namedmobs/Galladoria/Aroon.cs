@@ -642,7 +642,9 @@ namespace DOL.GS
         }
         public override short Strength { get => base.Strength; set => base.Strength = 200; }
         public override short Quickness { get => base.Quickness; set => base.Quickness = 80; }
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer) //slash resist
         {
@@ -811,7 +813,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -998,7 +1002,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -1191,7 +1197,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -1384,7 +1392,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -1579,7 +1589,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -1774,7 +1786,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -1969,7 +1983,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {
@@ -2165,7 +2181,9 @@ namespace DOL.GS
             get { return 30000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
 
         public override void Die(GameObject killer)
         {

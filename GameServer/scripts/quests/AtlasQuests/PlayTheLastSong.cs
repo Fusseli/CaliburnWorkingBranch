@@ -465,7 +465,7 @@ namespace DOL.GS.Quests.Midgard
 			CastResistance();
 			IsSinging = false;
 			quest.FinishQuest();
-			ClientService.UpdateNpcForPlayer(player, Freeya);
+			ClientService.UpdateObjectForPlayer(player, Freeya);
 
 			return 0;
 		}

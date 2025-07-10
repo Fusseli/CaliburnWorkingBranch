@@ -39,7 +39,12 @@ namespace DOL.GS.PacketHandler.Client.v168
 			int logo = packet.ReadByte(); //8bits
 			int oldemblem = client.Player.Guild.Emblem;
 			int newemblem = ((logo << 9) | (pattern << 7) | (primarycolor << 3) | secondarycolor);
-			GuildMgr.ChangeGuildEmblem(client.Player, oldemblem, newemblem);
+			if (GuildMgr.IsEmblemUsed(newemblem))
+			{
+				client.Player.Out.SendMessage("This emblem is already in use by another guild, please choose another!", eChatType.CT_System, eChatLoc.CL_SystemWindow );
+				return;
+			}
+			GuildMgr.ChangeEmblem(client.Player, oldemblem, newemblem);
 		}
 	}
 }

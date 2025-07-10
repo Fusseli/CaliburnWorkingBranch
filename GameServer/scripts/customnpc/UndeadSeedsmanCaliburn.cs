@@ -71,9 +71,9 @@ namespace DOL.GS.Scripts
             this.Size = 61;
             this.Name = "haunted appletree"; //same as live
             this.Level = (byte)Util.Random(18, 23); //from live, they range from level 18 to 23.
+            this.StartHealthRegeneration();
             return 0;
         }
-
     }
 
 
@@ -174,6 +174,7 @@ namespace DOL.GS.Scripts
             seedsman.SetOwnBrain(ubrain);
             seedsman.AddToWorld();
             seedsman.Brain.Start();
+            seedsman.Brain.FSM.SetCurrentState(eFSMStateType.IDLE);
             seedsman.StartPlanting();
         }
 
@@ -261,7 +262,7 @@ namespace DOL.AI.Brain
             // Check if seedsman is dead, returning home, stunned, or mezzed, if yes then don't think.
             if (!seedsman.IsAlive) { return; }
             if (seedsman.IsReturningToSpawnPoint) { return; }
-            if (seedsman.IsAttacking) { return; }
+            if (seedsman.AttackState) { return; }
             // if ((seedsman.IsStunned) || (seedsman.IsMezzed)) { return; }
 
             // Check if seedsman should start planting tree's
@@ -281,7 +282,7 @@ namespace DOL.AI.Brain
             // When seedsman gets to a plant spot, plant a tree.
             if (UndeadSeedsman.IsPlanting && Body.GetDistanceTo(UndeadSeedsman.WalkTarget) < 25)
             {
-                if ((!UndeadSeedsman.IsPlanting) || (seedsman.InCombat) || (seedsman.IsStunned) || (seedsman.IsMezzed) || (seedsman.IsAttacking)) { return; } //disregard if not planting or in combat
+                if ((!UndeadSeedsman.IsPlanting) || (seedsman.InCombat) || (seedsman.IsStunned) || (seedsman.IsMezzed) || (seedsman.AttackState)) { return; } //disregard if not planting or in combat
 
                 int x, y, z;
                 //Treemnumber is the current index

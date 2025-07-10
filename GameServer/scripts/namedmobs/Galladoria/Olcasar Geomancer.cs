@@ -517,7 +517,9 @@ namespace DOL.GS
             get { return 10000; }
         }
 
-        public override bool CanDropLoot => false;
+        public override void DropLoot(GameObject killer) //no loot
+        {
+        }
         public void BroadcastMessage(String message)
         {
             foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.OBJ_UPDATE_DISTANCE))

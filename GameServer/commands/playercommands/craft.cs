@@ -104,7 +104,7 @@ namespace DOL.GS.Commands
 
                             IList<Ingredient> recipeIngredients;
 
-                            lock (recipe.Lock)
+                            lock (recipe)
                             {
                                 recipeIngredients = recipe.Ingredients;
                             }
@@ -131,7 +131,7 @@ namespace DOL.GS.Commands
 
                             IList<Ingredient> recipeIngredients;
 
-                            lock (recipe.Lock)
+                            lock (recipe)
                             {
                                 recipeIngredients = recipe.Ingredients;
                             }
@@ -158,7 +158,7 @@ namespace DOL.GS.Commands
 
                             IList<Ingredient> recipeIngredients;
 
-                            lock (recipe.Lock)
+                            lock (recipe)
                             {
                                 recipeIngredients = recipe.Ingredients;
                             }
@@ -220,14 +220,14 @@ namespace DOL.GS.Commands
 
                             IList<Ingredient> recipeIngredients;
 
-                            lock (recipe.Lock)
+                            lock (recipe)
                             {
                                 recipeIngredients = recipe.Ingredients;
                             }
 
                             var playerItems = new List<DbInventoryItem>(); 
 
-                            lock (client.Player.Inventory.Lock)
+                            lock (client.Player.Inventory)
                             {
                                 foreach (var pItem in client.Player.Inventory.AllItems)
                                 {

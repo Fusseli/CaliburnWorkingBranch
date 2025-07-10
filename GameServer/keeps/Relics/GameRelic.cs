@@ -128,7 +128,7 @@ namespace DOL.GS
 
 		public static bool IsPlayerCarryingRelic(GamePlayer player)
 		{
-			return player.TempProperties.GetProperty<GameRelic>(PLAYER_CARRY_RELIC_WEAK) != null;
+			return player.TempProperties.GetProperty(PLAYER_CARRY_RELIC_WEAK, false);
 		}
 
 		#endregion
@@ -213,7 +213,7 @@ namespace DOL.GS
 		/// <param name="player"></param>
 		protected virtual void PlayerTakesRelic(GamePlayer player)
 		{
-			if (player.TempProperties.GetProperty<GameRelic>(PLAYER_CARRY_RELIC_WEAK) != null)
+			if (player.TempProperties.GetProperty(PLAYER_CARRY_RELIC_WEAK, false))
 			{
 				player.Out.SendMessage("You are already carrying a relic.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				return;
@@ -295,19 +295,20 @@ namespace DOL.GS
 
 			GamePlayer player = m_currentCarrier;
 
-			if (player.TempProperties.GetProperty<GameRelic>(PLAYER_CARRY_RELIC_WEAK) == null)
+			if (!player.TempProperties.GetProperty(PLAYER_CARRY_RELIC_WEAK, false))
 			{
 				log.Warn("GameRelic: " + player.Name + " has already lost" + Name);
 				return;
 			}
 			if (removeFromInventory)
 			{
-				lock (player.Inventory.Lock)
+				lock (player.Inventory.LockObject)
 				{
 					bool success = player.Inventory.RemoveItem(m_item);
 					InventoryLogging.LogInventoryAction(player, this, eInventoryActionType.Other, m_item.Template, m_item.Count);
 					log.Debug("Remove " + m_item.Name + " from " + player.Name + "'s Inventory " + ((success) ? "successfully." : "with errors."));
 				}
+
 			}
 
 			// remove the handlers from the player
@@ -326,6 +327,7 @@ namespace DOL.GS
 				m_timeRelicOnGround = GameLoop.GameLoopTime;
 				m_returnRelicTimer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(ReturnRelicTick), RelicEffectInterval);
 				log.DebugFormat("{0} dropped, return timer for relic set to {1} seconds.", Name, ReturnRelicInterval / 1000);
+				Console.WriteLine($"Starting return relic timer {m_returnRelicTimer}");
 
 				// update the position of the worldObject Relic
 				Update();
@@ -373,6 +375,7 @@ namespace DOL.GS
 		/// <param name="player">Player to set the timer on. Timer stops if param is null</param>
 		protected virtual void StartPlayerTimer(GamePlayer player)
 		{
+			Console.WriteLine($"Starting player relic timer {player} currentTimer {m_currentCarrierTimer}");
 			if (player != null)
 			{
 				if (m_currentCarrierTimer != null)

@@ -5,7 +5,7 @@ using DOL.GS.Effects;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.AtlantisTabletMorph)]
+	[SpellHandlerAttribute("AtlantisTabletMorph")]
 	public class AtlantisTabletMorph : OffensiveProcSpellHandler
 	{   	
 		public override void OnEffectStart(GameSpellEffect effect)

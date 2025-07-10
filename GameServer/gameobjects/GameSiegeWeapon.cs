@@ -1,6 +1,24 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
+
 using System;
 using System.Collections;
-using System.Threading;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.Commands;
@@ -145,13 +163,13 @@ namespace DOL.GS
 		/// <summary>
 		/// The lock object for lazy regen timers initialization
 		/// </summary>
-		protected readonly Lock _decayTimerLock = new();
+		protected readonly object m_decayTimerLock = new object();
 
 		protected ECSGameTimer m_controlRangeTimer;
 		/// <summary>
 		/// The lock object for controlcheck timers initialization
 		/// </summary>
-		protected readonly Lock _controlRangeTimerLock = new();
+		protected readonly object m_controlRangeTimerLock = new object();
 
 		private ushort m_ammoSlot;
 		public ushort AmmoSlot
@@ -585,7 +603,7 @@ namespace DOL.GS
 		{
 			if (ObjectState != eObjectState.Active)
 				return;
-			lock (_controlRangeTimerLock)
+			lock (m_controlRangeTimerLock)
 			{
 				if (m_controlRangeTimer == null)
 				{
@@ -600,7 +618,7 @@ namespace DOL.GS
 
 		private void StopControlRangeCheck()
 		{
-			lock (_controlRangeTimerLock)
+			lock (m_controlRangeTimerLock)
 			{
 				if (m_controlRangeTimer == null)
 					return;
@@ -694,7 +712,7 @@ namespace DOL.GS
 		{
 			if (ObjectState != eObjectState.Active)
 				return;
-			lock (_decayTimerLock)
+			lock (m_decayTimerLock)
 			{
 				if (m_decayTimer == null)
 				{
@@ -709,7 +727,7 @@ namespace DOL.GS
 
 		private void StopDecay()
 		{
-			lock (_decayTimerLock)
+			lock (m_decayTimerLock)
 			{
 				if (m_decayTimer == null)
 					return;

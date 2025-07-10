@@ -101,9 +101,9 @@ public class BountyManager
             List<GamePlayer> playersToAward = new List<GamePlayer>();
 
             var gainerList = killedPlayer.XPGainers;
-            foreach (var pair in gainerList)
+            foreach (System.Collections.DictionaryEntry de in gainerList)
             {
-                GameLiving living = pair.Key as GameLiving;
+                GameLiving living = de.Key as GameLiving;
                 GamePlayer player = living as GamePlayer;
                 if (player == null) continue;
                 if (player.Realm == activeBounty.BountyRealm)
@@ -119,7 +119,7 @@ public class BountyManager
             var totalReward = activeBounty.Reward;
 
             var loyaltyHoursReward = (int)(totalReward / 50); // 50g = 1 hour of loyalty
-            
+
             var reward = totalReward / playersToAwardCount * 10000; // *10000 as DOL is expecting the value in copper
             foreach (GamePlayer player in playersToAward)
             {
@@ -131,11 +131,11 @@ public class BountyManager
                 }
 
                 if (playerLoyalty.Days < 3) continue;
-                
+
                 reward = (int)(reward * bountyRate);
-                
+
                 LoyaltyManager.LoyaltyUpdateAddHours(player, loyaltyHoursReward);
-                player.AddMoney(reward , "You have been rewarded {0} extra for killing a bounty target!");
+                player.AddMoney(reward, "You have been rewarded {0} extra for killing a bounty target!");
             }
 
             BroadcastBountyKill(activeBounty);
@@ -163,13 +163,13 @@ public class BountyManager
         foreach (BountyPoster activeBounty in activeBounties.ToList())
         {
             var playerLoyalty = LoyaltyManager.GetPlayerRealmLoyalty(player);
-            
+
             if (playerLoyalty.Days >= 30)
             {
                 bountyRate = 1;
             }
-            
-            int stolenReward = (int) (activeBounty.Reward - (activeBounty.Reward * bountyRate)) * 10000;
+
+            int stolenReward = (int)(activeBounty.Reward - (activeBounty.Reward * bountyRate)) * 10000;
             player.AddMoney(stolenReward, "You have stolen {0} from a bounty on you!");
             activeBounty.Reward -= stolenReward;
 
@@ -261,7 +261,7 @@ public class BountyManager
                     if (!ServiceUtils.ShouldTick(expireTime)) continue;
                 
                     GamePlayer playerToReimburse = bP.Ganked;
-                
+
                     var posterLoyalty = LoyaltyManager.GetPlayerRealmLoyalty(playerToReimburse);
 
                     if (posterLoyalty.Days >= 30)
@@ -270,7 +270,7 @@ public class BountyManager
                     }
 
                     var reward =
-                        (long) (bP.Reward * 10000 * bountyRate); // *10000 to convert to gold
+                        (long)(bP.Reward * 10000 * bountyRate); // *10000 to convert to gold
 
                     playerToReimburse.AddMoney(reward, "You have been reimbursed {0} for your expired bounty.");
 
@@ -278,7 +278,6 @@ public class BountyManager
                     BroadcastExpiration(bP);
                     m_nextPosterToExpire = null;
                 }
-                
             }
         }
         else
@@ -407,14 +406,14 @@ public class BountyManager
             {
                 temp.Add($"ATTENTION: You have {activePosters.Count} bounties on your head!");
                 temp.Add("");
-        
+
                 foreach (var bounty in activePosters)
                 {
                     timeLeft = bountyDuration - (GameLoop.GameLoopTime - bounty.PostedTime);
                     temp.Add(
                         $"{GlobalConstants.RealmToName(bounty.BountyRealm)} [{bounty.Reward}g - {TimeSpan.FromMilliseconds(timeLeft).Minutes}m {TimeSpan.FromMilliseconds(timeLeft).Seconds}s]");
                 }
-        
+
                 temp.Add("");
             }
         }
@@ -435,7 +434,7 @@ public class BountyManager
                     $"{count} - {bounty.Target.Name} the {bounty.Target.CharacterClass.Name}, last seen in {bounty.LastSeenZone.Description} [{bounty.Reward}g - {TimeSpan.FromMilliseconds(timeLeft).Minutes}m {TimeSpan.FromMilliseconds(timeLeft).Seconds}s]");
             }
         }
-        
+
         if (!bountyAvailable) temp.Add("Your Realm doesn't have any Bounty Hunt posted.");
 
         return temp;

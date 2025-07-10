@@ -3,7 +3,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.SiegeArrow)]
+	[SpellHandler("SiegeArrow")]
 	public class SiegeArrow : BoltSpellHandler
 	{
 		/// <summary>
@@ -20,7 +20,7 @@ namespace DOL.GS.Spells
 			{
 				if (!(selectedTarget is GameKeepComponent || selectedTarget is Keeps.GameKeepDoor))
 				{
-					MessageToCaster("Your target must be a Keep Component!", eChatType.CT_Spell);
+					MessageToCaster("You must have a Keep Component targeted for this spell!", eChatType.CT_Spell);
 					return false;
 				}
 				return base.CheckBeginCast(selectedTarget);
@@ -51,9 +51,12 @@ namespace DOL.GS.Spells
 			return ad;
 		}
 
-		public override double CalculateToHitChance(GameLiving target)
+		public override int CalculateToHitChance(GameLiving target)
 		{
-			return target is GameKeepComponent or GameKeepDoor ? 100 : 0;
+			if ((target is GameKeepComponent || target is Keeps.GameKeepDoor))
+				return 100;
+
+			return 0;
 		}
 
 		public override int PowerCost(GameLiving target) { return 0; }

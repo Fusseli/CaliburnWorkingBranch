@@ -1,10 +1,11 @@
 using System;
 using DOL.AI.Brain;
 using DOL.GS.Effects;
+using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.StarsProc)]
+    [SpellHandlerAttribute("StarsProc")]
     public class StarsProc : SpellHandler
     {
         public override bool CheckBeginCast(GameLiving selectedTarget)
@@ -21,7 +22,7 @@ namespace DOL.GS.Spells
 
             return true;
         }
-
+        
         private void DealDamage(GameLiving target)
         {
             int ticksToTarget = m_caster.GetDistanceTo(target) * 100 / 85; // 85 units per 1/10s
@@ -33,7 +34,17 @@ namespace DOL.GS.Spells
             BoltOnTargetAction bolt = new BoltOnTargetAction(Caster, target, this);
             bolt.Start(1 + ticksToTarget);
         }
-
+        
+        public override void FinishSpellCast(GameLiving target)
+        {
+            if (target is Keeps.GameKeepDoor || target is Keeps.GameKeepComponent)
+            {
+                MessageToCaster("Your spell has no effect on the keep component!", eChatType.CT_SpellResisted);
+                return;
+            }
+            base.FinishSpellCast(target);
+        }
+        
         protected class BoltOnTargetAction : ECSGameTimerWrapperBase
         {
             protected readonly GameLiving m_boltTarget;
@@ -77,10 +88,10 @@ namespace DOL.GS.Spells
         public StarsProc(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) {}
     }
 
-    [SpellHandler(eSpellType.StarsProc2)]
+    [SpellHandlerAttribute("StarsProc2")]
     public class StarsProc2 : SpellHandler
     {
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
             return 0;
         }
@@ -105,7 +116,7 @@ namespace DOL.GS.Spells
                 GamePlayer player = effect.Owner as GamePlayer;  
                 if(m_spell.LifeDrainReturn>0) if(player.CharacterClass.ID!=(byte)eCharacterClass.Necromancer) player.Model=(ushort)m_spell.LifeDrainReturn;
                 player.Out.SendCharStatsUpdate();
-                player.UpdateEncumbrance();
+                player.UpdateEncumberance();
                 player.UpdatePlayerStatus();
                 player.Out.SendUpdatePlayer();             	
             }
@@ -130,7 +141,7 @@ namespace DOL.GS.Spells
                 GamePlayer player = effect.Owner as GamePlayer;  
                 if(player.CharacterClass.ID!=(byte)eCharacterClass.Necromancer) player.Model = player.CreationModel;
                 player.Out.SendCharStatsUpdate();
-                player.UpdateEncumbrance();
+                player.UpdateEncumberance();
                 player.UpdatePlayerStatus();
                 player.Out.SendUpdatePlayer();
             }

@@ -27,7 +27,7 @@ using DOL.GS.Spells;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.Facilis)]
+	[SpellHandlerAttribute("Facilis")]
 	public class FacilisSpellHandler : SpellHandler
 	{
 		public override bool IsOverwritable(ECSGameSpellEffect compare)

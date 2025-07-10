@@ -30,7 +30,7 @@ namespace DOL.GS.PacketHandler
 
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.TradeWindow)))
 			{
-				lock (m_gameClient.Player.TradeWindow.Lock)
+				lock (m_gameClient.Player.TradeWindow.Sync)
 				{
 					foreach (DbInventoryItem item in m_gameClient.Player.TradeWindow.TradeItems)
 					{
@@ -200,8 +200,8 @@ namespace DOL.GS.PacketHandler
 
 			ushort icon1 = 0;
 			ushort icon2 = 0;
-			string spell_name1 = string.Empty;
-			string spell_name2 = string.Empty;
+			string spell_name1 = "";
+			string spell_name2 = "";
 			if (item.Object_Type != (int)eObjectType.AlchemyTincture)
 			{
 				if (item.SpellID > 0/* && item.Charges > 0*/)

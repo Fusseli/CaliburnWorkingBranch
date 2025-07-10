@@ -8,6 +8,11 @@
         ROAMING,
         RETURN_TO_SPAWN,
         PATROLLING,
-        PASSIVE
+        PASSIVE,
+        DEAD,
+        FOLLOW_THE_LEADER,
+        LEADER,
+        CAMP,
+        DUEL
     }
 }

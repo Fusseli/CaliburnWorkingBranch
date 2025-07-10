@@ -40,6 +40,8 @@ namespace DOL.GS.Scripts
             Level = 77;
             // Giant
             BodyType = 5;
+            WeaponSkillScalingFactor = 45;
+
             OzurBrain sBrain = new OzurBrain();
             SetOwnBrain(sBrain);
             LoadedFromScript = false;//load from database
@@ -189,12 +191,14 @@ namespace DOL.AI.Brain
 
                 if (countPlayer >= _GettingFirstPlayerStage && countPlayer < _GettingSecondPlayerStage)
                 {
+                    Body.WeaponSkillScalingFactor += 10;
                     Body.Strength = 200;
                     Resists(false);
                 }
 
                 if (countPlayer >= _GettingSecondPlayerStage)
                 {
+                    Body.WeaponSkillScalingFactor += 25;
                     Body.Strength = 350;
                     Weak(true);
                 }

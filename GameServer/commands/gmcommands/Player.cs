@@ -14,7 +14,7 @@ namespace DOL.GS.Commands
 {
 	[Cmd(
 		"&player",
-		ePrivLevel.GM,
+		ePrivLevel.Player,
 		"Various Admin/GM commands to edit characters.",
 		"/player name <newName>",
 		"/player lastname <change|reset> <newLastName>",
@@ -422,7 +422,7 @@ namespace DOL.GS.Commands
 						player.MLLine = line;
 						player.SaveIntoDatabase();
 						player.RefreshSpecDependantSkills(true);
-						player.Out.SendUpdatePlayerSkills(true);
+						player.Out.SendUpdatePlayerSkills();
 						player.Out.SendUpdatePlayer();
 						player.Out.SendMasterLevelWindow((byte)player.MLLevel);
 						client.Out.SendMessage(player.Name + " Master Line is set to " + line + "!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -1277,7 +1277,7 @@ namespace DOL.GS.Commands
 
                         m_hasEffect = false;
 
-                        lock (player.EffectList.Lock)
+                        lock (player.EffectList)
                         {
                             foreach (GameSpellEffect effect in player.EffectList)
                             {
@@ -1295,7 +1295,7 @@ namespace DOL.GS.Commands
                             return;
                         }
 
-                        lock (player.EffectList.Lock)
+                        lock (player.EffectList)
                         {
                             foreach (GameSpellEffect effect in player.EffectList)
                             {
@@ -1768,7 +1768,7 @@ namespace DOL.GS.Commands
 
                                     if (player != null)
                                     {
-                                        ChatGroup cg = player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY);
+                                        ChatGroup cg = player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY, null);
 
                                         if (cg != null)
                                         {
@@ -1798,7 +1798,7 @@ namespace DOL.GS.Commands
 
                                     if (player != null)
                                     {
-                                        BattleGroup bg = player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                                        BattleGroup bg = player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
 
                                         if (bg != null)
                                         {
@@ -2235,7 +2235,7 @@ namespace DOL.GS.Commands
 			bool limitShown = false;
 
 
-			if (limitType == string.Empty || limitType == "wear")
+			if (limitType == "" || limitType == "wear")
 			{
 				limitShown = true;
 				text.Add("  ----- Wearing:");
@@ -2247,7 +2247,7 @@ namespace DOL.GS.Commands
 				text.Add(" ");
 			}
 
-			if (limitType == string.Empty || limitType == "bag")
+			if (limitType == "" || limitType == "bag")
 			{
 				limitShown = true;
 				text.Add("  ----- Backpack:");
@@ -2321,7 +2321,10 @@ namespace DOL.GS.Commands
 			text.Add("  - Guild : " + player.GuildName + " " + (player.GuildRank != null ? "Rank: " + player.GuildRank.RankLevel.ToString() : ""));
 			text.Add("  - XPs/RPs/BPs : " + player.Experience + " xp, " + player.RealmPoints + " rp, " + player.BountyPoints + " bp");
 
-			if (player.Champion)
+            if (player.DamageRvRMemory > 0)
+                text.Add("  - Damage RvR Memory: " + player.DamageRvRMemory);
+			
+            if (player.Champion)
 			{
 				text.Add("  - Champion :  CL " + player.ChampionLevel + ", " + player.ChampionExperience + " clxp");
 
@@ -2334,32 +2337,32 @@ namespace DOL.GS.Commands
 					}
 					else
 					{
-						activeBags = string.Empty;
+						activeBags = "";
 
 						if ((player.ActiveSaddleBags & (byte)eHorseSaddleBag.LeftFront) > 0)
 						{
-							if (activeBags != string.Empty)
+							if (activeBags != "")
 								activeBags += ", ";
 
 							activeBags += "LeftFront";
 						}
 						if ((player.ActiveSaddleBags & (byte)eHorseSaddleBag.RightFront) > 0)
 						{
-							if (activeBags != string.Empty)
+							if (activeBags != "")
 								activeBags += ", ";
 
 							activeBags += "RightFront";
 						}
 						if ((player.ActiveSaddleBags & (byte)eHorseSaddleBag.LeftRear) > 0)
 						{
-							if (activeBags != string.Empty)
+							if (activeBags != "")
 								activeBags += ", ";
 
 							activeBags += "LeftRear";
 						}
 						if ((player.ActiveSaddleBags & (byte)eHorseSaddleBag.RightRear) > 0)
 						{
-							if (activeBags != string.Empty)
+							if (activeBags != "")
 								activeBags += ", ";
 
 							activeBags += "RightRear";
@@ -2400,8 +2403,8 @@ namespace DOL.GS.Commands
 			text.Add(" ");
 			text.Add("CHARACTER STATS ");
 
-			String sCurrent = string.Empty;
-			String sTitle = string.Empty;
+			String sCurrent = "";
+			String sTitle = "";
 			int cnt = 0;
 
 			for (eProperty stat = eProperty.Stat_First; stat <= eProperty.Stat_Last; stat++, cnt++)
@@ -2411,14 +2414,14 @@ namespace DOL.GS.Commands
 				if (cnt == 3)
 				{
 					text.Add("  - Current stats " + sTitle + " : " + sCurrent);
-					sTitle = string.Empty;
-					sCurrent = string.Empty;
+					sTitle = "";
+					sCurrent = "";
 				}
 			}
 			text.Add("  - Current stats " + sTitle + " : " + sCurrent);
 
-			sCurrent = string.Empty;
-			sTitle = string.Empty;
+			sCurrent = "";
+			sTitle = "";
 			cnt = 0;
 			for (eProperty res = eProperty.Resist_First; res <= eProperty.Resist_Last; res++, cnt++)
 			{
@@ -2427,14 +2430,14 @@ namespace DOL.GS.Commands
 				if (cnt == 2)
 				{
 					text.Add("  - Current " + sTitle + " : " + sCurrent);
-					sCurrent = string.Empty;
-					sTitle = string.Empty;
+					sCurrent = "";
+					sTitle = "";
 				}
 				if (cnt == 5)
 				{
 					text.Add("  - Current " + sTitle + " : " + sCurrent);
-					sCurrent = string.Empty;
-					sTitle = string.Empty;
+					sCurrent = "";
+					sTitle = "";
 				}
 			}
 			text.Add("  - Current " + sTitle + " : " + sCurrent);
@@ -2448,7 +2451,7 @@ namespace DOL.GS.Commands
 					 " single, " + player.RespecAmountAllSkill + " full");
 			text.Add("  - Remaining spec. points : " + player.SkillSpecialtyPoints);
 			sTitle = "  - Player specialisations : ";
-			sCurrent = string.Empty;
+			sCurrent = "";
 			foreach (Specialization spec in player.GetSpecList())
 			{
 				sCurrent += spec.Name + " = " + spec.Level + " ; ";
@@ -2474,7 +2477,7 @@ namespace DOL.GS.Commands
             target.OnLevelUp(0);
 
             target.Out.SendUpdatePlayer();
-            target.Out.SendUpdatePlayerSkills(true);
+            target.Out.SendUpdatePlayerSkills();
             target.Out.SendUpdatePoints();
         }
 	}

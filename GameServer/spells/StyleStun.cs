@@ -5,7 +5,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// Style stun effect spell handler
 	/// </summary>
-	[SpellHandler(eSpellType.StyleStun)]
+	[SpellHandler("StyleStun")]
 	public class StyleStun : StunSpellHandler
 	{
 		public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)
@@ -13,7 +13,7 @@ namespace DOL.GS.Spells
 			return new StunECSGameEffect(initParams);
 		}
 		
-		public override double CalculateSpellResistChance(GameLiving target)
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}

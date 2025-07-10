@@ -239,7 +239,9 @@ namespace DOL.GS
 		}
 
 		public static int MinionCount = 0;
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override long ExperienceValue => 0;
 		public override void Die(GameObject killer)
 		{
@@ -296,7 +298,9 @@ namespace DOL.GS
 		{
 			get { return 1200; }
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override long ExperienceValue => 0;
 		public override bool AddToWorld()
 		{

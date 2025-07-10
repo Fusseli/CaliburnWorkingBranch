@@ -33,7 +33,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// 
 	/// </summary>
-	[SpellHandler(eSpellType.Powerless)]
+	[SpellHandlerAttribute("Powerless")]
 	public class PowerlessSpellHandler : PrimerSpellHandler
 	{
 		public override bool CheckBeginCast(GameLiving selectedTarget)

@@ -6,7 +6,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.ValkyrieOffensiveProc)]
+    [SpellHandler("ValkyrieOffensiveProc")]
     public class ValkyrieOffensiveProcSpellHandler : SpellHandler
     {
         /// <summary>
@@ -60,7 +60,7 @@ namespace DOL.GS.Spells
                 if (sender is GamePlayer)
                 {
                     GamePlayer player = (GamePlayer)sender;
-                    DbInventoryItem leftWeapon = player.ActiveLeftWeapon;
+                    DbInventoryItem leftWeapon = player.Inventory.GetItem(eInventorySlot.LeftHandWeapon);
                     // if we can use left weapon, we have currently a weapon in left hand and we still have endurance,
                     // we can assume that we are using the two weapons.
                     if (player.attackComponent.CanUseLefthandedWeapon && leftWeapon != null && leftWeapon.Object_Type != (int)eObjectType.Shield)

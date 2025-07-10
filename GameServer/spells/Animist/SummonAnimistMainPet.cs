@@ -8,7 +8,7 @@ namespace DOL.GS.Spells
     /// Spell handler to summon a animist pet.
     /// </summary>
     /// <author>IST</author>
-    [SpellHandler(eSpellType.SummonAnimistPet)]
+    [SpellHandler("SummonAnimistPet")]
     public class SummonAnimistMainPet : SummonAnimistPet
     {
         public SummonAnimistMainPet(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }

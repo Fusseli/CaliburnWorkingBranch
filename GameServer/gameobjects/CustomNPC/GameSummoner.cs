@@ -138,6 +138,7 @@ namespace DOL.GS
                     m_pet.LoadedFromScript = true;
                     m_pet.TetherRange = PetTetherRange;
                     m_pet.RespawnInterval = -1;
+                    m_pet.IsWorthReward = false;
 
                     if (PetSize > 0)
                         m_pet.Size = PetSize;
@@ -151,7 +152,7 @@ namespace DOL.GS
 
                     if (m_pet.Brain is StandardMobBrain petBrain && Brain is StandardMobBrain brain && TargetObject is GameLiving living)
                     {
-                        petBrain.CanBaf = false;
+                        petBrain.CanBAF = false;
                         brain.AddAggroListTo(petBrain);
                     }
 

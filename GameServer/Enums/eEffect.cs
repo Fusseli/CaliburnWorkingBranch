@@ -18,6 +18,7 @@ namespace DOL.GS
         CombatHeal,
 
         //stats
+        PaladinAf,
         StrengthBuff,
         DexterityBuff,
         ConstitutionBuff,
@@ -25,9 +26,8 @@ namespace DOL.GS
         StrengthConBuff,
         DexQuickBuff,
         AcuityBuff,
-        BaseAFBuff,
         SpecAFBuff,
-        PaladinAf,
+        BaseAFBuff,
         ArmorAbsorptionBuff,
 
         //resists

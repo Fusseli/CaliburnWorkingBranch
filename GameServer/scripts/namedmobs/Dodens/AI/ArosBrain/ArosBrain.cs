@@ -30,6 +30,8 @@ namespace DOL.AI.Brain
             FSM.Add(new ArosState_IDLE(this));
             FSM.Add(new ArosState_AGGRO(this));
             FSM.Add(new ArosState_RETURN_TO_SPAWN(this));
+            FSM.Add(new StandardMobState_DEAD(this));
+            FSM.SetCurrentState(eFSMStateType.WAKING_UP);
         }
 
         /// <summary>

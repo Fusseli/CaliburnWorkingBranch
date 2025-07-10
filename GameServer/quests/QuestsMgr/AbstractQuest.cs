@@ -243,13 +243,16 @@ namespace DOL.GS.Quests
             return false;
         }
 
-        public virtual void StartQuestActionTimer(GamePlayer player, eQuestCommand command, int seconds, string label = null)
+        public virtual void StartQuestActionTimer(GamePlayer player, eQuestCommand command, int seconds, string label = "")
         {
             if (player.QuestActionTimer == null)
             {
                 m_currentCommand = command;
                 AddActionHandlers(player);
-                label ??= Enum.GetName(typeof(eQuestCommand), command);
+
+                if (label == "")
+                    label = Enum.GetName(typeof(eQuestCommand), command);
+
                 player.Out.SendTimerWindow(label, seconds);
                 player.QuestActionTimer = new(player, new ECSGameTimer.ECSTimerCallback(QuestActionCallback), seconds * 1000);
             }
@@ -355,7 +358,7 @@ namespace DOL.GS.Quests
                 return;
             }
 
-            lock (player.Inventory.Lock)
+            lock (player.Inventory.LockObject)
             {
                 DbInventoryItem item = player.Inventory.GetFirstItemByID(itemTemplate.Id_nb, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
 
@@ -380,7 +383,7 @@ namespace DOL.GS.Quests
                 return;
             }
 
-            lock (player.Inventory.Lock)
+            lock (player.Inventory.LockObject)
             {
                 if (item != null)
                 {
@@ -405,7 +408,7 @@ namespace DOL.GS.Quests
                 return 0;
             }
 
-            lock (player.Inventory.Lock)
+            lock (player.Inventory.LockObject)
             {
                 DbInventoryItem item = player.Inventory.GetFirstItemByID(itemTemplate.Id_nb, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
 

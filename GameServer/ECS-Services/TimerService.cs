@@ -65,9 +65,9 @@ namespace DOL.GS
                     long startTick = GameLoop.GetCurrentTime();
                     timer.Tick();
                     long stopTick = GameLoop.GetCurrentTime();
-
-                    if (stopTick - startTick > 25)
-                        log.Warn($"Long {SERVICE_NAME}.{nameof(Tick)} for Timer Callback: {timer.CallbackInfo?.DeclaringType}:{timer.CallbackInfo?.Name}  Owner: {timer.Owner?.Name} Time: {stopTick - startTick}ms");
+                    //TODO: See if the spawning time can be reduced.
+                    if (stopTick - startTick > 25 && timer.Owner?.Name != "Mimic Spawner")
+                        log.Warn($"Long {SERVICE_NAME}.{nameof(Tick)} for Timer Callback: {timer.Callback?.Method?.DeclaringType}:{timer.Callback?.Method?.Name}  Owner: {timer.Owner?.Name} Time: {stopTick - startTick}ms");
                 }
             }
             catch (Exception e)
@@ -84,8 +84,7 @@ namespace DOL.GS
         private long _nextTick;
 
         public GameObject Owner { get; }
-        public ECSTimerCallback Callback { private get; set; }
-        public MethodInfo CallbackInfo => Callback?.GetMethodInfo();
+        public ECSTimerCallback Callback { get; set; }
         public int Interval { get; set; }
         public ref long NextTick => ref _nextTick;
         public bool IsAlive { get; private set; }
@@ -153,9 +152,14 @@ namespace DOL.GS
             {
                 if (_properties == null)
                 {
-                    lock(this)
+                    lock (this)
                     {
-                        _properties ??= new();
+                        if (_properties == null)
+                        {
+                            PropertyCollection properties = new PropertyCollection();
+                            Thread.MemoryBarrier();
+                            _properties = properties;
+                        }
                     }
                 }
 

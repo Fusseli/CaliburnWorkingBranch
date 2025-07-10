@@ -7,6 +7,7 @@ using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.Keeps;
 using DOL.GS.Quests;
+using DOL.GS.Scripts;
 using DOL.Language;
 using log4net;
 
@@ -181,7 +182,7 @@ namespace DOL.GS.PacketHandler
 					pak.WriteByte(flags);
 					pak.WriteByte(0x20); //TODO this is the default maxstick distance
 
-					string add = string.Empty;
+					string add = "";
 					byte flags2 = 0x00;
 
 					if (npc.Brain is IControlledBrain)
@@ -203,7 +204,7 @@ namespace DOL.GS.PacketHandler
 							flags2 |= 0x02;
 					}
 
-					if (npc.IsStealthed)
+					if ((npc.Flags & GameNPC.eFlags.STEALTH) > 0)
 						flags2 |= 0x04;
 
 					eQuestIndicator questIndicator = npc.GetQuestIndicator(m_gameClient.Player);
@@ -234,7 +235,13 @@ namespace DOL.GS.PacketHandler
 					pak.WriteByte(flags3); // new in 1.71 (region instance ID from StoC_0x20) OR flags 3?
 					pak.WriteShort(0x00); // new in 1.71 unknown
 
-					string name = npc.Name;
+					string name;
+
+					if (npc is MimicNPC mimic && !GameServer.ServerRules.IsSameRealm(m_gameClient.Player, mimic, true))
+						name = mimic.RaceName + " " + GlobalConstants.REALM_RANK_NAMES[(int)mimic.Realm - 1, (int)mimic.Gender - 1, (mimic.RealmLevel / 10)];//mimic.RealmRankTitle(m_gameClient.Account.Language);
+					else
+						name = npc.Name;
+
 					string guildName = npc.GuildName;
 
 					if (LanguageMgr.GetTranslation(m_gameClient, npc) is DbLanguageGameNpc translation)
@@ -437,10 +444,6 @@ namespace DOL.GS.PacketHandler
 
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.PositionAndObjectID)))
 			{
-				if (m_gameClient.Player.X <= 0)
-				{
-					int x = 0;
-				}
 				pak.WriteFloatLowEndian(m_gameClient.Player.X);
 				pak.WriteFloatLowEndian(m_gameClient.Player.Y);
 				pak.WriteFloatLowEndian(m_gameClient.Player.Z);
@@ -764,7 +767,7 @@ namespace DOL.GS.PacketHandler
 				pak.WriteByte(m_gameClient.MajorBuild); // last seen : 0x44 0x05
 				pak.WriteByte(m_gameClient.MinorBuild);
 				SendTCP(pak);
-				m_gameClient.PacketProcessor.SendPendingPackets();
+				m_gameClient.PacketProcessor.ProcessTcpQueue();
 			}
 		}
 
@@ -815,7 +818,7 @@ namespace DOL.GS.PacketHandler
 				{
 					byte i = 0;
 					var effects = living.effectListComponent.GetAllEffects();
-					if (living is GamePlayer necro && (eCharacterClass) necro.CharacterClass.ID is eCharacterClass.Necromancer && necro.HasShadeModel)
+					if (living is GamePlayer necro && necro.CharacterClass.ID == (int)eCharacterClass.Necromancer && necro.IsShade)
 						effects.AddRange(necro.ControlledBrain.Body.effectListComponent.GetAllEffects().Where(e => e.TriggersImmunity));
 					foreach (var effect in effects)
 					{
@@ -951,8 +954,8 @@ namespace DOL.GS.PacketHandler
 				flag |= 0x04; // enable craft button
 			ushort icon1 = 0;
 			ushort icon2 = 0;
-			string spell_name1 = string.Empty;
-			string spell_name2 = string.Empty;
+			string spell_name1 = "";
+			string spell_name2 = "";
 			if (item.Object_Type != (int)eObjectType.AlchemyTincture)
 			{
 				if (item.SpellID > 0/* && item.Charges > 0*/)
@@ -1014,7 +1017,7 @@ namespace DOL.GS.PacketHandler
 				else
 					name += "[" + Money.GetString(item.SellPrice) + "]";
 			}
-			if (name == null) name = string.Empty;
+			if (name == null) name = "";
 			if (name.Length > 55)
 				name = name.Substring(0, 55);
 			pak.WritePascalString(name);

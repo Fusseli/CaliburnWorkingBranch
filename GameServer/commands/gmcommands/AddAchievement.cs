@@ -26,7 +26,7 @@ namespace DOL.GS.Commands
                 return;
             }
 
-            var achievementName = string.Empty;
+            var achievementName = "";
             if (args.Length < 3)
             {
                 DisplaySyntax(client);
@@ -66,7 +66,7 @@ namespace DOL.GS.Commands
             } 
             else if (args[1] == "addbg")
             {
-                BattleGroup bg = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                BattleGroup bg = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
 
                 if (bg == null)
                 {

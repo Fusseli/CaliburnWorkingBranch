@@ -21,7 +21,7 @@ namespace DOL.GS.RealmAbilities
 			if (CheckPreconditions(living, DEAD | SITTING | MEZZED | STUNNED)) return;
 
 
-			DbInventoryItem shield = living.ActiveLeftWeapon;
+			DbInventoryItem shield = living.Inventory.GetItem(eInventorySlot.LeftHandWeapon);
 			if (shield == null)
 				return;
 			if (shield.Object_Type != (int)eObjectType.Shield)

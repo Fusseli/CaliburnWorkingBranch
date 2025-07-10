@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using DOL.Database;
 using DOL.GS.Keeps;
-using static DOL.GS.IGameStaticItemOwner;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.ServerRules
 {
@@ -47,6 +47,16 @@ namespace DOL.GS.ServerRules
 		bool IsAllowedToAttack(GameLiving attacker, GameLiving defender, bool quiet);
 
 		/// <summary>
+		/// Is caster allowed to cast a spell
+		/// </summary>
+		/// <param name="caster"></param>
+		/// <param name="target"></param>
+		/// <param name="spell"></param>
+		/// <param name="spellLine"></param>
+		/// <returns>true if allowed</returns>
+		bool IsAllowedToCastSpell(GameLiving caster, GameLiving target, Spell spell, SpellLine spellLine);
+
+		/// <summary>
 		/// Should the target be considered the same realm as the source?
 		/// Do not use this for attack decisions, use IsAllowedToAttack instead.  This should be used
 		/// to determine things like Can join a guild? Can invite to a battlegroup?  Can rez?
@@ -71,7 +81,7 @@ namespace DOL.GS.ServerRules
 		/// <param name="target"></param>
 		/// <param name="quiet"></param>
 		/// <returns></returns>
-		bool IsAllowedToGroup(GamePlayer source, GamePlayer target, bool quiet);
+		bool IsAllowedToGroup(IGamePlayer source, IGamePlayer target, bool quiet);
 
 		/// <summary>
 		/// Is source allowed to join this guild
@@ -188,7 +198,7 @@ namespace DOL.GS.ServerRules
 		/// <param name="player">player whom specializations are checked</param>
 		/// <param name="objectType">object type</param>
 		/// <returns>specialization in object or 0</returns>
-		int GetObjectSpecLevel(GamePlayer player, eObjectType objectType);
+		int GetObjectSpecLevel(IGamePlayer player, eObjectType objectType);
 
 		/// <summary>
 		/// Get object specialization level based on server type
@@ -196,7 +206,7 @@ namespace DOL.GS.ServerRules
 		/// <param name="player">player whom specializations are checked</param>
 		/// <param name="objectType">object type</param>
 		/// <returns>specialization in object or 0</returns>
-		int GetObjectBaseSpecLevel(GamePlayer player, eObjectType objectType);
+		int GetObjectBaseSpecLevel(IGamePlayer player, eObjectType objectType);
 
 		/// <summary>
 		/// Invoked on NPC death and deals out
@@ -204,16 +214,7 @@ namespace DOL.GS.ServerRules
 		/// </summary>
 		/// <param name="killedNPC">npc that died</param>
 		/// <param name="killer">killer</param>
-		void OnNpcKilled(GameNPC killedNPC, GameObject killer);
-
-		void AwardExperience(GamePlayer player,
-			double npcTotalDamageReceived,
-			GameNPC killedNpc,
-			Dictionary<GamePlayer, EntityCountTotalDamagePair> playerCountAndDamage,
-			Dictionary<Group, EntityCountTotalDamagePair> groupCountAndDamage,
-			Dictionary<BattleGroup, EntityCountTotalDamagePair> battlegroupCountAndDamage);
-
-		void DropLoot(GameNPC killedNPC, GameObject killer, SortedSet<ItemOwnerTotalDamagePair> itemOwners);
+		void OnNPCKilled(GameNPC killedNPC, GameObject killer);
 
 		/// <summary>
 		/// Invoked on Player death and deals out
@@ -449,12 +450,5 @@ namespace DOL.GS.ServerRules
 		/// Enable Handling Custom Player Level Up
 		/// </summary>
 		void OnPlayerLevelUp(GamePlayer player, int previousLevel);
-
-		public class EntityCountTotalDamagePair(int count, double damage, GamePlayer highestLevelPlayer)
-		{
-			public int Count { get; set; } = count;
-			public double Damage { get; set; } = damage;
-			public GamePlayer HighestLevelPlayer { get; set; } = highestLevelPlayer;
-		}
 	}
 }

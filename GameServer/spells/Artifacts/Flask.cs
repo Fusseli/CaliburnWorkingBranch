@@ -21,7 +21,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// [Freya] Nidel : Handler for Flask use1: Heals are more effective on the target
     /// </summary>
-    [SpellHandler(eSpellType.HealFlask)]
+    [SpellHandler("HealFlask")]
     public class HealFlask : SpellHandler
     {
         public HealFlask(GameLiving caster, Spell spell, SpellLine spellLine) : base(caster, spell, spellLine)
@@ -37,7 +37,7 @@ namespace DOL.GS.Spells
     /// <summary>
     ///  [Freya] Nidel : Handler for Flask use2: Target gets chances not to die from the last hit.
     /// </summary>
-    [SpellHandler(eSpellType.DeadFlask)]
+    [SpellHandler("DeadFlask")]
     public class DeadFlask : SpellHandler
     {
         public DeadFlask(GameLiving caster, Spell spell, SpellLine spellLine)

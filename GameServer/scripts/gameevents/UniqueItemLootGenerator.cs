@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using DOL.AI.Brain;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -164,9 +165,11 @@ namespace DOL.GS
 
             try
             {
-                GamePlayer player = killer as GamePlayer;
+                IGamePlayer player = killer as IGamePlayer;
+
                 if (killer is GameNPC && ((GameNPC) killer).Brain is IControlledBrain)
-                    player = ((ControlledMobBrain) ((GameNPC) killer).Brain).GetPlayerOwner();
+                    player = ((ControlledMobBrain) ((GameNPC) killer).Brain).GetIPlayerOwner();
+
                 if (player == null)
                     return loot;
 
@@ -228,7 +231,8 @@ namespace DOL.GS
         private eCharacterClass GetRandomClassFromGroup(Group group)
         {
             List<eCharacterClass> validClasses = new List<eCharacterClass>();
-            foreach (GamePlayer player in group.GetMembersInTheGroup())
+
+            foreach (IGamePlayer player in group.GetMembersInTheGroup())
             {
                 validClasses.Add((eCharacterClass) player.CharacterClass.ID);
             }

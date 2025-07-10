@@ -1,6 +1,25 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
 using System;
 using System.Text;
-using System.Threading;
+using DOL.GS;
+using DOL.GS.Effects;
 using DOL.GS.Spells;
 
 namespace DOL.GS.Effects
@@ -10,7 +29,7 @@ namespace DOL.GS.Effects
 	/// </summary>
 	public sealed class PulsingSpellEffect : IConcentrationEffect
 	{
-		private readonly Lock _lockObject = new();
+		private readonly object m_LockObject = new object();
 
 		/// <summary>
 		/// The spell handler of this pulsing effect
@@ -52,7 +71,7 @@ namespace DOL.GS.Effects
 		/// </summary>
 		public void Start()
 		{
-			lock (_lockObject)
+			lock (m_LockObject)
 			{
 				if (m_spellPulseAction != null)
 					m_spellPulseAction.Stop();
@@ -69,7 +88,7 @@ namespace DOL.GS.Effects
 		/// <param name="playerCanceled">true if player decided to cancel that effect by shift + rightclick</param>
 		public void Cancel(bool playerCanceled)
 		{
-			lock (_lockObject)
+			lock (m_LockObject)
 			{
 				if (m_spellPulseAction != null)
 				{

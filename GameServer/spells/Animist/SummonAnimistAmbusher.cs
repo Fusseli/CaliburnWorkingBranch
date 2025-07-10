@@ -1,9 +1,11 @@
+using System;
 using DOL.AI.Brain;
+using DOL.Events;
 using DOL.GS.Effects;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.SummonAnimistAmbusher)]
+	[SpellHandler("SummonAnimistAmbusher")]
 	public class SummonAnimistAmbusher : SummonSpellHandler
 	{
 		public SummonAnimistAmbusher(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -20,16 +22,6 @@ namespace DOL.GS.Spells
 			effect.PetSpellHander = this;
 			base.ApplyEffectOnTarget(target);
 			((ControlledMobBrain) m_pet.Brain).Stay();
-		}
-
-		public override void OnPetReleased(GameSummonedPet pet)
-		{
-			if (pet.Brain is not ForestheartAmbusherBrain forestheartAmbusherBrain)
-				return;
-
-			AtlasOF_ForestheartAmbusherECSEffect effect = EffectListService.GetEffectOnTarget(Caster, eEffect.ForestheartAmbusher) as AtlasOF_ForestheartAmbusherECSEffect;
-			effect?.Cancel(false);
-			base.OnPetReleased(pet);
 		}
 
 		protected override GameSummonedPet GetGamePet(INpcTemplate template)
@@ -52,5 +44,24 @@ namespace DOL.GS.Spells
 		}
 
 		protected override void SetBrainToOwner(IControlledBrain brain) { }
+
+		protected override void OnNpcReleaseCommand(DOLEvent e, object sender, EventArgs arguments)
+		{
+			if (e != GameLivingEvent.PetReleased || sender is not GameNPC gameNpc)
+				return;
+
+			if (gameNpc.Brain is not ForestheartAmbusherBrain forestheartAmbusherBrain)
+				return;
+
+			var player = forestheartAmbusherBrain.Owner as GamePlayer;
+
+			if (player == null)
+				return;
+
+			AtlasOF_ForestheartAmbusherECSEffect effect = (AtlasOF_ForestheartAmbusherECSEffect)EffectListService.GetEffectOnTarget(player, eEffect.ForestheartAmbusher);
+			effect?.Cancel(false);
+
+			base.OnNpcReleaseCommand(e, sender, arguments);
+		}
 	}
 }

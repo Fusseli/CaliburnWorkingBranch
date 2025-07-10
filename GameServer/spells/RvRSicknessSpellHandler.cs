@@ -23,7 +23,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// RvR Resurrection Illness Handler
     /// </summary>
-    [SpellHandler(eSpellType.RvrResurrectionIllness)]
+    [SpellHandlerAttribute("RvrResurrectionIllness")]
     public class RvrResurrectionIllness : PveResurrectionIllness
 	{
 		// constructor

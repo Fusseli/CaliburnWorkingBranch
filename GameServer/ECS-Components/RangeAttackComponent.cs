@@ -7,17 +7,16 @@ namespace DOL.GS
 {
     public class RangeAttackComponent
     {
-        private GameLiving _owner;
+        private GameLiving m_owner;
 
         public RangeAttackComponent(GameLiving owner)
         {
-            _owner = owner;
+            m_owner = owner;
         }
 
         public const int DEFAULT_ENDURANCE_COST = 5;
         public const int CRITICAL_SHOT_ENDURANCE_COST = 10;
         public const int VOLLEY_ENDURANCE_COST = 15;
-        public const double RAPID_FIRE_ATTACK_SPEED_MODIFIER = 0.5;
         public const int PROJECTILE_FLIGHT_SPEED = 1800; // 1800 units per second. Live value is unknown, but DoL had 1500. Also affects throwing weapons.
         public const int MAX_DRAW_DURATION = 15000;
         public GameObject AutoFireTarget { get; set; } // Used to shoot at a different target than the one currently selected. Always null for NPCs.
@@ -28,52 +27,52 @@ namespace DOL.GS
         public DbInventoryItem Ammo { get; private set; }
         public bool IsAmmoCompatible { get; private set; }
 
+        private DbInventoryItem GetAmmoFromInventory(eObjectType ammoType)
+        {
+            switch (ActiveQuiverSlot)
+            {
+                case eActiveQuiverSlot.First:
+                    return m_owner.Inventory.GetItem(eInventorySlot.FirstQuiver);
+                case eActiveQuiverSlot.Second:
+                    return m_owner.Inventory.GetItem(eInventorySlot.SecondQuiver);
+                case eActiveQuiverSlot.Third:
+                    return m_owner.Inventory.GetItem(eInventorySlot.ThirdQuiver);
+                case eActiveQuiverSlot.Fourth:
+                    return m_owner.Inventory.GetItem(eInventorySlot.FourthQuiver);
+                case eActiveQuiverSlot.None:
+                    return m_owner.Inventory.GetFirstItemByObjectType((int)ammoType, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
+            }
+
+            return null;
+        }
+
         public DbInventoryItem UpdateAmmo(DbInventoryItem weapon)
         {
             Ammo = null;
             IsAmmoCompatible = true;
 
-            if (_owner is not GamePlayer || weapon == null)
+            if (m_owner is not GamePlayer || weapon == null)
                 return null;
 
-            switch ((eObjectType) weapon.Object_Type)
+            switch (weapon.Object_Type)
             {
-                case eObjectType.Thrown:
-                {
-                    Ammo = _owner.Inventory.GetItem(eInventorySlot.DistanceWeapon);
+                case (int)eObjectType.Thrown:
+                    Ammo = m_owner.Inventory.GetItem(eInventorySlot.DistanceWeapon);
                     break;
-                }
-                case eObjectType.Crossbow:
-                {
+                case (int)eObjectType.Crossbow:
                     Ammo = GetAmmoFromInventory(eObjectType.Bolt);
-                    IsAmmoCompatible = Ammo?.Object_Type == (int) eObjectType.Bolt;
+                    IsAmmoCompatible = Ammo?.Object_Type == (int)eObjectType.Bolt;
                     break;
-                }
-                case eObjectType.Longbow:
-                case eObjectType.CompositeBow:
-                case eObjectType.RecurvedBow:
-                case eObjectType.Fired:
-                {
+                case (int)eObjectType.Longbow:
+                case (int)eObjectType.CompositeBow:
+                case (int)eObjectType.RecurvedBow:
+                case (int)eObjectType.Fired:
                     Ammo = GetAmmoFromInventory(eObjectType.Arrow);
-                    IsAmmoCompatible = Ammo?.Object_Type == (int) eObjectType.Arrow;
+                    IsAmmoCompatible = Ammo?.Object_Type == (int)eObjectType.Arrow;
                     break;
-                }
             }
 
             return Ammo;
-
-            DbInventoryItem GetAmmoFromInventory(eObjectType ammoType)
-            {
-                return ActiveQuiverSlot switch
-                {
-                    eActiveQuiverSlot.First => _owner.Inventory.GetItem(eInventorySlot.FirstQuiver),
-                    eActiveQuiverSlot.Second => _owner.Inventory.GetItem(eInventorySlot.SecondQuiver),
-                    eActiveQuiverSlot.Third => _owner.Inventory.GetItem(eInventorySlot.ThirdQuiver),
-                    eActiveQuiverSlot.Fourth => _owner.Inventory.GetItem(eInventorySlot.FourthQuiver),
-                    eActiveQuiverSlot.None => _owner.Inventory.GetFirstItemByObjectType((int) ammoType, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack),
-                    _ => null,
-                };
-            }
         }
 
         /// <summary>
@@ -85,7 +84,7 @@ namespace DOL.GS
             if (AttackStartTime == 0)
                 AttackStartTime = GameLoop.GameLoopTime;
 
-            if (_owner is GamePlayer playerOwner)
+            if (m_owner is GamePlayer playerOwner)
             {
                 if ((GameLoop.GameLoopTime - AttackStartTime) > MAX_DRAW_DURATION && playerOwner.ActiveWeapon.Object_Type != (int)eObjectType.Crossbow)
                 {
@@ -175,7 +174,7 @@ namespace DOL.GS
             }
             else
             {
-                if (!_owner.IsWithinRadius(target, _owner.attackComponent.AttackRange))
+                if (!m_owner.IsWithinRadius(target, m_owner.attackComponent.AttackRange))
                     return eCheckRangeAttackStateResult.Stop;
 
                 return eCheckRangeAttackStateResult.Fire;
@@ -184,19 +183,19 @@ namespace DOL.GS
 
         public void RemoveEnduranceAndAmmoOnShot()
         {
-            int arrowRecoveryChance = _owner.GetModified(eProperty.ArrowRecovery);
+            int arrowRecoveryChance = m_owner.GetModified(eProperty.ArrowRecovery);
 
             if (arrowRecoveryChance == 0 || Util.Chance(100 - arrowRecoveryChance))
-                _owner.Inventory.RemoveCountFromStack(Ammo, 1);
+                m_owner.Inventory.RemoveCountFromStack(Ammo, 1);
 
             if (RangedAttackType == eRangedAttackType.Critical)
-                _owner.Endurance -= CRITICAL_SHOT_ENDURANCE_COST;
-            else if (RangedAttackType == eRangedAttackType.RapidFire && _owner.GetAbilityLevel(Abilities.RapidFire) == 2)
-                _owner.Endurance -= (int) Math.Ceiling(DEFAULT_ENDURANCE_COST / 2.0);
+                m_owner.Endurance -= CRITICAL_SHOT_ENDURANCE_COST;
+            else if (RangedAttackType == eRangedAttackType.RapidFire && m_owner.GetAbilityLevel(Abilities.RapidFire) == 2)
+                m_owner.Endurance -= (int)Math.Ceiling(DEFAULT_ENDURANCE_COST / 2.0);
             else if (RangedAttackType == eRangedAttackType.Volley)
-                _owner.Endurance -= VOLLEY_ENDURANCE_COST;
+                m_owner.Endurance -= VOLLEY_ENDURANCE_COST;
             else
-                _owner.Endurance -= DEFAULT_ENDURANCE_COST;
+                m_owner.Endurance -= DEFAULT_ENDURANCE_COST;
         }
     }
 }

@@ -5,7 +5,7 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.SummonVaultkeeper)]
+    [SpellHandler("SummonVaultkeeper")]
     public class SummonVaultkeeperSpellHandler : SpellHandler
     {
         protected GameVaultKeeper Npc;
@@ -20,7 +20,7 @@ namespace DOL.GS.Spells
         {
             var template = NpcTemplateMgr.GetTemplate((int) m_spell.Value);
 
-            if (template.ClassType == string.Empty)
+            if (template.ClassType == "")
                 Npc = new GameVaultKeeper();
             else
             {

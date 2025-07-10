@@ -25,7 +25,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// 
     /// </summary>
-    [SpellHandler(eSpellType.DamageToPower)]
+    [SpellHandlerAttribute("DamageToPower")]
     public class DamageToPowerSpellHandler : LifedrainSpellHandler
     {
         /// <summary>
@@ -33,14 +33,19 @@ namespace DOL.GS.Spells
         /// </summary>
         public override void StealLife(AttackData ad)
         {
-            if (ad == null) return;
-            if (!m_caster.IsAlive) return;
+            if (ad == null) 
+                return;
+
+            if (!m_caster.IsAlive) 
+                return;
 
             int heal = (ad.Damage + ad.CriticalDamage) * m_spell.LifeDrainReturn / 100;
             // Return the spell power? + % calculated on HP value and caster maxmana
 			double manareturned = m_spell.Power + (heal * m_caster.MaxMana / 100);
             
-            if (heal <= 0) return;
+            if (heal <= 0) 
+                return;
+
             heal = m_caster.ChangeMana(m_caster, eManaChangeType.Spell, (int)manareturned);
 
             if (heal > 0)

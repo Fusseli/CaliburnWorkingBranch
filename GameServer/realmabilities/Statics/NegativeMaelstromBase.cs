@@ -1,10 +1,14 @@
 using System;
+using System.Collections;
 using DOL.Database;
+using DOL.GS;
 using DOL.GS.Spells;
+using DOL.Events;
+using DOL.GS.PacketHandler;
 
 namespace DOL.GS.RealmAbilities.Statics
 {
-    public class NegativeMaelstromBase : GenericBase 
+	public class NegativeMaelstromBase : GenericBase 
     {
 		protected override string GetStaticName() {return "Negative Maelstrom";}
 		protected override ushort GetStaticModel() => 3738;
@@ -32,7 +36,7 @@ namespace DOL.GS.RealmAbilities.Statics
 			dbs.Power = 0;
 			dbs.CastTime = 0;
 			dbs.Range = WorldMgr.VISIBILITY_DISTANCE;
-			sl = GlobalSpellsLines.RealmSpellsSpellLine;
+			sl = new SpellLine("RAs","RealmAbilitys","RealmAbilitys",true);
 		}
 		protected override void CastSpell (GameLiving target)
         {

@@ -51,8 +51,7 @@ namespace DOL.GS
         /// </summary>
         public virtual int LastDbSlot => (int) eInventorySlot.HouseVault_First + VaultSize * (Index + 1) - 1;
 
-        private readonly Lock _lock = new();
-        public Lock Lock => _lock;
+        public object LockObject { get; } = new();
 
         public virtual string GetOwner(GamePlayer player = null)
         {
@@ -137,7 +136,7 @@ namespace DOL.GS
 
             player.ActiveInventoryObject?.RemoveObserver(player);
 
-            lock (Lock)
+            lock (LockObject)
             {
                 _observers.TryAdd(player.Name, player);
             }
@@ -178,15 +177,16 @@ namespace DOL.GS
 
             bool fromHousing = GameInventoryObjectExtensions.IsHousingInventorySlot(fromSlot);
             DbInventoryItem itemInFromSlot = null;
+            bool characterInventoryLockTaken = false;
 
-            lock (Lock)
+            lock (LockObject)
             {
                 try
                 {
                     // If this is a shift right click move, find the first available slot of either inventory.
-                    if (toSlot is eInventorySlot.GeneralHousing)
+                    if (toSlot == eInventorySlot.GeneralHousing)
                     {
-                        player.Inventory.Lock.Enter();
+                        Monitor.Enter(player.Inventory.LockObject, ref characterInventoryLockTaken);
 
                         if (fromHousing)
                         {
@@ -239,8 +239,8 @@ namespace DOL.GS
                         // Check for a swap to get around not allowing non-tradeable items in a housing vault.
                         if (fromHousing && this is not AccountVault)
                         {
-                            if (!player.Inventory.Lock.IsHeldByCurrentThread)
-                                player.Inventory.Lock.Enter();
+                            if (!characterInventoryLockTaken)
+                                Monitor.Enter(player.Inventory.LockObject, ref characterInventoryLockTaken);
 
                             DbInventoryItem itemInToSlot = player.Inventory.GetItem(toSlot);
 
@@ -264,15 +264,12 @@ namespace DOL.GS
                         }
                     }
 
-                    var updatedItems = GameInventoryObjectExtensions.MoveItem(this, player, fromSlot, toSlot, count);
-
-                    if (updatedItems.Count > 0)
-                        GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, updatedItems);
+                    GameInventoryObjectExtensions.NotifyObservers(this, player, _observers, GameInventoryObjectExtensions.MoveItem(this, player, fromSlot, toSlot, count));
                 }
                 finally
                 {
-                    if (player.Inventory.Lock.IsHeldByCurrentThread)
-                        player.Inventory.Lock.Exit();
+                    if (characterInventoryLockTaken)
+                        Monitor.Exit(player.Inventory.LockObject);
                 }
             }
 

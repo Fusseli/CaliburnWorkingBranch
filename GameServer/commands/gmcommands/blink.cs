@@ -73,7 +73,7 @@ namespace DOL.GS.Commands
 		private void Usage(GameClient client)
 		{
 			// Create a new string and add some Info to it
-			String visualEffectList = string.Empty;
+			String visualEffectList = "";
 
 			visualEffectList += "You must specify a value!\nID: Name\n";
 

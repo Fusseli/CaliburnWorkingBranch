@@ -8,20 +8,23 @@ namespace DOL.GS
 {
     public class NpcAttackAction : AttackAction
     {
-        private const double TIME_TO_TARGET_THRESHOLD_BEFORE_RANGED_SWITCH = 1000; // NPCs will switch to ranged if further than melee range + (this * maxSpeed * 0.001).
+        private const int MIN_HEALTH_PERCENT_FOR_MELEE_SWITCH_ON_INTERRUPT = 70;
+        private const int SWITCH_TO_MELEE_DISTANCE_OFFSET = 50; // NPCs will stay in melee if within this + melee range from their target.
+        private const int SWITCH_TO_RANGED_DISTANCE_OFFSET = 250; // NPCs will switch to ranged if further than this + melee range from their target.
 
         private GameNPC _npcOwner;
+        private bool _isGuardArcher;
         private bool _hasLos;
         private CheckLosTimer _checkLosTimer;
         private GameObject _losCheckTarget;
-        private bool _wasMeleeWeaponSwitchForced; // Used to prevent NPCs from switching to their ranged weapon automatically if they explicitly switched to a melee weapon during combat.
 
         private static int LosCheckInterval => Properties.CHECK_LOS_DURING_RANGED_ATTACK_MINIMUM_INTERVAL;
-        private bool IsGuardArcherOrImmobile => _npcOwner is GuardArcher || _npcOwner.MaxSpeedBase == 0;
+        private bool HasLosOnCurrentTarget => _losCheckTarget == _target && _hasLos;
 
         public NpcAttackAction(GameNPC owner) : base(owner)
         {
             _npcOwner = owner;
+            _isGuardArcher = _npcOwner is GuardArcher;
         }
 
         public override void OnAimInterrupt(GameObject attacker)
@@ -29,103 +32,32 @@ namespace DOL.GS
             // If the NPC is interrupted, we need to tell it to stop following its target if we want the following code to work.
             _npcOwner.StopFollowing();
 
-            if (attacker is GameLiving livingAttacker)
-            {
-                if (!IsGuardArcherOrImmobile ||
-                    (livingAttacker.ActiveWeaponSlot is not eActiveWeaponSlot.Distance && livingAttacker.IsWithinRadius(_npcOwner, livingAttacker.attackComponent.AttackRange)))
-                {
-                    SwitchToMeleeAndTick();
-                }
-            }
-        }
-
-        public override void OnForcedWeaponSwitch()
-        {
-            switch (_npcOwner.ActiveWeaponSlot)
-            {
-                case eActiveWeaponSlot.Standard:
-                case eActiveWeaponSlot.TwoHanded:
-                {
-                    _wasMeleeWeaponSwitchForced = true;
-                    break;
-                }
-                case eActiveWeaponSlot.Distance:
-                {
-                    _wasMeleeWeaponSwitchForced = false;
-                    break;
-                }
-            }
-        }
-
-        public override bool OnOutOfRangeOrNoLosRangedAttack()
-        {
-            // If we're a guard or an immobile NPC, let's forget about our target so that we can attack another one and not stare at the wall.
-            // Otherwise, switch to melee, but keep the timer alive.
-            if (IsGuardArcherOrImmobile)
-            {
-                GameObject oldTarget = _target;
-                StandardMobBrain brain = _npcOwner.Brain as StandardMobBrain;
-
-                if (_losCheckTarget is GameLiving livingLosCheckTarget)
-                    brain.RemoveFromAggroList(livingLosCheckTarget);
-
-                brain.AttackMostWanted(); // This won't immediately start the attack on the new target, but we can use `TargetObject` to start checking it.
-                GameObject newTarget = _npcOwner.TargetObject;
-
-                if (newTarget != oldTarget)
-                    _checkLosTimer?.ChangeTarget(newTarget); // The timer might be already cleaned up if this was the last target.
-
-                return true;
-            }
-            else if (AttackComponent.AttackState && !_hasLos)
-            {
+            // Guard archers shouldn't switch to melee when interrupted from a ranged attack, otherwise they fall from the wall.
+            // They will still switch to melee if their target is in melee range.
+            if ((!_isGuardArcher && _npcOwner.HealthPercent < MIN_HEALTH_PERCENT_FOR_MELEE_SWITCH_ON_INTERRUPT) ||
+                (attacker is GameLiving livingAttacker && livingAttacker.ActiveWeaponSlot != eActiveWeaponSlot.Distance && livingAttacker.IsWithinRadius(_npcOwner, livingAttacker.attackComponent.AttackRange)))
                 SwitchToMeleeAndTick();
-                return true;
-            }
-
-            return false;
         }
 
         protected override bool PrepareMeleeAttack()
         {
             int meleeAttackRange = _npcOwner.MeleeAttackRange;
-            int offsetMeleeAttackRange = -1; // Makes `IsWithinRadius` return false.
-
-            if (_npcOwner.IsMoving)
-            {
-                int maxSpeed = _npcOwner.MaxSpeed;
-
-                if (maxSpeed > 0)
-                    offsetMeleeAttackRange = meleeAttackRange + (int) (TIME_TO_TARGET_THRESHOLD_BEFORE_RANGED_SWITCH * maxSpeed * 0.001);
-            }
 
             // NPCs try to switch to their ranged weapon whenever possible.
             if (!_npcOwner.IsBeingInterrupted &&
                 _npcOwner.Inventory?.GetItem(eInventorySlot.DistanceWeapon) != null &&
-                !_npcOwner.IsWithinRadius(_target, offsetMeleeAttackRange) &&
-                !_wasMeleeWeaponSwitchForced)
+                !_npcOwner.IsWithinRadius(_target, meleeAttackRange + SWITCH_TO_RANGED_DISTANCE_OFFSET))
             {
-                // But only if there is no timer running or if it has LoS on its current target.
+                // But only if there is no timer running or if it has LoS.
                 // If the timer is running, it'll check for LoS continuously.
-                if (!Properties.CHECK_LOS_BEFORE_NPC_RANGED_ATTACK || _checkLosTimer == null || !_checkLosTimer.IsAlive)
-                {
-                    SwitchToRangedAndTick();
-                    return false;
-                }
-
-                if (_losCheckTarget != _target)
-                {
-                    _hasLos = false;
-                    _checkLosTimer.ChangeTarget(_target);
-                }
-                else if (_hasLos)
+                if (_checkLosTimer == null || !_checkLosTimer.IsAlive || HasLosOnCurrentTarget)
                 {
                     SwitchToRangedAndTick();
                     return false;
                 }
             }
 
-            _combatStyle = StyleComponent.GetStyleToUse();
+            _combatStyle = StyleComponent.NPCGetStyleToUse();
 
             if (!base.PrepareMeleeAttack())
                 return false;
@@ -153,12 +85,10 @@ namespace DOL.GS
             {
                 if (_checkLosTimer == null)
                     _checkLosTimer = new CheckLosTimer(_npcOwner, _target, LosCheckCallback);
-                else if (_losCheckTarget != _target)
-                {
-                    _hasLos = false;
+                else
                     _checkLosTimer.ChangeTarget(_target);
-                }
-                else if (!_hasLos)
+
+                if (!HasLosOnCurrentTarget)
                 {
                     _interval = TICK_INTERVAL_FOR_NON_ATTACK;
                     return false;
@@ -168,6 +98,20 @@ namespace DOL.GS
                 _hasLos = true;
 
             return base.PrepareRangedAttack();
+        }
+
+        protected override bool FinalizeRangedAttack()
+        {
+            // Switch to melee if the target is close enough.
+            if (_npcOwner != null &&
+                _npcOwner.TargetObject != null &&
+                _npcOwner.IsWithinRadius(_target, _npcOwner.MeleeAttackRange + SWITCH_TO_MELEE_DISTANCE_OFFSET))
+            {
+                SwitchToMeleeAndTick();
+                return false;
+            }
+
+            return base.FinalizeRangedAttack();
         }
 
         protected override void CleanUp()
@@ -181,24 +125,23 @@ namespace DOL.GS
                 _checkLosTimer = null;
             }
 
-            _wasMeleeWeaponSwitchForced = false;
             base.CleanUp();
         }
 
         private void SwitchToMeleeAndTick()
         {
-            if (_npcOwner.ActiveWeaponSlot is not eActiveWeaponSlot.Distance)
-                return;
-
-            _npcOwner.StartAttackWithMeleeWeapon(_target);
+            _npcOwner.SwitchToMelee(_target);
+            _npcOwner.attackComponent.AttackState = true; // Force `AttackState` back to be able to tick again immediately.
+            Tick();
+            _interval = 0;
         }
 
         private void SwitchToRangedAndTick()
         {
-            if (_npcOwner.ActiveWeaponSlot is eActiveWeaponSlot.Distance)
-                return;
-
-            _npcOwner.StartAttackWithRangedWeapon(_target);
+            _npcOwner.SwitchToRanged(_target);
+            _npcOwner.attackComponent.AttackState = true; // Force `AttackState` back to be able to tick again immediately.
+            Tick();
+            _interval = 0;
         }
 
         private void LosCheckCallback(GamePlayer player, eLosCheckResponse response, ushort sourceOID, ushort targetOID)
@@ -215,7 +158,21 @@ namespace DOL.GS
                 return;
             }
 
-            OnOutOfRangeOrNoLosRangedAttack();
+            // If we're a guard, let's forget about our target so that we can attack another one and not stare at the wall.
+            // Otherwise, switch to melee, but keep the timer alive.
+            if (_isGuardArcher)
+            {
+                GameObject oldTarget = _target;
+                StandardMobBrain brain = _npcOwner.Brain as StandardMobBrain;
+                brain.RemoveFromAggroList(_losCheckTarget as GameLiving);
+                brain.AttackMostWanted(); // This won't immediately start the attack on the new target, but we can use `TargetObject` to start checking it.
+                GameObject newTarget = _npcOwner.TargetObject;
+
+                if (newTarget != oldTarget)
+                    _checkLosTimer?.ChangeTarget(newTarget); // The timer might be already cleaned up if this was the last target.
+            }
+            else if (_npcOwner.attackComponent.AttackState)
+                SwitchToMeleeAndTick();
         }
 
         public class CheckLosTimer : ECSGameTimerWrapperBase

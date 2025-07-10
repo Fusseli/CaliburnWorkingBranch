@@ -1,4 +1,3 @@
-using System.Threading;
 using DOL.Database;
 using DOL.GS.PacketHandler;
 using DOL.Language;
@@ -15,13 +14,14 @@ namespace DOL.GS
 
         private bool _openDead = false;
         private eDoorState _state;
-        private readonly Lock _lock = new();
+        private object _lock = new();
         private ECSGameTimer _closeDoorAction;
         private ECSGameTimer _repairTimer;
 
         public int Locked { get; set; }
         public override int DoorID { get; set; }
         public override uint Flag { get; set; }
+
         public override eDoorState State
         {
             get => _state;
@@ -55,7 +55,7 @@ namespace DOL.GS
             if (dbDoor == null)
                 return;
 
-            Zone curZone = WorldMgr.GetZone((ushort) (dbDoor.InternalID / 1000000));
+            Zone curZone = WorldMgr.GetZone((ushort)(dbDoor.InternalID / 1000000));
 
             if (curZone == null)
                 return;
@@ -70,7 +70,7 @@ namespace DOL.GS
             m_model = 0xFFFF;
             DoorID = dbDoor.InternalID;
             m_guildName = dbDoor.Guild;
-            Realm = (eRealm) dbDoor.Realm;
+            Realm = (eRealm)dbDoor.Realm;
             m_level = dbDoor.Level;
             m_health = dbDoor.Health;
             Locked = dbDoor.Locked;
@@ -99,7 +99,7 @@ namespace DOL.GS
             obj.Type = DoorID / 100000000;
             obj.Guild = GuildName;
             obj.Flags = Flag;
-            obj.Realm = (byte) Realm;
+            obj.Realm = (byte)Realm;
             obj.Level = Level;
             obj.Health = Health;
             obj.Locked = Locked;
@@ -160,7 +160,7 @@ namespace DOL.GS
                 {
                     m_health = maxhealth;
 
-                    lock (XpGainersLock)
+                    lock (m_xpGainers.SyncRoot)
                     {
                         m_xpGainers.Clear();
                     }
@@ -244,7 +244,7 @@ namespace DOL.GS
                         if (attackerGroup != null)
                         {
                             foreach (GameLiving living in attackerGroup.GetMembersInTheGroup())
-                                ((GamePlayer) living)?.Out.SendMessage(LanguageMgr.GetTranslation(attackerPlayer.Client.Account.Language, "GameDoor.NowOpen", Name), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                                ((GamePlayer)living)?.Out.SendMessage(LanguageMgr.GetTranslation(attackerPlayer.Client.Account.Language, "GameDoor.NowOpen", Name), eChatType.CT_System, eChatLoc.CL_SystemWindow);
                         }
                     }
                 }
@@ -253,11 +253,13 @@ namespace DOL.GS
 
         private class CloseDoorAction : ECSGameTimerWrapperBase
         {
-            public CloseDoorAction(GameDoor door) : base(door) { }
+            public CloseDoorAction(GameDoor door) : base(door)
+            {
+            }
 
             protected override int OnTick(ECSGameTimer timer)
             {
-                GameDoor door = (GameDoor) timer.Owner;
+                GameDoor door = (GameDoor)timer.Owner;
                 door.Close();
                 return 0;
             }

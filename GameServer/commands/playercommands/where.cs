@@ -91,12 +91,12 @@ namespace DOL.GS.Commands
 				return true;
 			}
 
-			if (name.StartsWith("Sir ") && (target.GuildName == null || target.GuildName == string.Empty))
+			if (name.StartsWith("Sir ") && (target.GuildName == null || target.GuildName == ""))
 			{
 				return true;
 			}
 
-			if (name.StartsWith("Captain ") && (target.GuildName == null || target.GuildName == string.Empty))
+			if (name.StartsWith("Captain ") && (target.GuildName == null || target.GuildName == ""))
 			{
 				return true;
 			}
@@ -106,7 +106,7 @@ namespace DOL.GS.Commands
 				return true;
 			}
 
-			if (name.StartsWith("Lady ") && (target.GuildName == null || target.GuildName == string.Empty))
+			if (name.StartsWith("Lady ") && (target.GuildName == null || target.GuildName == ""))
 			{
 				return true;
 			}
@@ -165,7 +165,7 @@ namespace DOL.GS.Commands
 				return "East";
 			else if (heading > 3328 && heading < 3840)
 				return "South East";
-			return string.Empty;
+			return "";
 		}
 	}
 }

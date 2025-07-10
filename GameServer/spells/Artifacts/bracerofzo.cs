@@ -8,7 +8,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// Zo' Arkat summoning
     /// </summary>
-    [SpellHandler(eSpellType.ZoSummon)]
+    [SpellHandlerAttribute("ZoSummon")]
     public class BracerOfZo : SpellHandler
     {
 		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -66,12 +66,11 @@ namespace DOL.GS.Spells
             }
             return base.OnEffectExpires(effect,noMessages);
         }
-
-        public override double CalculateSpellResistChance(GameLiving target) { return 0; }
+        public override int CalculateSpellResistChance(GameLiving target) { return 0; }
         public BracerOfZo(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
     }
-
-    [SpellHandler(eSpellType.Bedazzlement)]
+    
+    [SpellHandlerAttribute("Bedazzlement")]
     public class ZoDebuffSpellHandler : DualStatDebuff
     {
 		public override eProperty Property1 { get { return eProperty.FumbleChance; } }

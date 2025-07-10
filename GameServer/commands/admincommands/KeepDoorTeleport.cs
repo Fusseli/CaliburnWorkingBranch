@@ -56,7 +56,7 @@ namespace DOL.GS.Commands
                 case "add":
                 {
                         var npcString = args[2];
-                        if (npcString == string.Empty)
+                        if (npcString == "")
                         {
                             client.Out.SendMessage("You must specify a teleport string to whisper the npc.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
                             return;
@@ -68,7 +68,7 @@ namespace DOL.GS.Commands
                             return;
                         }
                         
-                        if (args[3] == string.Empty)
+                        if (args[3] == "")
                         {
                             client.Out.SendMessage("You must specify the teleport type", eChatType.CT_System, eChatLoc.CL_SystemWindow);
                             return;
@@ -80,7 +80,7 @@ namespace DOL.GS.Commands
                             return;
                         }
 
-                        var teleportType = string.Empty;
+                        var teleportType = "";
                         if (args[3] == "in")
                         {
                             teleportType = "GateKeeperIn";

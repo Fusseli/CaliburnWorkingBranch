@@ -1,18 +1,20 @@
 using System.Collections.Generic;
 using DOL.Database;
 using DOL.GS.Effects;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
 	/// <summary>
 	/// Pve Resurrection Illness
 	/// </summary>
-	[SpellHandler(eSpellType.PveResurrectionIllness)]
+	[SpellHandler("PveResurrectionIllness")]
 	public class PveResurrectionIllness : AbstractIllnessSpellHandler
 	{
 		public override ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams)
 		{
-			GamePlayer targetPlayer = Target as GamePlayer;
+			IGamePlayer targetPlayer = Target as IGamePlayer;
+
 			if (targetPlayer != null)
             {
                 // Higher level rez spells reduce duration of rez sick.
@@ -139,7 +141,7 @@ namespace DOL.GS.Spells
 			}
 		}
 
-		public override double CalculateSpellResistChance(GameLiving target)
+		public override int CalculateSpellResistChance(GameLiving target)
 		{
 			return 0;
 		}

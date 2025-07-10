@@ -18,6 +18,7 @@
  */
 
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
@@ -26,7 +27,7 @@ namespace DOL.GS.Spells
 	/// Spell calculates a percentage of the caster's health.
 	/// Heals target for the full amount, Caster loses half that amount in health.
 	/// </summary>
-	[SpellHandler(eSpellType.PetConversion)]
+	[SpellHandlerAttribute("PetConversion")]
 	public class PetConversionSpellHandler : SpellHandler
 	{
 		// constructor
@@ -56,13 +57,14 @@ namespace DOL.GS.Spells
 
 			int absorb = m_caster.ChangeMana(m_caster, eManaChangeType.Spell, mana);
 
-			if (m_caster is GamePlayer)
+			if (m_caster is IGamePlayer)
 			{
 				if (absorb > 0)
 					MessageToCaster("You absorb " + absorb + " power points.", eChatType.CT_Spell);
 				else
 					MessageToCaster("Your power is already full!", eChatType.CT_SpellResisted);
-				((GamePlayer)m_caster).CommandNpcRelease();
+
+				((IGamePlayer)m_caster).CommandNpcRelease();
 			}
 
 			return true;

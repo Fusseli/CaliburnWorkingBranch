@@ -25,7 +25,7 @@ using DOL.GS.Effects;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.Fear)]
+	[SpellHandlerAttribute("Fear")]
 	public class FearSpellHandler : SpellHandler 
 	{
 		/// <summary>

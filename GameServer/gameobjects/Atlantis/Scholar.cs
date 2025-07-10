@@ -56,10 +56,10 @@
 //
 // 			IList quests = QuestListToGive;
 // 			int count = 0;
-// 			string artifacts = string.Empty;
+// 			string artifacts = "";
 // 			if (quests.Count > 0)
 // 			{
-// 				lock (_questListToGiveLock)
+// 				lock (quests.SyncRoot)
 // 				{
 // 					int numQuests = quests.Count;
 // 					foreach (ArtifactQuest quest in quests)
@@ -88,7 +88,7 @@
 // 				}
 // 			}
 //
-// 			String intro = string.Empty;
+// 			String intro = "";
 //
 // 			if (count == 0)
 // 			{
@@ -131,7 +131,7 @@
 // 			if (player == null)
 // 				return false;
 //
-// 			lock (_questListToGiveLock)
+// 			lock (QuestListToGive.SyncRoot)
 // 			{
 // 				// Start new quest...
 //
@@ -247,7 +247,7 @@
 //
 // 			if (player != null)
 // 			{
-// 				lock (_questListToGiveLock)
+// 				lock (QuestListToGive.SyncRoot)
 // 				{
 // 					try
 // 					{

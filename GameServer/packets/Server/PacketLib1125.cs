@@ -5,6 +5,7 @@ using System.Linq;
 using System.Reflection;
 using DOL.Database;
 using DOL.GS.Housing;
+using DOL.GS.Scripts;
 using log4net;
 
 namespace DOL.GS.PacketHandler
@@ -12,6 +13,7 @@ namespace DOL.GS.PacketHandler
 	[PacketLib(1125, GameClient.eClientVersion.Version1125)]
 	public class PacketLib1125 : PacketLib1124
 	{
+
 		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		/// <summary>
@@ -36,7 +38,7 @@ namespace DOL.GS.PacketHandler
 				pak.WriteByte(m_gameClient.MajorBuild); // last seen : 0x2A 0x07
 				pak.WriteByte(m_gameClient.MinorBuild);
 				SendTCP(pak);
-				m_gameClient.PacketProcessor.SendPendingPackets();
+				m_gameClient.PacketProcessor.ProcessTcpQueue();
 			}
 		}
 
@@ -192,7 +194,7 @@ namespace DOL.GS.PacketHandler
 							}
 							pak.WritePascalStringIntLE(locationDescription);
 
-							string classname = string.Empty;
+							string classname = "";
 							if (c.Class != 0)
 							{
 								classname = ((eCharacterClass)c.Class).ToString();
@@ -406,7 +408,15 @@ namespace DOL.GS.PacketHandler
 					{
 						if (living == null) continue;
 						pak.WritePascalString(living.Name);
-						pak.WritePascalString(living is GamePlayer ? ((GamePlayer)living).CharacterClass.Name : "NPC");
+
+						string charClassName = "NPC";
+
+						if (living is GamePlayer player)
+							charClassName = player.CharacterClass.Name;
+						else if (living is MimicNPC mimic)
+							charClassName = mimic.CharacterClass.Name;
+
+                        pak.WritePascalString(charClassName);
 						pak.WriteShort((ushort)living.ObjectID); //or session id?
 						pak.WriteByte(living.Level);
 					}
@@ -478,7 +488,7 @@ namespace DOL.GS.PacketHandler
 				{
 					byte i = 0;
 					var effects = living.effectListComponent.GetAllEffects();
-					if (living is GamePlayer necro && (eCharacterClass) necro.CharacterClass.ID is eCharacterClass.Necromancer && necro.HasShadeModel)
+					if (living is GamePlayer necro && necro.CharacterClass.ID == (int)eCharacterClass.Necromancer && necro.IsShade)
 						effects.AddRange(necro.ControlledBrain.Body.effectListComponent.GetAllEffects().Where(e => e.TriggersImmunity));
 					foreach (var effect in effects)//.Effects.Values)
 												   //foreach (ECSGameEffect effect in effects)
@@ -575,7 +585,7 @@ namespace DOL.GS.PacketHandler
 
 					if (ServerProperties.Properties.CONSIGNMENT_USE_BP)
 					{
-						string bpPrice = string.Empty;
+						string bpPrice = "";
 						if (item.SellPrice > 0)
 						{
 							bpPrice = "[" + item.SellPrice.ToString() + " BP";

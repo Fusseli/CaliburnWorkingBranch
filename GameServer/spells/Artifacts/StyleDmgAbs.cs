@@ -31,7 +31,7 @@ using log4net;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.StyleDmgAbs)]
+    [SpellHandlerAttribute("StyleDmgAbs")]
     public class StyleDmgAbsSpellHandler : SpellHandler
     {
 

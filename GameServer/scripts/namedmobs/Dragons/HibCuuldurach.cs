@@ -1049,7 +1049,9 @@ namespace DOL.GS
 			base.AddToWorld();
 			return true;
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override long ExperienceValue => 0;
 	}
 }
@@ -1348,7 +1350,9 @@ namespace DOL.GS
 			// 85% ABS is cap.
 			return 0.15;
 		}
-		public override bool CanDropLoot => false;
+		public override void DropLoot(GameObject killer) //no loot
+		{
+		}
 		public override void ReturnToSpawnPoint(short speed)
 		{
 			return;

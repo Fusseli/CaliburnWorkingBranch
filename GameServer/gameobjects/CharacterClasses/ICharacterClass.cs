@@ -22,6 +22,7 @@ using DOL.AI.Brain;
 using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.Realm;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -105,12 +106,10 @@ namespace DOL.GS
 		/// </summary>
 		eClassType ClassType { get; }
 
-		bool FocusCaster { get; }
-
 		/// <summary>
 		/// Instance Attached GamePlayer
 		/// </summary>
-		GamePlayer Player { get; }
+		IGamePlayer Player { get; }
 
 		/// <summary>
 		/// The maximum number of pulsing spells the class can have active simultaneously
@@ -133,14 +132,13 @@ namespace DOL.GS
 		void OnSkillTrained(GamePlayer player, Specialization skill);
 		IList<string> GetAutotrainableSkills();
 		bool HasAdvancedFromBaseClass();
-		void Init(GamePlayer player);
+		void Init(IGamePlayer player);
 		void SetControlledBrain(IControlledBrain controlledBrain);
 		void CommandNpcRelease();
 		void OnPetReleased();
 		bool StartAttack(GameObject attackTarget);
-		bool CancelShadeEffect(out ECSGameAbilityEffect effect);
-		bool CreateShadeEffect(out ECSGameAbilityEffect effect);
-		bool Shade(bool state, out ECSGameAbilityEffect effect);
+		ShadeECSGameEffect CreateShadeEffect();
+		void Shade(bool state);
 		bool RemoveFromWorld();
 		void Die(GameObject killer);
 		void Notify(DOLEvent e, object sender, EventArgs args);

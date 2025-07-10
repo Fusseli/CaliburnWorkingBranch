@@ -113,7 +113,7 @@ namespace DOL.GS.Commands
 								}
 
                             	//Ok, they are not in the same alliance, guild or group - maybe in the same battle group?
-                                BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                                BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
                                 if(clientBattleGroup != null)
                                 {
                                     if(clientBattleGroup.Members.Contains(assistPlayer))
@@ -128,7 +128,7 @@ namespace DOL.GS.Commands
                                 }
                                             
                                 //Ok, they are not in the same alliance, guild, group or battle group - maybe in the same chat group?
-								ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY);
+								ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY, null);
                                 if(clientChatGroup != null)
                                 {
                                     if(clientChatGroup.Members.Contains(assistPlayer))
@@ -266,7 +266,7 @@ namespace DOL.GS.Commands
                                     }
 
                                     //Ok, they are not in the same alliance, guild or group - maybe in the same battle group?
-                                    BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                                    BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
                                     if(clientBattleGroup != null)
                                     {
                                         if(clientBattleGroup.Members.Contains(targetPlayer))
@@ -281,7 +281,7 @@ namespace DOL.GS.Commands
                                     }
                                             
                                     //Ok, they are not in the same alliance, guild, group or battle group - maybe in the same chat group?
-                                    ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY);
+                                    ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY, null);
                                     if(clientChatGroup != null)
                                     {
                                         if(clientChatGroup.Members.Contains(targetPlayer))
@@ -344,7 +344,7 @@ namespace DOL.GS.Commands
                                             }
 
                                             //Ok, they are not in the same alliance, guild or group - maybe in the same battle group?
-                                            BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+                                            BattleGroup clientBattleGroup = client.Player.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
                                             if(clientBattleGroup != null)
                                             {
                                                 if(clientBattleGroup.Members.Contains(targetPlayer))
@@ -359,7 +359,7 @@ namespace DOL.GS.Commands
                                             }
                                             
                                             //Ok, they are not in the same alliance, guild, group or battle group - maybe in the same chat group?
-											ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY);
+											ChatGroup clientChatGroup = client.Player.TempProperties.GetProperty<ChatGroup>(ChatGroup.CHATGROUP_PROPERTY, null);
                                             if(clientChatGroup != null)
                                             {
                                                 if(clientChatGroup.Members.Contains(targetPlayer))

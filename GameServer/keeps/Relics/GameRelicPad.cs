@@ -139,20 +139,20 @@ namespace DOL.GS
 		public static void BroadcastDiscordRelic(string message, eRealm realm, string keepName)
 		{
 			int color = 0;
-			string avatarUrl = string.Empty;
+			string avatarUrl = "";
 			switch (realm)
 			{
 				case eRealm._FirstPlayerRealm:
 					color = 16711680;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 				case eRealm._LastPlayerRealm:
 					color = 32768;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 				default:
 					color = 255;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 			}
 			var client = new DiscordWebhookClient(ServerProperties.Properties.DISCORD_RVR_WEBHOOK_ID);
@@ -201,7 +201,7 @@ namespace DOL.GS
 				//select targets to increase CapturedRelics
 				//TODO increase stats
 				
-				BattleGroup relicBG = relic.CurrentCarrier?.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY);
+				BattleGroup relicBG = relic.CurrentCarrier?.TempProperties.GetProperty<BattleGroup>(BattleGroup.BATTLEGROUP_PROPERTY, null);
 				List<GamePlayer> targets = new List<GamePlayer>();
 
 				if (relicBG != null)
@@ -313,7 +313,7 @@ namespace DOL.GS
 
 			public override void OnPlayerEnter(GamePlayer player)
 			{
-				GameRelic relicOnPlayer = player.TempProperties.GetProperty<GameRelic>(GameRelic.PLAYER_CARRY_RELIC_WEAK);
+				GameRelic relicOnPlayer = player.TempProperties.GetProperty<GameRelic>(GameRelic.PLAYER_CARRY_RELIC_WEAK, null);
 				if (relicOnPlayer == null)
 				{
 					return;

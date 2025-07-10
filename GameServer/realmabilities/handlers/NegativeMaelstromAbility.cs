@@ -30,7 +30,7 @@ namespace DOL.GS.RealmAbilities
 				caster.Out.SendMessage("You groundtarget is too far away to use this ability!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
 				return;
             }
-            if (caster.TempProperties.GetProperty<bool>(IS_CASTING))
+            if (caster.TempProperties.GetProperty(IS_CASTING, false))
             {
                 caster.Out.SendMessage("You are already casting an ability.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
                 return;
@@ -94,7 +94,7 @@ namespace DOL.GS.RealmAbilities
 		}
 		protected virtual int EndCast(ECSGameTimer timer)
 		{
-            bool castWasSuccess = player.TempProperties.GetProperty<bool>(NM_CAST_SUCCESS);
+            bool castWasSuccess = player.TempProperties.GetProperty(NM_CAST_SUCCESS, false);
             player.TempProperties.RemoveProperty(IS_CASTING);
             // GameEventMgr.RemoveHandler(player, GamePlayerEvent.Moving, new DOLEventHandler(CastInterrupted));
             GameEventMgr.RemoveHandler(player, GamePlayerEvent.AttackFinished, new DOLEventHandler(CastInterrupted));

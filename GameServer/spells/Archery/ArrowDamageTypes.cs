@@ -8,7 +8,7 @@ using DOL.Events;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.ArrowDamageTypes)]
+	[SpellHandler("ArrowDamageTypes")]
 	public class ArrowDamageTypes : SpellHandler
 	{
 		/// <summary>

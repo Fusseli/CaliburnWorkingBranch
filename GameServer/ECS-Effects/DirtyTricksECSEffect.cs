@@ -1,12 +1,5 @@
 ﻿using DOL.GS.PacketHandler;
-using DOL.GS.SkillHandler;
 using DOL.Language;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using DOL.Database;
 
 namespace DOL.GS
 {
@@ -19,47 +12,59 @@ namespace DOL.GS
             EffectService.RequestStartEffect(this);
         }
 
-        public override ushort Icon { get { return 478; } }
-        public override string Name { get { return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Skill.Ability.DirtyTricks.Name"); } }
-        public override bool HasPositiveEffect { get { return true; } }
+        public override ushort Icon
+        { get { return 478; } }
+
+        public override string Name
+        {
+            get
+            {
+                if (OwnerPlayer != null)
+                    return LanguageMgr.GetTranslation(((GamePlayer)Owner).Client, "Skill.Ability.DirtyTricks.Name");
+                else
+                    return "Dirty Tricks";
+            }
+        }
+
+        public override bool HasPositiveEffect
+        { get { return true; } }
 
         public override void OnStartEffect()
         {
             foreach (GamePlayer plyr in Owner.GetPlayersInRadius(500))
             {
-                plyr.Out.SendSoundEffect(163, 0, 0, 0, 0, 0);    
+                plyr.Out.SendSoundEffect(163, 0, 0, 0, 0, 0);
             }
-            
-
         }
+
         public override void OnStopEffect()
         {
-
         }
+
         public void EventHandler(AttackData attackData)
-		{
-			if (attackData == null) return;
-			if (attackData.AttackResult != eAttackResult.HitUnstyled
-				&& attackData.AttackResult != eAttackResult.HitStyle) return;
-			if (attackData.Target == null) return;
-			GameLiving target = attackData.Target;
-			if (target == null) return;
-			if (target.ObjectState != GameObject.eObjectState.Active) return;
-			if (target.IsAlive == false) return;
-			GameLiving attacker = Owner as GameLiving;
-			if (attacker == null) return;
-			if (attacker.ObjectState != GameObject.eObjectState.Active) return;
-			if (attacker.IsAlive == false) return;
-			if (attackData.IsOffHand) return; // only react to main hand
-			if (attackData.Weapon == null) return; // no weapon attack
+        {
+            if (attackData == null) return;
+            if (attackData.AttackResult != eAttackResult.HitUnstyled
+                && attackData.AttackResult != eAttackResult.HitStyle) return;
+            if (attackData.Target == null) return;
+            GameLiving target = attackData.Target;
+            if (target == null) return;
+            if (target.ObjectState != GameObject.eObjectState.Active) return;
+            if (target.IsAlive == false) return;
+            GameLiving attacker = Owner as GameLiving;
+            if (attacker == null) return;
+            if (attacker.ObjectState != GameObject.eObjectState.Active) return;
+            if (attacker.IsAlive == false) return;
+            if (attackData.IsOffHand) return; // only react to main hand
+            if (attackData.Weapon == null) return; // no weapon attack
 
             DirtyTricksDetrimentalECSGameEffect dt = (DirtyTricksDetrimentalECSGameEffect)EffectListService.GetAbilityEffectOnTarget(target, eEffect.DirtyTricksDetrimental);
-			if (dt == null)
-			{
+            if (dt == null)
+            {
                 new DirtyTricksDetrimentalECSGameEffect(new ECSGameEffectInitParams(target, 10000, 1));
-			}
-		}
-	}
+            }
+        }
+    }
 }
 
 namespace DOL.GS
@@ -73,8 +78,10 @@ namespace DOL.GS
             EffectService.RequestStartEffect(this);
         }
 
-        public override ushort Icon { get { return 478; } }
-        public override string Name 
+        public override ushort Icon
+        { get { return 478; } }
+
+        public override string Name
         {
             get
             {
@@ -86,8 +93,9 @@ namespace DOL.GS
                 return LanguageMgr.GetTranslation(LanguageMgr.DefaultLanguage, "Skill.Ability.DirtyTricks.Name");
             }
         }
-        
-        public override bool HasPositiveEffect { get { return false; } }
+
+        public override bool HasPositiveEffect
+        { get { return false; } }
 
         public override void OnStartEffect()
         {
@@ -97,13 +105,13 @@ namespace DOL.GS
             {
                 // Message: "{0} flings a cloud of dirt in your eyes!"
                 OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client.Account.Language, "Effects.DirtyTricks.EffectStart"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
-                
+
                 //todo Identify the player triggering the effect as well as the effect owner
                 // Message: "{0} throws dirt in {1}'s eyes!"
                 // Message.SystemToArea(Owner, LanguageMgr.GetTranslation(OwnerPlayer.Client.Account.Language, "Effects.DirtyTricks.AreaEffectStart", OwnerPlayer.Name, Owner.GetName(0, false)), eChatType.CT_System);
             }
-
         }
+
         public override void OnStopEffect()
         {
             Owner.DebuffCategory[(int)eProperty.FumbleChance] -= 35;
@@ -115,8 +123,6 @@ namespace DOL.GS
                 // Message: "{0} can see clearly again."
                 Message.SystemToArea(Owner, LanguageMgr.GetTranslation(OwnerPlayer.Client.Account.Language, "Effects.DirtyTricks.AreaEffectCancel", Owner.GetName(0, true)), eChatType.CT_System);
             }
-
         }
     }
 }
-

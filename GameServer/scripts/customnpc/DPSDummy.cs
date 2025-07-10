@@ -5,26 +5,27 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS
 {
-    public class DPSDummy : GameTrainingDummy
-    {
-        private int _damage;
-        private DateTime _startTime;
-        private TimeSpan _timePassed;
-        private bool _startCheck = true;
+    public class DPSDummy : GameTrainingDummy {
+        Int32 Damage = 0;
+        DateTime StartTime;
+        TimeSpan TimePassed;
+        Boolean StartCheck = true;
 
         public override bool Interact(GamePlayer player)
         {
             if (!base.Interact(player))
+            {
                 return false;
+            }
 
-            _damage = 0;
-            _startCheck = true;
+
+
+            Damage = 0;
+            StartCheck = true;
             Name = "Total: 0 DPS: 0";
+            ResetArmorAndResists();
 
-            SetDefaultResists();
-            SetDefaultArmor();
-
-            SendReply(player, "Hello, you can change my [armor] and [resistances] with ease, you need but ask. Right click me to reset them back to default.\n\n" +
+            SendReply(player, "Hello, you can change my [armor] and [resistances] with ease, you need but ask. Right click me to reset them back to 0. \n\n" +
                 "You can also whisper me with the following format: \n\n\n" +
                 "To change individual resists: /whisper <resist> <percent> (e.g., /whisper body 10) \n\n" +
                 "The resist percent must be between 0 and 70 \n\n" +
@@ -38,119 +39,82 @@ namespace DOL.GS
             return true;
         }
 
+
         public override bool WhisperReceive(GameLiving source, string text)
         {
-            if (!base.WhisperReceive(source, text))
-                return false;
-
-            if (source is not GamePlayer player)
-                return false;
+            if (!base.WhisperReceive(source, text)) return false;
+            if (!(source is GamePlayer player)) return false;
 
             string[] splitText = text.Split(' ');
-
             if (splitText.Length > 1)
             {
-                if (!int.TryParse(splitText[1], out int value))
+                if (!double.TryParse(splitText[1], out _) || double.Parse(splitText[1]) < 0 || double.Parse(splitText[1]) > 70)
                 {
-                    SendReply(player, "Invalid number format");
+                    SendReply(player, "Number must be between 0 and 70");
                     return false;
                 }
-                else if (value is < 0 or > 100)
-                {
-                    SendReply(player, "Number must be between 0 and 100");
-                    return false;
-                }
-
                 switch (splitText[0].ToLower())
                 {
                     case "slash":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Slash, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Slash, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "thrust":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Thrust, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Thrust, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "crush":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Crush, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Crush, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "body":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Body, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Body, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "cold":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Cold, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Cold, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "energy":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Energy, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Energy, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "heat":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Heat, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Heat, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "matter":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Matter, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Matter, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "spirit":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Spirit, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Spirit, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "block":
-                    {
-                        BlockChance = (byte) value;
+                        BlockChance = byte.Parse(splitText[1]);
                         break;
-                    }
                     case "parry":
-                    {
-                        ParryChance = (byte) value;
+                        ParryChance = byte.Parse(splitText[1]);
                         break;
-                    }
                     case "evade":
-                    {
-                        EvadeChance = (byte) value;
+                        EvadeChance = byte.Parse(splitText[1]);
                         break;
-                    }
                     case "allresist":
-                    {
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Slash, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Thrust, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Crush, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Body, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Cold, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Energy, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Heat, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Matter, value);
-                        ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) eResist.Spirit, value);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Slash, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Thrust, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Crush, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Body, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Cold, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Energy, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Heat, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Matter, double.Parse(splitText[1]), 1, false);
+                        ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Spirit, double.Parse(splitText[1]), 1, false);
                         break;
-                    }
                     case "alldefense":
-                    {
-                        BlockChance = (byte) value;
-                        EvadeChance = (byte) value;
-                        ParryChance = (byte) value;
+                        BlockChance = byte.Parse(splitText[1]);
+                        EvadeChance = byte.Parse(splitText[1]);
+                        ParryChance = byte.Parse(splitText[1]);
                         break;
-                    }
                 }
             }
             else
             {
                 switch (splitText[0].ToLower())
                 {
+                    
                     case "armor":
-                    {
                         SendReply(player, "Would you like me to don a set of \n" +
                             "[cloth] \n" +
                             "[leather] \n" +
@@ -161,499 +125,364 @@ namespace DOL.GS
                             "or [scale]?" +
                             "");
                         break;
-                    }
+                    
                     case "cloth":
-                    {
                         CreateArmorSetOfType(eObjectType.Cloth);
+                        
                         break;
-                    }
                     case "leather":
-                    {
                         CreateArmorSetOfType(eObjectType.Leather);
                         break;
-                    }
                     case "studded":
-                    {
                         CreateArmorSetOfType(eObjectType.Studded);
                         break;
-                    }
                     case "chain":
-                    {
                         CreateArmorSetOfType(eObjectType.Chain);
                         break;
-                    }
                     case "plate":
-                    {
                         CreateArmorSetOfType(eObjectType.Plate);
                         break;
-                    }
                     case "reinforced":
-                    {
                         CreateArmorSetOfType(eObjectType.Reinforced);
                         break;
-                    }
                     case "scale":
-                    {
                         CreateArmorSetOfType(eObjectType.Scale);
                         break;
-                    }
 
                     case "resistances":
-                    {
                         SendReply(player, "Whisper me the resist type and value you'd like. Example: '/whisper Body 10' will give me +10% Body resist. \n" +
                             "Additionally, you can whisper me 'allresist #' to set all resistances to the number provided." +
                             "");
                         break;
-                    }
                     default:
+                        ResetArmorAndResists();
                         break;
                 }
             }
 
+           
             return true;
         }
 
         private void CreateArmorSetOfType(eObjectType armorType)
         {
+            
             Inventory.ClearInventory();
             ClearAFAndABSBuffs();
+            List<int> invSlots = new List<int>();
+            invSlots.Add(Slot.ARMS);
+            invSlots.Add(Slot.FEET);
+            invSlots.Add(Slot.HANDS);
+            invSlots.Add(Slot.HELM);
+            invSlots.Add(Slot.LEGS);
+            invSlots.Add(Slot.TORSO);
 
-            List<int> invSlots =
-            [
-                Slot.ARMS,
-                Slot.FEET,
-                Slot.HANDS,
-                Slot.HELM,
-                Slot.LEGS,
-                Slot.TORSO,
-            ];
-
-            foreach (int slot in invSlots)
+            foreach (var slot in invSlots)
             {
-                DbInventoryItem invItem = new()
-                {
-                    Item_Type = slot,
-                    Object_Type = (int) armorType
-                };
-
+                DbInventoryItem invItem = new DbInventoryItem();
+                invItem.Item_Type = slot;
+                invItem.Object_Type = (int)armorType;
                 invItem = GenerateItemNameModel(invItem);
                 invItem = GenerateArmorStats(invItem);
-                Inventory.AddItem((eInventorySlot) slot, invItem);
+                this.ItemBonus[eProperty.ArmorFactor] += invItem.DPS_AF;
+                //this.ItemBonus[eProperty.ArmorAbsorption] += invItem.SPD_ABS;
+                //Console.WriteLine($"AF item prop{ItemBonus[eProperty.ArmorFactor]}");
+                ApplyBonus(this, eBuffBonusCategory.Other, eProperty.ArmorFactor, invItem.DPS_AF, 1, false);
+                //ApplyBonus(this, eBuffBonusCategory.Other, eProperty.ArmorAbsorption, invItem.SPD_ABS, 1, false);
+                Inventory.AddItem((eInventorySlot)slot, invItem);
             }
 
+            this.ItemBonus[eProperty.ArmorAbsorption] += GetAbsorb(armorType);
             BroadcastLivingEquipmentUpdate();
-            ClientService.UpdateNpcForPlayers(this);
+            ClientService.UpdateObjectForPlayers(this);
         }
 
         private DbInventoryItem GenerateArmorStats(DbInventoryItem item)
         {
             eObjectType type = (eObjectType)item.Object_Type;
 
-            if (type is >= eObjectType._FirstArmor and <= eObjectType._LastArmor)
+            //set dps_af and spd_abs
+            if ((int)type >= (int)eObjectType._FirstArmor && (int)type <= (int)eObjectType._LastArmor)
             {
-                if (type is eObjectType.GenericArmor)
+                if (type == eObjectType.GenericArmor)
                     item.DPS_AF = 0;
-                else if (type is eObjectType.Cloth)
+                else if (type == eObjectType.Cloth)
                     item.DPS_AF = Level;
-                else
-                    item.DPS_AF = Level * 2;
-
-                item.SPD_ABS = type switch
-                {
-                    eObjectType.Cloth => 0,
-                    eObjectType.Leather => 10,
-                    eObjectType.Studded => 19,
-                    eObjectType.Reinforced => 19,
-                    eObjectType.Chain => 27,
-                    eObjectType.Scale => 27,
-                    eObjectType.Plate => 34,
-                    _ => 0,
-                };
+                else item.DPS_AF = Level * 2;
+                item.SPD_ABS = GetAbsorb(type);
             }
-
-            item.Quality = 100;
+            item.Quality = 99;
             item.Condition = 100;
             return item;
         }
 
         private void ClearAFAndABSBuffs()
         {
-            effectListComponent.CancelAll();
+            //Console.WriteLine($"af {GetModified(eProperty.ArmorFactor)} abs {GetModified(eProperty.ArmorAbsorption)} itemB AF {this.ItemBonus[eProperty.ArmorFactor]} itemb ABS {this.ItemBonus[eProperty.ArmorAbsorption]}");
+            if (GetModified(eProperty.ArmorFactor) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.Other, eProperty.ArmorFactor, ItemBonus[eProperty.ArmorFactor], 1, true);
+            }
+            if (GetModified(eProperty.ArmorAbsorption) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.Other, eProperty.ArmorAbsorption, ItemBonus[eProperty.ArmorAbsorption], 1, true);
+            }
+            if (this.ItemBonus[eProperty.ArmorFactor] > 0)
+            {
+                ItemBonus[eProperty.ArmorFactor] = 0;
+            }
+            if (this.ItemBonus[eProperty.ArmorAbsorption] > 0)
+            {
+                ItemBonus[eProperty.ArmorAbsorption] = 0;
+            }
         }
 
         public override double GetArmorAF(eArmorSlot slot)
         {
-            // Mostly a copy paste of `GamePlayer.GetArmorAF`. but we ignore the slot.
-            DbInventoryItem item = Inventory.GetItem(eInventorySlot.TorsoArmor);
-
-            if (item == null)
-                return 0;
-
-            int characterLevel = Level;
-
-            if (Level > 50)
-                characterLevel++;
-
-            int armorFactorCap = characterLevel * 2;
-            double armorFactor = Math.Min(item.DPS_AF, (eObjectType) item.Object_Type is eObjectType.Cloth ? characterLevel : armorFactorCap);
-            armorFactor += BaseBuffBonusCategory[(int) eProperty.ArmorFactor] / 6.0; // Base AF buff.
-            armorFactor *= item.Quality * 0.01 * item.Condition / item.MaxCondition; // Apply condition and quality before the second cap. Maybe incorrect, but it makes base AF buffs a little more useful.
-            armorFactor = Math.Min(armorFactor, armorFactorCap);
-            armorFactor += base.GetArmorAF(slot);
-            return armorFactor;
+            return base.GetArmorAF(slot)/6;
         }
 
-        public override double GetArmorAbsorb(eArmorSlot slot)
+        private static int GetAbsorb(eObjectType type)
         {
-            // Mostly a copy paste of `GamePlayer.GetArmorAF`. but we ignore the slot.
-            DbInventoryItem item = Inventory.GetItem(eInventorySlot.TorsoArmor);
-
-            if (item == null)
-                return 0;
-
-            return Math.Clamp((item.SPD_ABS + GetModified(eProperty.ArmorAbsorption)) * 0.01, 0, 1);
+            switch (type)
+            {
+                case eObjectType.Cloth: return 0;
+                case eObjectType.Leather: return 10;
+                case eObjectType.Studded: return 19;
+                case eObjectType.Reinforced: return 19;
+                case eObjectType.Chain: return 27;
+                case eObjectType.Scale: return 27;
+                case eObjectType.Plate: return 34;
+                default: return 0;
+            }
         }
 
-        private void SetDefaultResists()
+        private void ResetResists()
         {
-            foreach (eResist resist in Enum.GetValues<eResist>())
-                ApplyBonus(eBuffBonusCategory.BaseBuff, (eProperty) resist, 26);
+            if (GetResist(eDamageType.Slash) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Slash, GetResist(eDamageType.Slash), 1, true);
+            }
+            if (GetResist(eDamageType.Crush) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Crush, GetResist(eDamageType.Crush), 1, true);
+            }
+            if (GetResist(eDamageType.Thrust) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Thrust, GetResist(eDamageType.Thrust), 1, true);
+            }
+            if (GetResist(eDamageType.Natural) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Natural, GetResist(eDamageType.Natural), 1, true);
+            }
+            if (GetResist(eDamageType.Body) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Body, GetResist(eDamageType.Body), 1, true);
+            }
+            if (GetResist(eDamageType.Cold) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Cold, GetResist(eDamageType.Cold), 1, true);
+            }
+            if (GetResist(eDamageType.Energy) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Energy, GetResist(eDamageType.Energy), 1, true);
+            }
+            if (GetResist(eDamageType.Heat) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Heat, GetResist(eDamageType.Heat), 1, true);
+            }
+            if (GetResist(eDamageType.Matter) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Matter, GetResist(eDamageType.Matter), 1, true);
+            }
+            if (GetResist(eDamageType.Spirit) > 0)
+            {
+                ApplyBonus(this, eBuffBonusCategory.BaseBuff, (eProperty)eResist.Spirit, GetResist(eDamageType.Spirit), 1, true);
+            }
         }
 
-        private void SetDefaultArmor()
+        private void ResetArmor()
         {
-            // Skip generic armor.
-            int armorIndex = Util.Random(eObjectType._LastArmor - eObjectType._FirstArmor + 1) + (int) eObjectType._FirstArmor;
-            CreateArmorSetOfType((eObjectType) armorIndex);
+            CreateArmorSetOfType(eObjectType.GenericArmor);
+        }
+
+        private void ResetArmorAndResists()
+        {
+            ResetResists();
+            ResetArmor();
         }
 
         public override void OnAttackedByEnemy(AttackData ad)
         {
-            if (_startCheck)
+            if (StartCheck)
             {
-                _startTime = DateTime.Now;
-                _startCheck = false;
+                StartTime = DateTime.Now;
+                StartCheck = false;
             }
 
-            _damage += ad.Damage + ad.CriticalDamage;
-            _timePassed = DateTime.Now - _startTime;
-            Name = "Total: " + _damage.ToString() + " DPS: " + (_damage / (_timePassed.TotalSeconds + 1)).ToString("0");
+            Damage += ad.Damage + ad.CriticalDamage;
+            TimePassed = (DateTime.Now - StartTime);
+            Name = "Total: " + Damage.ToString() + " DPS: " + (Damage / (TimePassed.TotalSeconds + 1)).ToString("0");
         }
 
         public override bool AddToWorld()
         {
-            if (!base.AddToWorld())
-                return false;
-
             Name = "Total: 0 DPS: 0";
             GuildName = "Dummy Union";
             Model = 34;
             Inventory = new GameNPCInventory(GameNpcInventoryTemplate.EmptyTemplate);
-            SetDefaultResists();
-            SetDefaultArmor();
-            return true;
+            return base.AddToWorld(); // Finish up and add him to the world.
         }
 
-        private static void SendReply(GamePlayer player, string msg)
+        public void SendReply(GamePlayer player, string msg)
         {
             player.Out.SendMessage(msg, eChatType.CT_Merchant, eChatLoc.CL_PopupWindow);
         }
 
-        private static DbInventoryItem GenerateItemNameModel(DbInventoryItem item)
+        private DbInventoryItem GenerateItemNameModel(DbInventoryItem item)
         {
-            eInventorySlot slot = (eInventorySlot) item.Item_Type;
+            eInventorySlot slot = (eInventorySlot)item.Item_Type;
+            eDamageType damage = (eDamageType)item.Type_Damage;
+            eRealm realm = (eRealm)this.Realm;
+            eObjectType type = (eObjectType)item.Object_Type;
 
-            int model = 0;
-
-            switch ((eObjectType) item.Object_Type)
+            int model = 488;
+            switch (type)
             {
+                //armor
                 case eObjectType.Cloth:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+
+                        switch (slot)
                         {
-                            model = 141;
-                            break;
-                        }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 140;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 143;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 822;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 142;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            if (Util.Chance(60))
-                                model = 139;
-                            else
-                            {
-                                switch (Util.Random(2))
+                            case eInventorySlot.ArmsArmor: model = 141; break;
+                            case eInventorySlot.LegsArmor: model = 140; break;
+                            case eInventorySlot.FeetArmor: model = 143; break;
+                            case eInventorySlot.HeadArmor: model = 822; break;
+                            case eInventorySlot.HandsArmor: model = 142; break;
+                            case eInventorySlot.TorsoArmor:
+                                if (Util.Chance(60))
                                 {
-                                    case 0: model = 58; break;
-                                    case 1: model = 65; break;
-                                    case 2: model = 66; break;
+                                    model = 139;
                                 }
-                            }
-
-                            break;
+                                else
+                                {
+                                    switch (Util.Random(2))
+                                    {
+                                        case 0: model = 58; break;
+                                        case 1: model = 65; break;
+                                        case 2: model = 66; break;
+                                    }
+                                }
+                                break;
                         }
+                        break;
                     }
-
-                    break;
-                }
                 case eObjectType.Leather:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
-                        {
-                            model = 38;
-                            break;
-                        }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 37;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 40;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 62;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 36;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 39;
-                            break;
-                        }
-                    }
 
-                    break;
-                }
+                        switch (slot)
+                        {
+                            case eInventorySlot.ArmsArmor: model = 38; break;
+                            case eInventorySlot.LegsArmor: model = 37; break;
+                            case eInventorySlot.FeetArmor: model = 40; break;
+                            case eInventorySlot.HeadArmor: model = 62; break;
+                            case eInventorySlot.TorsoArmor: model = 36; break;
+                            case eInventorySlot.HandsArmor: model = 39; break;
+                        }
+                        break;
+                    }
                 case eObjectType.Studded:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+                        switch (slot)
                         {
-                            model = 83;
-                            break;
+                            case eInventorySlot.ArmsArmor: model = 83; break;
+                            case eInventorySlot.LegsArmor: model = 82; break;
+                            case eInventorySlot.FeetArmor: model = 84; break;
+                            case eInventorySlot.HeadArmor: model = 824; break;
+                            case eInventorySlot.TorsoArmor: model = 81; break;
+                            case eInventorySlot.HandsArmor: model = 85; break;
                         }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 82;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 84;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 824;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 81;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 85;
-                            break;
-                        }
+                        break;
                     }
-
-                break;
-                }
                 case eObjectType.Plate:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+                        switch (slot)
                         {
-                            model = 48;
-                            break;
-                        }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 47;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 50;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 49;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            if (Util.Chance(25))
-                                model = 93;
-                            else
-                                model = 64;
+                            case eInventorySlot.ArmsArmor: model = 48; break;
+                            case eInventorySlot.LegsArmor: model = 47; break;
+                            case eInventorySlot.FeetArmor: model = 50; break;
+                            case eInventorySlot.HandsArmor: model = 49; break;
+                            case eInventorySlot.HeadArmor:
+                                if (Util.Chance(25))
+                                {
+                                    model = 93;
+                                }
+                                else
+                                    model = 64;
 
-                            break;
+                                break;
+
+                            case eInventorySlot.TorsoArmor:
+                                model = 46;
+                                break;
                         }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 46;
-                            break;
-                        }
+
+                        break;
                     }
-
-                    break;
-                }
                 case eObjectType.Chain:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+                        switch (slot)
                         {
-                            model = 43;
-                            break;
+                            case eInventorySlot.ArmsArmor: model = 43; break;
+                            case eInventorySlot.LegsArmor: model = 42; break;
+                            case eInventorySlot.FeetArmor: model = 45; break;
+                            case eInventorySlot.HeadArmor: model = 63; break;
+                            case eInventorySlot.TorsoArmor: model = 41; break;
+                            case eInventorySlot.HandsArmor: model = 44; break;
                         }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 42;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 45;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 63;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 41;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 44;
-                            break;
-                        }
+                        break;
                     }
-
-                    break;
-                }
                 case eObjectType.Reinforced:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+                        switch (slot)
                         {
-                            model = 385;
-                            break;
+                            case eInventorySlot.ArmsArmor: model = 385; break;
+                            case eInventorySlot.LegsArmor: model = 384; break;
+                            case eInventorySlot.FeetArmor: model = 387; break;
+                            case eInventorySlot.HeadArmor: model = 835; break;
+                            case eInventorySlot.TorsoArmor: model = 383; break;
+                            case eInventorySlot.HandsArmor: model = 386; break;
                         }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 384;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 387;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 835;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 383;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 386;
-                            break;
-                        }
-                    }
 
-                    break;
-                }
+                        break;
+                    }
                 case eObjectType.Scale:
-                {
-                    switch (slot)
                     {
-                        case eInventorySlot.ArmsArmor:
+                        switch (slot)
                         {
-                            model = 390;
-                            break;
+                            case eInventorySlot.ArmsArmor: model = 390; break;
+                            case eInventorySlot.LegsArmor: model = 389; break;
+                            case eInventorySlot.FeetArmor: model = 392; break;
+                            case eInventorySlot.HeadArmor: model = 838; break;
+                            case eInventorySlot.TorsoArmor: model = 388; break;
+                            case eInventorySlot.HandsArmor: model = 391; break;
                         }
-                        case eInventorySlot.LegsArmor:
-                        {
-                            model = 389;
-                            break;
-                        }
-                        case eInventorySlot.FeetArmor:
-                        {
-                            model = 392;
-                            break;
-                        }
-                        case eInventorySlot.HeadArmor:
-                        {
-                            model = 838;
-                            break;
-                        }
-                        case eInventorySlot.TorsoArmor:
-                        {
-                            model = 388;
-                            break;
-                        }
-                        case eInventorySlot.HandsArmor:
-                        {
-                            model = 391;
-                            break;
-                        }
-                    }
 
-                    break;
-                }
+
+                        break;
+                    }
                 default:
+                    model = 0;
                     break;
             }
 
             item.Model = model;
+
             return item;
+
         }
+
+
     }
 }

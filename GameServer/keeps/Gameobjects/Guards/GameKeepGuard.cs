@@ -25,7 +25,7 @@ namespace DOL.GS.Keeps
 			set { m_Patrol = value; }
 		}
 
-		private string m_templateID = string.Empty;
+		private string m_templateID = "";
 		public string TemplateID
 		{
 			get { return m_templateID; }
@@ -438,6 +438,12 @@ namespace DOL.GS.Keeps
 			if (!base.AddToWorld())
 				return false;
 
+			if (IsPortalKeepGuard && Brain is KeepGuardBrain keepGuardBrain)
+			{
+				keepGuardBrain.AggroRange = 2000;
+				keepGuardBrain.AggroLevel = 99;
+			}
+
 			if (PatrolGroup != null && !m_changingPositions)
 			{
 				bool foundGuard = false;
@@ -504,12 +510,12 @@ namespace DOL.GS.Keeps
 				list.Add(LanguageMgr.GetTranslation(player.Client.Account.Language, "GameKeepGuard.GetExamineMessages.YouExamine", GetName(0, false), GetPronoun(0, true), GetAggroLevelString(player, false)));
 				if (this.Component != null)
 				{
-					string text = string.Empty;
+					string text = "";
 					if (Component.Keep.Level > 1 && Component.Keep.Level < 250 && GameServer.ServerRules.IsSameRealm(player, this, true))
 						text = LanguageMgr.GetTranslation(player.Client.Account.Language, "GameKeepGuard.GetExamineMessages.Upgraded", GetPronoun(0, true), Component.Keep.Level);
 					if (Properties.USE_KEEP_BALANCING && Component.Keep.Region == 163 && !(Component.Keep is GameKeepTower))
 						text += LanguageMgr.GetTranslation(player.Client.Account.Language, "GameKeepGuard.GetExamineMessages.Balancing", GetPronoun(0, true), (Component.Keep.BaseLevel - 50).ToString());
-					if (text != string.Empty)
+					if (text != "")
 						list.Add(text);
 				}
 			}
@@ -524,7 +530,7 @@ namespace DOL.GS.Keeps
 		/// <returns></returns>
 		public override string GetPronoun(int form, bool firstLetterUppercase)
 		{
-			string s = string.Empty;
+			string s = "";
 			switch (form)
 			{
 				default:
@@ -561,7 +567,7 @@ namespace DOL.GS.Keeps
 			return s;
 		}
 		
-		string m_dataObjectID = string.Empty;
+		string m_dataObjectID = "";
 
         #region Database
         /// <summary>
@@ -579,13 +585,11 @@ namespace DOL.GS.Keeps
 					Component = new GameKeepComponent();
 					Component.Keep = keep;
 					m_dataObjectID = mobobject.ObjectId;
-
 					// mob reload command might be reloading guard, so check to make sure it isn't already added
-					lock (Component.Keep.Guards)
+					if (Component.Keep.Guards.ContainsKey(m_dataObjectID) == false)
 					{
-						Component.Keep.Guards[m_dataObjectID] = this;
+						Component.Keep.Guards.Add(m_dataObjectID, this);
 					}
-
 					break;
 				}
 			}
@@ -701,7 +705,7 @@ namespace DOL.GS.Keeps
 				return;
 			}
 			Guild guild = Component.Keep.Guild;
-			string guildname = string.Empty;
+			string guildname = "";
 			if (guild != null)
 				guildname = guild.Name;
 
@@ -713,7 +717,7 @@ namespace DOL.GS.Keeps
 			int emblem = 0;
 			if (guild != null)
 				emblem = guild.Emblem;
-			DbInventoryItem lefthand = ActiveLeftWeapon;
+			DbInventoryItem lefthand = Inventory.GetItem(eInventorySlot.LeftHandWeapon);
 			if (lefthand != null)
 				lefthand.Emblem = emblem;
 
@@ -892,11 +896,11 @@ namespace DOL.GS.Keeps
 		{
 			if (Component == null)
 			{
-				GuildName = string.Empty;
+				GuildName = "";
 			}
 			else if (Component.Keep.Guild == null)
 			{
-				GuildName = string.Empty;
+				GuildName = "";
 			}
 			else if ((Component.Keep.Guild == null || Component.Keep.Guild != null)&& this is GuardMerchant)
 			{
@@ -921,15 +925,7 @@ namespace DOL.GS.Keeps
 			RespawnInterval = (iRespawn > 1000) ? iRespawn : 1000; // Make sure we don't end up with an impossibly low respawn interval.
 		}
 
-		protected virtual void SetAggression()
-		{
-			SetAggression(99, IsPortalKeepGuard ? 2000 : 1000);
-		}
-
-		protected void SetAggression(int aggroLevel, int aggroRange)
-		{
-			(Brain as KeepGuardBrain).SetAggression(aggroLevel, aggroRange);
-		}
+		protected virtual void SetAggression() { }
 
 		public void SetLevel()
 		{

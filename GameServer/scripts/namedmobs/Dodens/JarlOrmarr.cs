@@ -27,11 +27,12 @@ namespace DOL.GS.Scripts
 			RespawnInterval = ServerProperties.Properties.SET_EPIC_GAME_ENCOUNTER_RESPAWNINTERVAL * 60000;//1min is 60000 miliseconds
 
 			// right hand
-			VisibleActiveWeaponSlots = (byte) eActiveWeaponSlot.Standard;
+			VisibleActiveWeaponSlots = (byte) eActiveWeaponSlot.Standard;			
+			WeaponSkillScalingFactor = 40;
 			base.SetOwnBrain(new JarlOrmarrBrain());
 			LoadedFromScript = false; //load from database
 			SaveIntoDatabase();
-			base.AddToWorld();
+			base.AddToWorld();		
 			return true;
 		}
 		

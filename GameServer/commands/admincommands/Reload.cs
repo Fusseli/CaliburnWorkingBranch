@@ -90,7 +90,7 @@ namespace DOL.GS.Commands
 			ushort region = 0;
 			if (client.Player != null)
 				region = client.Player.CurrentRegionID;
-			string arg = string.Empty;
+			string arg = "";
 			int argLength = args.Length - 1;
 
 			if (argLength < 1)
@@ -183,10 +183,10 @@ namespace DOL.GS.Commands
 
 			if (args[1].ToLower() == "spells")
 			{
-				SkillBase.ReloadSpells();
-				SkillBase.ReloadSpellLines();
-				if (client != null) client.Out.SendMessage("Spells and spell lines reloaded", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-				log.Info("Spells and spell lines reloaded.");
+				SkillBase.ReloadDBSpells();
+				int loaded = SkillBase.ReloadSpellLines();
+				if (client != null) ChatUtil.SendSystemMessage(client, string.Format("Reloaded db spells and {0} spells for all lines !", loaded));
+				log.Info(string.Format("Reloaded db spells and {0} spells for all spell lines !", loaded));
 				return;
 			}
 

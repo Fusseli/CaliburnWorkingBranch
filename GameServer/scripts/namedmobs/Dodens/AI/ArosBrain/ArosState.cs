@@ -1,4 +1,5 @@
-﻿using DOL.GS;
+﻿using System;
+using DOL.GS;
 
 namespace DOL.AI.Brain
 {
@@ -17,6 +18,15 @@ namespace DOL.AI.Brain
         public ArosState_IDLE(ArosBrain brain) : base(brain)
         {
             StateType = eFSMStateType.IDLE;
+        }
+
+        public override void Enter()
+        {
+            if (ECS.Debug.Diagnostics.StateMachineDebugEnabled)
+            {
+                Console.WriteLine($"Aros the Spiritmaster {_brain.Body} has entered IDLE");
+            }
+            base.Enter();
         }
 
         public override void Think()
@@ -67,6 +77,15 @@ namespace DOL.AI.Brain
             StateType = eFSMStateType.AGGRO;
         }
 
+        public override void Enter()
+        {
+            if (ECS.Debug.Diagnostics.StateMachineDebugEnabled)
+            {
+                Console.WriteLine($"Aros the Spiritmaster {_brain.Body} has entered AGGRO on target {_brain.Body.TargetObject}");
+            }
+            base.Enter();
+        }
+
         public override void Think()
         {
             if (_brain.CheckHealth()) return;
@@ -92,6 +111,10 @@ namespace DOL.AI.Brain
 
         public override void Enter()
         {
+            if (ECS.Debug.Diagnostics.StateMachineDebugEnabled)
+            {
+                Console.WriteLine($"Aros the Spiritmaster {_brain.Body} is returning to spawn");
+            }
             _brain.Body.StopFollowing();
             _brain.ClearAggroList();
             _brain.Body.ReturnToSpawnPoint(NpcMovementComponent.DEFAULT_WALK_SPEED);

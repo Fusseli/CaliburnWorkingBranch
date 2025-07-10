@@ -140,9 +140,9 @@ namespace DOL.GS.Keeps
         /// <param name="killer">The killer object</param>
         public override void Die(GameObject killer)
         {
-            if (!IsBeingHandledByReaperService)
+            if (this.isDeadOrDying == false)
             {
-                this.IsBeingHandledByReaperService = true;
+                this.isDeadOrDying = true;
                 m_lastRealm = eRealm.None;
 
                 if (Properties.LOG_KEEP_CAPTURES)
@@ -172,12 +172,18 @@ namespace DOL.GS.Keeps
 
                             keeplog.CapturedBy = GlobalConstants.RealmToName(killer.Realm);
 
-                            string listRPGainers = string.Empty;
+                            string listRPGainers = "";
 
-                            lock (XpGainersLock)
+                            lock (XPGainers.SyncRoot)
                             {
-                                foreach (var pair in XPGainers)
-                                    listRPGainers += pair.Key.Name + ";";
+                                foreach (System.Collections.DictionaryEntry de in XPGainers)
+                                {
+                                    GameLiving living = de.Key as GameLiving;
+                                    if (living != null)
+                                    {
+                                        listRPGainers += living.Name + ";";
+                                    }
+                                }
                             }
 
                             keeplog.RPGainerList = listRPGainers.TrimEnd(';');
@@ -202,6 +208,9 @@ namespace DOL.GS.Keeps
             {
                 GameServer.ServerRules.ResetKeep(this, killer);
             }
+
+
+
         }
 
         /// <summary>

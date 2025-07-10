@@ -44,8 +44,9 @@ namespace DOL.GS.PropertyCalc
                 int armorFactor = Math.Min((int) (living.Level * 1.875), living.SpecBuffBonusCategory[(int) property]);
                 armorFactor -= Math.Abs(living.DebuffCategory[(int) property]);
                 armorFactor += Math.Min(living.Level, living.ItemBonus[(int) property]);
-                armorFactor += living.OtherBonus[(int) property];
-                return armorFactor;
+                armorFactor += living.BuffBonusCategory4[(int) property];
+                armorFactor /= 6;
+                return Math.Max(1, armorFactor);
             }
 
             static int CalculateLivingArmorFactor(GameLiving living, eProperty property, double factor, double divisor, bool useBaseBuff)
@@ -57,8 +58,9 @@ namespace DOL.GS.PropertyCalc
 
                 armorFactor += living.SpecBuffBonusCategory[(int) property];
                 armorFactor -= Math.Abs(living.DebuffCategory[(int) property]);
-                armorFactor += living.OtherBonus[(int) property];
-                return armorFactor;
+                armorFactor += living.BuffBonusCategory4[(int) property];
+                armorFactor /= 6;
+                return Math.Max(1, armorFactor);
             }
 
             static int CalculateKeepComponentArmorFactor(GameLiving living)
@@ -74,9 +76,9 @@ namespace DOL.GS.PropertyCalc
                     return 1;
 
                 double keepLevelMod = 1 + component.Keep.Level * 0.1;
-                int typeMod = component.Keep is GameKeep ? 24 : 12;
-                return (int) (component.Keep.BaseLevel * keepLevelMod * typeMod);
-            }
+                int typeMod = component.Keep is GameKeep ? 4 : 2;
+                return Math.Max(1, (int) (component.Keep.BaseLevel * keepLevelMod * typeMod));
             }
         }
     }
+}

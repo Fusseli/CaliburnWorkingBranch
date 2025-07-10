@@ -23,7 +23,7 @@ using DOL.AI.Brain;
 
 namespace DOL.GS.Spells
 {
-	[SpellHandler(eSpellType.PowerDrainPet)]
+	[SpellHandlerAttribute("PowerDrainPet")]
 	public class PowerDrainPet : PowerDrain
 	{
 		public override void DrainPower(AttackData ad)

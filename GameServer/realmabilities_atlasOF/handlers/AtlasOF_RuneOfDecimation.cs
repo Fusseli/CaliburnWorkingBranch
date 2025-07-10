@@ -48,7 +48,7 @@ namespace DOL.GS.RealmAbilities
             m_dbspell.EffectGroup = 0;
             m_dbspell.Range = 350;
             m_spell = new Spell(m_dbspell, 0); // Make spell level 0 so it bypasses the spec level adjustment code.
-            m_spellline = GlobalSpellsLines.RealmSpellsSpellLine;
+            m_spellline = new SpellLine("RAs", "RealmAbilities", "RealmAbilities", true);
         }
 
         public override void Execute(GameLiving living)

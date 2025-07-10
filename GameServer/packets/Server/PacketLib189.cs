@@ -157,7 +157,7 @@ namespace DOL.GS.PacketHandler
 		/// Legacy inventory update. This handler silently
 		/// assumes that a slot on the client matches a slot on the server.
 		/// </summary>
-		protected override void SendInventorySlotsUpdateRange(ICollection<eInventorySlot> slots, eInventoryWindowType windowType)
+		protected override void SendInventorySlotsUpdateRange(ICollection<int> slots, eInventoryWindowType windowType)
 		{
 			using (GSTCPPacketOut pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.InventoryUpdate)))
 			{
@@ -326,8 +326,8 @@ namespace DOL.GS.PacketHandler
 
 			ushort icon1 = 0;
 			ushort icon2 = 0;
-			string spell_name1 = string.Empty;
-			string spell_name2 = string.Empty;
+			string spell_name1 = "";
+			string spell_name2 = "";
 
 			if (item.Object_Type != (int)eObjectType.AlchemyTincture)
 			{

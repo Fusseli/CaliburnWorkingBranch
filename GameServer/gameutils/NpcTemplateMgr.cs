@@ -1,7 +1,24 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
 using System;
 using System.Collections;
 using System.Reflection;
-using System.Threading;
 using DOL.Database;
 using log4net;
 
@@ -39,9 +56,8 @@ namespace DOL.GS
 		/// </summary>
 		private static readonly Hashtable m_mobTemplates = new Hashtable(1024);
 		private static readonly Hashtable m_mobTemplatesByName = new Hashtable(1024);
-		private static readonly Lock _lock = new();
 
-        public Hashtable MobTemplates
+		public Hashtable MobTemplates
 		{
 			get { return m_mobTemplatesByName; }
 		}
@@ -54,7 +70,7 @@ namespace DOL.GS
 		{
 			try
 			{
-				lock (_lock)
+				lock (m_mobTemplates.SyncRoot)
 				{
 					m_mobTemplates.Clear();
 					var objs = GameServer.Database.SelectAllObjects<DbNpcTemplate>();
@@ -88,7 +104,7 @@ namespace DOL.GS
 		{
 			try
 			{
-				lock (_lock)
+				lock (m_mobTemplates.SyncRoot)
 				{
 					var objs = GameServer.Database.SelectAllObjects<DbNpcTemplate>();
 
@@ -120,7 +136,7 @@ namespace DOL.GS
 		/// <param name="template">mob template</param>
 		public static void RemoveTemplate(INpcTemplate template)
 		{
-			lock (_lock)
+			lock (m_mobTemplates.SyncRoot)
 			{
 				if (m_mobTemplates[template.TemplateId] != null)
 				{
@@ -135,7 +151,7 @@ namespace DOL.GS
 		/// <param name="template">New mob template</param>
 		public static void AddTemplate(INpcTemplate template)
 		{
-			lock (_lock)
+			lock (m_mobTemplates.SyncRoot)
 			{
 				object entry = m_mobTemplates[template.TemplateId];
 

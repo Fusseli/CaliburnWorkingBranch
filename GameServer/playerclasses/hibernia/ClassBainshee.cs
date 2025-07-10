@@ -20,6 +20,7 @@ using System;
 using System.Collections.Generic;
 using DOL.Events;
 using DOL.GS.Realm;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PlayerClass
 {
@@ -58,11 +59,11 @@ namespace DOL.GS.PlayerClass
 		/// Bainshee Transform While Casting.
 		/// </summary>
 		/// <param name="player"></param>
-		public override void Init(GamePlayer player)
+		public override void Init(IGamePlayer player)
 		{
 			base.Init(player);
 
-			m_wraithTimerAction = new ECSGameTimer(player, new ECSGameTimer.ECSTimerCallback(_ =>
+			m_wraithTimerAction = new ECSGameTimer((GameLiving)player, new ECSGameTimer.ECSTimerCallback(_ =>
 			{
 				if (player.CharacterClass is ClassBainshee bainshee)
 					bainshee.TurnOutOfWraith();

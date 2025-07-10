@@ -147,7 +147,7 @@ namespace DOL.GS.PacketHandler
 							}
 							pak.FillString(locationDescription, 24);
 
-							string classname = string.Empty;
+							string classname = "";
 							if (c.Class != 0)
 								classname = ((eCharacterClass)c.Class).ToString();
 							pak.FillString(classname, 24);

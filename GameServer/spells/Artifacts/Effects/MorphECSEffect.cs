@@ -10,7 +10,7 @@ public class MorphECSEffect : ECSGameSpellEffect
             p.Model = (ushort)SpellHandler.Spell.LifeDrainReturn;     
             p.Out.SendUpdatePlayer();  
             p.Out.SendCharStatsUpdate();
-            p.UpdateEncumbrance();
+            p.UpdateEncumberance();
             p.UpdatePlayerStatus();
             p.Out.SendUpdatePlayer(); 
         }       	
@@ -24,7 +24,7 @@ public class MorphECSEffect : ECSGameSpellEffect
             p.Model = (ushort)client.Account.Characters[client.ActiveCharIndex].CreationModel;            	
             p.Out.SendUpdatePlayer(); 
             p.Out.SendCharStatsUpdate();
-            p.UpdateEncumbrance();
+            p.UpdateEncumberance();
             p.UpdatePlayerStatus();
             p.Out.SendUpdatePlayer(); 
         }                       

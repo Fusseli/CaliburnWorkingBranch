@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.NaturesShield)]
+    [SpellHandler("NaturesShield")]
     public class NaturesShieldSpellHandler : SpellHandler
     {
         public NaturesShieldSpellHandler(GameLiving caster, Spell spell, SpellLine spellLine) : base(caster, spell, spellLine)

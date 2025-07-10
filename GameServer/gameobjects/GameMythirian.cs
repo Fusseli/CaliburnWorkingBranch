@@ -3,6 +3,7 @@ using DOL.Database;
 using DOL.GS.PacketHandler;
 using DOL.GS.Spells;
 using log4net;
+using DOL.GS.Scripts;
 
 namespace DOL.GS
 {
@@ -37,7 +38,7 @@ namespace DOL.GS
 
 		#region Overrides
 
-		public override void OnEquipped(GamePlayer player)
+		public override void OnEquipped(IGamePlayer player)
 		{
 			if (this.Name.ToLower().Contains("ektaktos"))
 			{
@@ -47,9 +48,9 @@ namespace DOL.GS
 			base.OnEquipped(player);
 		}
 
-		public override void OnUnEquipped(GamePlayer player)
+		public override void OnUnEquipped(IGamePlayer player)
 		{
-			if (this.Name.ToLower().Contains("ektaktos") && SpellHelper.FindEffectOnTarget(player, typeof(WaterBreathingSpellHandler)) == null)
+			if (this.Name.ToLower().Contains("ektaktos") && SpellHelper.FindEffectOnTarget((GameLiving)player, typeof(WaterBreathingSpellHandler)) == null)
 			{
 				player.CanBreathUnderWater = false;
 				player.Out.SendMessage("With a gulp and a gasp you realize that you are unable to breathe underwater any longer!", eChatType.CT_SpellExpires, eChatLoc.CL_SystemWindow);

@@ -84,7 +84,7 @@ namespace DOL.GS.Commands
                 #region show
                 case "show":
                     {
-                        string languages = string.Empty;
+                        string languages = "";
                         foreach (string language in LanguageMgr.Languages)
                         {
                             if (client.Account.Language == language)

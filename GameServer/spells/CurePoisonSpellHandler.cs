@@ -24,7 +24,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// 
 	/// </summary>
-	[SpellHandler(eSpellType.CurePoison)]
+	[SpellHandlerAttribute("CurePoison")]
 	public class CurePoisonSpellHandler : RemoveSpellEffectHandler
 	{
 		// constructor

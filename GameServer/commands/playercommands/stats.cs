@@ -49,7 +49,7 @@ namespace DOL.GS.Commands
 
             if (args.Length > 1)
             {
-                string playerName = string.Empty;
+                string playerName = "";
 
                 if (args[1].ToLower() == "player")
                 {

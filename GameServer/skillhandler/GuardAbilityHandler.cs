@@ -3,6 +3,8 @@ using System.Reflection;
 using DOL.GS.PacketHandler;
 using DOL.Language;
 using log4net;
+using System.Linq;
+using System.Reflection;
 
 namespace DOL.GS.SkillHandler
 {
@@ -68,7 +70,7 @@ namespace DOL.GS.SkillHandler
             foundOurEffect = false;
             effectFromAnotherSource = null;
 
-            foreach (GuardECSGameEffect guard in target.effectListComponent.GetAbilityEffects().Where(e => e.EffectType is eEffect.Guard))
+            foreach (GuardECSGameEffect guard in target.effectListComponent.GetAbilityEffects().Where(e => e.EffectType == eEffect.Guard))
             {
                 if (guard.Source == source)
                 {
@@ -85,7 +87,7 @@ namespace DOL.GS.SkillHandler
 
         public static void CancelOurEffectThenAddOnTarget(GameLiving source, GameLiving target)
         {
-            foreach (GuardECSGameEffect guard in source.effectListComponent.GetAbilityEffects().Where(e => e.EffectType is eEffect.Guard))
+            foreach (GuardECSGameEffect guard in source.effectListComponent.GetAbilityEffects().Where(e => e.EffectType == eEffect.Guard))
             {
                 if (guard.Source == source)
                     EffectService.RequestImmediateCancelEffect(guard);

@@ -1,3 +1,22 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
+
 using System;
 
 namespace DOL.GS.PropertyCalc
@@ -108,7 +127,7 @@ namespace DOL.GS.PropertyCalc
 
         public static int GetItemBonusCap(GameLiving living)
         {
-            return living == null ? 0 : (int) (living.Level * 2.02);
+            return living == null ? 0 : (int) (living.Level * 2.4);
         }
 
         public static int GetItemBonusCapIncrease(GameLiving living, eProperty property)
@@ -171,7 +190,7 @@ namespace DOL.GS.PropertyCalc
                 not eCharacterClass.Scout and
                 not eCharacterClass.Hunter and
                 not eCharacterClass.Ranger and
-                not eCharacterClass.Nightshade; // Augmented Acuity augments spell damage since 1.62, but it shouldn't increase stats directly.
+                not eCharacterClass.Nightshade;
         }
 
         public static void ApplyDebuffs(ref int baseDebuff, ref int specDebuff, ref int buffBonus, ref int baseAndItemStat)

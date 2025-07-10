@@ -29,7 +29,7 @@ namespace DOL.GS.Spells
 	/// <summary>
 	/// 
 	/// </summary>
-	[SpellHandler(eSpellType.CureMezz)]
+	[SpellHandlerAttribute("CureMezz")]
 	public class CureMezzSpellHandler : RemoveSpellEffectHandler
 	{
 		// constructor

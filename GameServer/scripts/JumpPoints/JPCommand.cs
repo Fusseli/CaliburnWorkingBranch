@@ -35,7 +35,7 @@ namespace DOL.GS.Commands
 {
     [CmdAttribute(
 		"&jp",
-        ePrivLevel.GM,
+        ePrivLevel.Player,
         "Modify or use the jumppoint system",
         //usage
         "/jp add <name>",

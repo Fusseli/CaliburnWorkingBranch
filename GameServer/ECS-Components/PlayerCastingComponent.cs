@@ -3,6 +3,7 @@ using DOL.Language;
 
 namespace DOL.GS
 {
+    // This component will hold all data related to casting spells.
     public class PlayerCastingComponent : CastingComponent
     {
         private GamePlayer _playerOwner;

@@ -356,7 +356,7 @@ namespace DOL.GS.Keeps
 
 		private static GameLiving CreateHPInstance(string objTypeName)
 		{
-			if (objTypeName != string.Empty)
+			if (objTypeName != "")
 			{
 				GameLiving hookPointObj = null;
 				Type objType = null;

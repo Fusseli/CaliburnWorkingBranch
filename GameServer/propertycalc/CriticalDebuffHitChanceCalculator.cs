@@ -1,5 +1,6 @@
 ﻿using System;
 using DOL.AI.Brain;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {

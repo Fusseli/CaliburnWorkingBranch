@@ -326,7 +326,7 @@ namespace DOL.GS.AtlasQuest.Midgard
 	        Beetle = new GameNPC();
             Beetle.Model = 670;
             Beetle.Name = "Jeremy";
-            Beetle.GuildName = string.Empty;
+            Beetle.GuildName = "";
             Beetle.Realm = eRealm.Midgard;
             Beetle.Race = 2007;
             Beetle.BodyType = (ushort) NpcTemplateMgr.eBodyType.Magical;
@@ -348,7 +348,7 @@ namespace DOL.GS.AtlasQuest.Midgard
 			MobEffect = new GameNPC();
 			MobEffect.Model = 1822;
 			MobEffect.Name = "power of the beetle";
-			MobEffect.GuildName = string.Empty;
+			MobEffect.GuildName = "";
 			MobEffect.Realm = eRealm.Midgard;
 			MobEffect.Race = 2007;
 			MobEffect.BodyType = (ushort) NpcTemplateMgr.eBodyType.Magical;

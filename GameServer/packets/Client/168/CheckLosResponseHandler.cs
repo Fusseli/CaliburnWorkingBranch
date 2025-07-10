@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Threading;
 
 namespace DOL.GS.PacketHandler.Client.v168
 {
@@ -25,7 +24,7 @@ namespace DOL.GS.PacketHandler.Client.v168
             private ushort _targetObjectId;
             private eLosCheckResponse _response;
             private CheckLosResponse _firstCallback;
-            private readonly Lock _lock = new();
+            private object _lock = new();
             public List<CheckLosResponse> Callbacks { get; private set; }
 
             public TimeoutTimer(GamePlayer owner, CheckLosResponse callback, ushort sourceObjectId, ushort targetObjectId) : base(owner)

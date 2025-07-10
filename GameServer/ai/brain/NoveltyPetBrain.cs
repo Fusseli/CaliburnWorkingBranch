@@ -18,6 +18,7 @@
  */
 
 using DOL.GS;
+using DOL.GS.Scripts;
 
 namespace DOL.AI.Brain
 {
@@ -50,6 +51,11 @@ namespace DOL.AI.Brain
             return null;
         }
 
+		public virtual IGamePlayer GetIPlayerOwner()
+		{
+			return GetPlayerOwner();
+		}
+
 		#region Think
 
 		public override int ThinkInterval
@@ -67,7 +73,7 @@ namespace DOL.AI.Brain
 			{
 				Body.Delete();
 				Body = null;
-				if (m_owner != null && m_owner.TempProperties.GetProperty<bool>(HAS_PET))
+				if (m_owner != null && m_owner.TempProperties.GetProperty<bool>(HAS_PET, false))
 				{
 					m_owner.TempProperties.SetProperty(HAS_PET, false);
 				}

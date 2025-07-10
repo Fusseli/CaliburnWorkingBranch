@@ -26,7 +26,6 @@ namespace DOL.FTP
 		private string _remoteHost;
 		private int _remotePort;
 		private TcpClient _tcpClient;
-		private readonly Lock _tcpClientLock = new();
 
 		/// <summary>
 		/// Creates a new ftp connection
@@ -211,7 +210,7 @@ namespace DOL.FTP
 			string returnValueMessage = "";
 			var fileList = new List<string>();
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				SetTransferType(EFtpFileTransferType.ASCII);
 
@@ -284,7 +283,7 @@ namespace DOL.FTP
 			int returnValue = 0;
 			string returnValueMessage = "";
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				SetTransferType(type);
 
@@ -391,7 +390,7 @@ namespace DOL.FTP
 			int returnValue = 0;
 			string returnValueMessage = "";
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				SetTransferType(type);
 
@@ -490,7 +489,7 @@ namespace DOL.FTP
 		/// <param name="remoteFileName">The remote filename</param>
 		public virtual void DeleteFile(string remoteFileName)
 		{
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				var tempMessageList = new List<string>();
 				int returnValue = 0;
@@ -513,7 +512,7 @@ namespace DOL.FTP
 			var tempMessageList = new List<string>();
 			int returnValue = 0;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				tempMessageList = SendCommand("CWD " + remotePath);
 				returnValue = GetMessageReturnValue(tempMessageList[0]);
@@ -544,7 +543,7 @@ namespace DOL.FTP
 			var tempMessageList = new List<string>();
 			int returnValue = 0;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				tempMessageList = SendCommand(mode);
 				returnValue = GetMessageReturnValue(tempMessageList[0]);
@@ -585,7 +584,7 @@ namespace DOL.FTP
 			int iPortHigh = portNumber >> 8;
 			int iPortLow = portNumber & 255;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				tempMessageList = SendCommand("PORT "
 				                              + GetLocalAddressList()[0].ToString().Replace(".", ",")
@@ -608,7 +607,7 @@ namespace DOL.FTP
 			var tempMessageList = new List<string>();
 			int returnValue = 0;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				tempMessageList = SendCommand("MKD " + directoryName);
 				returnValue = GetMessageReturnValue(tempMessageList[0]);
@@ -628,7 +627,7 @@ namespace DOL.FTP
 			var tempMessageList = new List<string>();
 			int returnValue = 0;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				tempMessageList = SendCommand("RMD " + directoryName);
 				returnValue = GetMessageReturnValue(tempMessageList[0]);
@@ -725,7 +724,7 @@ namespace DOL.FTP
 		{
 			int port = 0;
 
-			lock (_tcpClientLock)
+			lock (_tcpClient)
 			{
 				switch (_mode)
 				{

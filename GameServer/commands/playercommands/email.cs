@@ -366,7 +366,7 @@ namespace DOL.GS.Commands
 		{
 			bool valid;
 			Regex re;
-			string domainvalidatorpattern = string.Empty;
+			string domainvalidatorpattern = "";
 
 			//pattern to validate all known TLD's
 			domainvalidatorpattern += "\\.(";

@@ -1,9 +1,15 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using DOL.AI.Brain;
+using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.Language;
+using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace DOL.GS.Spells
 {
@@ -25,7 +31,7 @@ namespace DOL.GS.Spells
     /// 4 = Buffer
     /// 5 = Range
     /// </summary>
-    [SpellHandler(eSpellType.SummonMinion)]
+    [SpellHandler("SummonMinion")]
     public class SummonMinionHandler : SummonSpellHandler
     {
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -34,7 +40,7 @@ namespace DOL.GS.Spells
 
         public override bool CheckBeginCast(GameLiving selectedTarget)
         {
-            if (Caster is GamePlayer playerCaster)
+            if (Caster is IGamePlayer playerCaster)
             {
                 IControlledBrain controlledBrain = playerCaster.ControlledBrain;
 
@@ -63,6 +69,7 @@ namespace DOL.GS.Spells
                 if (newPetLevel > m_spell.Value)
                     newPetLevel = (byte) m_spell.Value;
 
+                // Kaedius OD defaults to 75. Kept Caliburn
                 if (cumulativeLevel + newPetLevel > 122)
                 {
                     MessageToCaster("Your commander is not powerful enough to control a minion of this level.", eChatType.CT_SpellResisted);
@@ -99,10 +106,21 @@ namespace DOL.GS.Spells
                 brain.SetAggressionState(eAggressionState.Passive);
         }
 
+        protected override void OnNpcReleaseCommand(DOLEvent e, object sender, EventArgs arguments)
+        {
+            if (sender is not GameNPC pet)
+                return;
+
+            GameEventMgr.RemoveHandler(pet, GameLivingEvent.PetReleased, new DOLEventHandler(OnNpcReleaseCommand));
+
+            if (pet.effectListComponent.Effects.TryGetValue(eEffect.Pet, out var petEffect))
+                EffectService.RequestImmediateCancelEffect(petEffect.FirstOrDefault());
+        }
+
         public override int OnEffectExpires(GameSpellEffect effect, bool noMessages)
         {
             if (effect.Owner is BdPet bdPetOwner && bdPetOwner.Brain is IControlledBrain brain && brain.Owner is CommanderPet commander)
-                commander.RemoveControlledBrain(brain);
+                commander.RemoveControlledNpc(brain);
 
             return base.OnEffectExpires(effect, noMessages);
         }
@@ -146,7 +164,7 @@ namespace DOL.GS.Spells
 
         protected override void SetBrainToOwner(IControlledBrain brain)
         {
-            Caster.ControlledBrain.Body.AddControlledBrain(brain);
+            Caster.ControlledBrain.Body.AddControlledNpc(brain);
         }
 
         public override IList<string> DelveInfo

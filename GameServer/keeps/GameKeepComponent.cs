@@ -118,7 +118,7 @@ namespace DOL.GS.Keeps
 
 		public Hashtable Positions { get; }
 
-		protected string m_CreateInfo = string.Empty;
+		protected string m_CreateInfo = "";
 		#endregion
 
 		public override int RealmPointsValue => 0;
@@ -137,6 +137,16 @@ namespace DOL.GS.Keeps
 			}
 
 			return list;
+		}
+
+		/// <summary>
+		/// Procs don't normally fire on game keep components
+		/// </summary>
+		public override bool AllowWeaponMagicalEffect(AttackData ad, DbInventoryItem weapon, Spell weaponSpell)
+		{
+			if (weapon.Flags == 10) //Bruiser or any other item needs Itemtemplate "Flags" set to 10 to proc on keep components
+				return true;
+			else return false;
 		}
 
 		/// <summary>

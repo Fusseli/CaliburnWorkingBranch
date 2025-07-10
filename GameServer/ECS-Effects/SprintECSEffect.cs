@@ -1,5 +1,6 @@
 ﻿using System;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 using DOL.Language;
 
 namespace DOL.GS
@@ -17,7 +18,7 @@ namespace DOL.GS
         private int _idleTicks = 0;
 
         public override ushort Icon => 0x199;
-        public override string Name => LanguageMgr.GetTranslation(OwnerPlayer.Client, "Effects.SprintEffect.Name");
+        public override string Name => LanguageMgr.GetTranslation(OwnerPlayer?.Client, "Effects.SprintEffect.Name");
         public override bool HasPositiveEffect => true;
 
         public override long GetRemainingTimeForClient()
@@ -27,19 +28,19 @@ namespace DOL.GS
 
         public override void OnStartEffect()
         {
-            if (OwnerPlayer != null)
+            if (Owner != null && Owner is IGamePlayer gamePlayer)
             {
-                int regen = OwnerPlayer.GetModified(eProperty.EnduranceRegenerationAmount);
-                var enduranceChant = OwnerPlayer.GetModified(eProperty.FatigueConsumption);
+                int regen = gamePlayer.GetModified(eProperty.EnduranceRegenerationAmount);
+                var enduranceChant = gamePlayer.GetModified(eProperty.FatigueConsumption);
                 var cost = -5 + regen;
 
                 if (enduranceChant > 1)
                     cost = (int) Math.Ceiling(cost * enduranceChant * 0.01);
 
-                OwnerPlayer.Endurance += cost;
-                OwnerPlayer.Out.SendUpdateMaxSpeed();
-                OwnerPlayer.Out.SendMessage(LanguageMgr.GetTranslation(OwnerPlayer.Client.Account.Language, "GamePlayer.Sprint.PrepareSprint"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
-                Owner.StartEnduranceRegeneration();
+                gamePlayer.Endurance += cost;
+                gamePlayer.Out.SendUpdateMaxSpeed();
+                gamePlayer.Out.SendMessage(LanguageMgr.GetTranslation(gamePlayer.Client.Account.Language, "GamePlayer.Sprint.PrepareSprint"), eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                ((GameLiving)gamePlayer).StartEnduranceRegeneration();
             }
         }
 

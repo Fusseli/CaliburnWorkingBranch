@@ -8,7 +8,7 @@ namespace DOL.GS.Spells
     /// <summary>
     /// The spell used for the Personal Bind Recall Stone.
     /// </summary>
-    [SpellHandler(eSpellType.GatewayPersonalBind)]
+    [SpellHandlerAttribute("GatewayPersonalBind")]
     public class GatewayPersonalBind : SpellHandler
     {
         public GatewayPersonalBind(GameLiving caster, Spell spell, SpellLine spellLine) : base(caster, spell, spellLine) { }

@@ -40,6 +40,7 @@ using DOL.GS.PacketHandler;
 using DOL.GS.Spells;
 using log4net;
 using DOL.GS.Commands;
+using DOL.GS.Scripts;
 
 
 #region command setup
@@ -192,7 +193,6 @@ namespace DOL.GS
     /// </summary>
     public class AdvancedGen1 : LootGeneratorBase
     {
-
         public override LootList GenerateLoot(GameNPC mob, GameObject killer)
         {
             LootList loot = base.GenerateLoot(mob, killer);
@@ -232,24 +232,19 @@ namespace DOL.GS
             if (Level >= 79) { rewardrp = 300; }
             if (Level >= 80) { rewardrp = 400; }
 
-
-
-            GamePlayer player = killer as GamePlayer;
+            IGamePlayer player = killer as IGamePlayer;
             player.Out.SendMessage("You Get " + rewardrp + " realm points!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
             player.RealmPoints += rewardrp;
 
             return loot;
         }
-
     }
 
     public class AdvancedGen2 : LootGeneratorBase
     {
-
         public override LootList GenerateLoot(GameNPC mob, GameObject killer)
         {
             LootList loot = base.GenerateLoot(mob, killer);
-
 
             int Level = mob.Level;
             //amount of rp/bp gain based on the mob level
@@ -286,19 +281,16 @@ namespace DOL.GS
             if (Level >= 79) { rewardbp = 300; }
             if (Level >= 80) { rewardbp = 400; }
 
-
-            GamePlayer player = killer as GamePlayer;
+            IGamePlayer player = killer as IGamePlayer;
             player.Out.SendMessage("You Get " + rewardbp + " bounty points!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
             player.BountyPoints += rewardbp;
 
             return loot;
         }
-
     }
 
     public class AdvancedGen3 : LootGeneratorBase
     {
-
         public override LootList GenerateLoot(GameNPC mob, GameObject killer)
         {
             LootList loot = base.GenerateLoot(mob, killer);
@@ -338,7 +330,6 @@ namespace DOL.GS
             if (Level >= 79) { rewardrp = 300; }
             if (Level >= 80) { rewardrp = 400; }
 
-
             int rewardbp = 0;
             if (Level >= 30) { rewardbp = 1; }
             if (Level >= 35) { rewardbp = 3; }
@@ -371,8 +362,7 @@ namespace DOL.GS
             if (Level >= 79) { rewardbp = 300; }
             if (Level >= 80) { rewardbp = 400; }
 
-
-            GamePlayer player = killer as GamePlayer;
+            IGamePlayer player = killer as IGamePlayer;
             player.Out.SendMessage("You Get " + rewardbp + " bountypoints!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
             player.BountyPoints += rewardbp;
             player.Out.SendMessage("You Get " + rewardrp + " realm points!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
@@ -380,7 +370,6 @@ namespace DOL.GS
 
             return loot;
         }
-
     }
 }
 

@@ -1009,7 +1009,7 @@ namespace DOL.GS
             DbInventoryItem newInventoryItem = GameInventoryItem.Create<DbItemUnique>(unique);
             if(item.IsCrafted)
                 newInventoryItem.IsCrafted = true;
-            if(item.Creator != string.Empty)
+            if(item.Creator != "")
                 newInventoryItem.Creator = item.Creator;
             newInventoryItem.Count = 1;
             player.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, newInventoryItem);
@@ -1111,7 +1111,7 @@ namespace DOL.GS
             DbInventoryItem newInventoryItem = GameInventoryItem.Create<DbItemUnique>(unique);
             if(item.IsCrafted)
                 newInventoryItem.IsCrafted = true;
-            if(item.Creator != string.Empty)
+            if(item.Creator != "")
                 newInventoryItem.Creator = item.Creator;
             newInventoryItem.Count = 1;
             player.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, newInventoryItem);
@@ -1169,7 +1169,7 @@ namespace DOL.GS
             display.ObjectState = eObjectState.Active;
             display.attackComponent.AttackState = true;
             display.BroadcastLivingEquipmentUpdate();
-            ClientService.UpdateNpcForPlayer(player, display);
+            ClientService.UpdateObjectForPlayer(player, display);
 
             //Uncomment this if you want animations
             // var animationThread = new Thread(() => LoopAnimation(player,item, display,tempAd));

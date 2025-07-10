@@ -13,7 +13,7 @@ using log4net;
 namespace DOL.GS.Spells
 {
     //handled in HealSpellHandler
-    [SpellHandler(eSpellType.EfficientHealing)]
+    [SpellHandler("EfficientHealing")]
     public class EfficientHealing : SpellHandler
     {
         #region Devle Info
@@ -61,7 +61,7 @@ namespace DOL.GS.Spells
         }
     }
     //handled in HealSpellHandler
-    [SpellHandler(eSpellType.EfficientEndurance)]
+    [SpellHandler("EfficientEndurance")]
     public class EfficientEndurance : SpellHandler
     {
         #region Devle Info
@@ -108,7 +108,7 @@ namespace DOL.GS.Spells
         {
         }
     }
-    [SpellHandler(eSpellType.Powershield)]
+    [SpellHandler("Powershield")]
     public class Powershield : SpellHandler
     {
         public void AttackedEvent(DOLEvent e, object sender, EventArgs arguments)

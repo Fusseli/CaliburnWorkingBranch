@@ -49,44 +49,44 @@ namespace DOL.GS.Spells
         /// </summary>
         /// <param name="target">the target of the spell</param>
         /// <returns>chance that spell will be resisted for specific target</returns>
-        public override double CalculateSpellResistChance(GameLiving target)
+        public override int CalculateSpellResistChance(GameLiving target)
         {
-            double chance =  base.CalculateSpellResistChance(target);
+            int basechance =  base.CalculateSpellResistChance(target);
 
             /* GameSpellEffect rampage = SpellHandler.FindEffectOnTarget(target, "Rampage");
 
             if (rampage != null)
-                chance += (int)rampage.Spell.Value;*/
+                basechance += (int)rampage.Spell.Value;*/
 
-            return Math.Min(100, chance);
+            return Math.Min(100, basechance);
         }
     }
 
-    [SpellHandler(eSpellType.StrengthDebuff)]
+    [SpellHandlerAttribute("StrengthDebuff")]
     public class StrengthDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Strength;
     }
 
-    [SpellHandler(eSpellType.DexterityDebuff)]
+    [SpellHandlerAttribute("DexterityDebuff")]
     public class DexterityDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Dexterity;
     }
 
-    [SpellHandler(eSpellType.ConstitutionDebuff)]
+    [SpellHandlerAttribute("ConstitutionDebuff")]
     public class ConstitutionDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Constitution;
     }
 
-    [SpellHandler(eSpellType.ArmorFactorDebuff)]
+    [SpellHandlerAttribute("ArmorFactorDebuff")]
     public class ArmorFactorDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.ArmorFactor;
     }
 
-    [SpellHandler(eSpellType.ArmorAbsorptionDebuff)]
+    [SpellHandlerAttribute("ArmorAbsorptionDebuff")]
     public class ArmorAbsorptionDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.ArmorAbsorption;
@@ -94,7 +94,7 @@ namespace DOL.GS.Spells
         protected override void SendUpdates(GameLiving target) { }
     }
 
-    [SpellHandler(eSpellType.CombatSpeedDebuff)]
+    [SpellHandlerAttribute("CombatSpeedDebuff")]
     public class CombatSpeedDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.MeleeSpeed;
@@ -102,7 +102,7 @@ namespace DOL.GS.Spells
         protected override void SendUpdates(GameLiving target) { }
     }
 
-    [SpellHandler(eSpellType.MeleeDamageDebuff)]
+    [SpellHandlerAttribute("MeleeDamageDebuff")]
     public class MeleeDamageDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.MeleeDamage;
@@ -110,7 +110,7 @@ namespace DOL.GS.Spells
         protected override void SendUpdates(GameLiving target) { }
     }
 
-    [SpellHandler(eSpellType.FatigueConsumptionDebuff)]
+    [SpellHandlerAttribute("FatigueConsumptionDebuff")]
     public class FatigueConsumptionDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.FatigueConsumption;
@@ -118,7 +118,7 @@ namespace DOL.GS.Spells
         protected override void SendUpdates(GameLiving target) { }
     }
 
-    [SpellHandler(eSpellType.FumbleChanceDebuff)]
+    [SpellHandlerAttribute("FumbleChanceDebuff")]
     public class FumbleChanceDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.FumbleChance;
@@ -127,31 +127,31 @@ namespace DOL.GS.Spells
         protected override void SendUpdates(GameLiving target) { }
     }
 
-    [SpellHandler(eSpellType.DPSDebuff)]
+    [SpellHandlerAttribute("DPSDebuff")]
     public class DPSDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.DPS;
     }
 
-    [SpellHandler(eSpellType.SkillsDebuff)]
+    [SpellHandlerAttribute("SkillsDebuff")]
     public class SkillsDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.AllSkills;
     }
 
-    [SpellHandler(eSpellType.AcuityDebuff)]
+    [SpellHandlerAttribute("AcuityDebuff")]
     public class AcuityDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Acuity;
     }
 
-    [SpellHandler(eSpellType.QuicknessDebuff)]
+    [SpellHandlerAttribute("QuicknessDebuff")]
     public class QuicknessDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.Quickness;
     }
 
-    [SpellHandler(eSpellType.ToHitDebuff)]
+    [SpellHandlerAttribute("ToHitDebuff")]
     public class ToHitSkillDebuff(GameLiving caster, Spell spell, SpellLine line) : SingleStatDebuff(caster, spell, line)
     {
         public override eProperty Property1 => eProperty.ToHitBonus;

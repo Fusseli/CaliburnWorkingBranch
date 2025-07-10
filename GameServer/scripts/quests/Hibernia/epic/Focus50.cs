@@ -164,7 +164,7 @@ namespace DOL.GS.Quests.Hibernia
 				GreenMaw = new GreenMaw();
 				GreenMaw.Model = 146;
 				GreenMaw.Name = "Green Maw";
-				GreenMaw.GuildName = string.Empty;
+				GreenMaw.GuildName = "";
 				GreenMaw.Realm = eRealm.None;
 				GreenMaw.CurrentRegionID = 200;
 				GreenMaw.Size = 50;

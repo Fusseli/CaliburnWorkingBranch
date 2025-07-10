@@ -1,4 +1,5 @@
 ﻿using DOL.AI.Brain;
+using System;
 
 namespace DOL.GS
 {
@@ -8,10 +9,9 @@ namespace DOL.GS
         {
             SetOwnBrain(new UrchinAmbusherBrain());
         }
-
         public void LeaveStealth()
         {
-            Flags &= ~eFlags.STEALTH;
+            Flags &= eFlags.STEALTH;
         }
     }
 }

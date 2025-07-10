@@ -37,7 +37,7 @@ namespace DOL.GS.Keeps
 		/// <param name="keep">The keep object</param>
 		public static void BroadcastCapture(AbstractGameKeep keep)
 		{
-			string message = string.Empty;
+			string message = "";
 			if (keep.Realm != eRealm.None)
 			{
 				message = string.Format(LanguageMgr.GetTranslation(ServerProperties.Properties.SERV_LANGUAGE, "PlayerManager.BroadcastCapture.Captured", GlobalConstants.RealmToName((eRealm)keep.Realm), keep.Name));
@@ -57,7 +57,7 @@ namespace DOL.GS.Keeps
 					}
 				case eGameServerType.GST_PvP:
 					{
-						string defeatersStr = string.Empty;
+						string defeatersStr = "";
 						message = string.Format("The forces of {0} have defeated the defenders of {1}!", defeatersStr, keep.Name);
 						break;
 					}
@@ -170,20 +170,20 @@ namespace DOL.GS.Keeps
 		public static void BroadcastDiscordRvR(string message, eRealm realm, string keepName)
 		{
 			int color = 0;
-			string avatarUrl = string.Empty;
+			string avatarUrl = "";
 			switch (realm)
 			{
 				case eRealm._FirstPlayerRealm:
 					color = 16711680;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 				case eRealm._LastPlayerRealm:
 					color = 32768;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 				default:
 					color = 255;
-					avatarUrl = string.Empty;
+					avatarUrl = "";
 					break;
 			}
 			var client = new DiscordWebhookClient(ServerProperties.Properties.DISCORD_RVR_WEBHOOK_ID);
@@ -294,12 +294,14 @@ namespace DOL.GS.Keeps
 		/// <param name="lord">The lord object</param>
 		public static void UpdateStats(GuardLord lord)
 		{
-			lock (lord.XpGainersLock)
+			lock (lord.XPGainers.SyncRoot)
 			{
-				foreach (var pair in lord.XPGainers)
+				foreach (System.Collections.DictionaryEntry de in lord.XPGainers)
 				{
-					if (pair.Key is GamePlayer player)
+					GameObject obj = (GameObject)de.Key;
+					if (obj is GamePlayer)
 					{
+						GamePlayer player = obj as GamePlayer;
 						if (lord.Component.Keep != null && lord.Component.Keep is GameKeep)
 						{
 							player.CapturedKeeps++;

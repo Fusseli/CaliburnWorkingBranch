@@ -24,9 +24,11 @@ namespace DOL.GS
     /// </summary>
     public enum eInstrumentType : int
 	{
-		Drum = 1,
-		Lute = 2,
-		Flute = 3,
-		Harp = 4,
-	}
+		None = -1,
+
+        Drum = 1,
+        Lute = 2,
+        Flute = 3,
+        Harp = 4,
+    }
 }

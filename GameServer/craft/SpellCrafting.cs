@@ -1,12 +1,31 @@
+/*
+ * DAWN OF LIGHT - The first free open source DAoC server emulator
+ * 
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ */
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using DOL.Database;
-using DOL.GS.PacketHandler;
 using DOL.Language;
+using DOL.GS.PacketHandler;
 
 namespace DOL.GS
 {
-    public class SpellCrafting : AdvancedCraftingSkill
+	public class SpellCrafting : AdvancedCraftingSkill
 	{
         protected override String Profession
         {
@@ -120,7 +139,7 @@ namespace DOL.GS
 					return false;
 				}
 
-				lock (player.TradeWindow.Lock)
+				lock (player.TradeWindow.Sync)
 				{
 					foreach (DbInventoryItem materialToCombine in player.TradeWindow.TradeItems)
 					{
@@ -157,7 +176,7 @@ namespace DOL.GS
 					}
 				}
 
-				lock (player.TradeWindow.Lock)
+				lock (player.TradeWindow.Sync)
 				{
 					for (int i = 0; i < player.TradeWindow.ItemsCount; i++)
 					{
@@ -260,7 +279,7 @@ namespace DOL.GS
 			player.Inventory.BeginChanges();
 
 			int bonusMod = item.Bonus;
-			lock (player.TradeWindow.Lock)
+			lock (player.TradeWindow.Sync)
 			{
 				foreach (DbInventoryItem gemme in player.TradeWindow.TradeItems)
 				{
@@ -322,7 +341,7 @@ namespace DOL.GS
 
 			if (Util.Chance(sucessChances))
 			{
-				lock (player.TradeWindow.Lock)
+				lock (player.TradeWindow.Sync)
 				{
 					player.Inventory.BeginChanges();
 					foreach (DbInventoryItem gem in (ArrayList)player.TradeWindow.TradeItems.Clone())
@@ -363,7 +382,7 @@ namespace DOL.GS
 			{
 				player.Out.SendMessage(LanguageMgr.GetTranslation(player.Client.Account.Language, "SpellCrafting.ApplySpellcraftGems.PowerExplodes"), eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 
-				lock (player.TradeWindow.Lock)
+				lock (player.TradeWindow.Sync)
 				{
 					player.Inventory.BeginChanges();
                     // Luhz Crafting Update:
@@ -442,7 +461,7 @@ namespace DOL.GS
 				}
 			}
 			spellcraftInfos.Add(LanguageMgr.GetTranslation(player.Client.Account.Language, "SpellCrafting.ShowSpellCraftingInfos.GemBonuses"));
-			lock (player.TradeWindow.Lock)
+			lock (player.TradeWindow.Sync)
 			{
 				for (int i = 0; i < player.TradeWindow.ItemsCount; i++)
 				{
@@ -580,7 +599,7 @@ namespace DOL.GS
 				}
 			}
 
-			lock (player.TradeWindow.Lock)
+			lock (player.TradeWindow.Sync)
 			{
 				for (int i = 0; i < player.TradeWindow.TradeItems.Count; i++)
 				{
@@ -646,7 +665,7 @@ namespace DOL.GS
 			int baseChance = 0;
 
 			double gemModifier = 0;
-			lock (player.TradeWindow.Lock)
+			lock (player.TradeWindow.Sync)
 			{
 				foreach (DbInventoryItem gem in player.TradeWindow.TradeItems)
 					gemModifier += (gem.Quality - 92) * 1.8;

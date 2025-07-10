@@ -4,7 +4,6 @@ namespace DOL.GS
     {
         Precast,
         Casting,
-        CastingRetry,
         Interrupted,
         Finished,
         Focusing,

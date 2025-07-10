@@ -22,7 +22,7 @@ using DOL.GS.Effects;
 
 namespace DOL.GS.Spells
 {
-    [SpellHandler(eSpellType.AfHitsBuff)]
+    [SpellHandlerAttribute("AfHitsBuff")]
     public class AfHitsBuffSpellHandler : SpellHandler
     {
         public override void OnEffectStart(GameSpellEffect effect)

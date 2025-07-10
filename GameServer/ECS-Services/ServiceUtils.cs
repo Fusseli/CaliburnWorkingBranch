@@ -73,7 +73,7 @@ namespace DOL.GS
 
             player.Client.ClientState = GameClient.eClientState.CharScreen;
 
-            if ((eCharacterClass) player.CharacterClass.ID is eCharacterClass.Necromancer && player.HasShadeModel)
+            if (player.CharacterClass.ID == (int) eCharacterClass.Necromancer && player.IsShade)
                 player.Shade(false);
 
             player.Out.SendPlayerQuit(false);

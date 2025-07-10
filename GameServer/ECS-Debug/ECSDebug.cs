@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading;
+using DOL.Database;
 using DOL.Events;
 using DOL.GS;
 using ECS.Debug;
@@ -14,16 +14,18 @@ namespace ECS.Debug
         private const string SERVICE_NAME = "Diagnostics";
         private static StreamWriter _perfStreamWriter;
         private static bool _streamWriterInitialized = false;
-        private static readonly Lock _gameEventMgrNotifyLock = new();
+        private static object _GameEventMgrNotifyLock = new();
         private static bool PerfCountersEnabled = false;
         private static bool stateMachineDebugEnabled = false;
         private static Dictionary<string, Stopwatch> PerfCounters = new();
-        private static readonly Lock _perfCountersLock = new();
+        private static object _PerfCountersLock = new();
         private static bool GameEventMgrNotifyProfilingEnabled = false;
         private static int GameEventMgrNotifyTimerInterval = 0;
         private static long GameEventMgrNotifyTimerStartTick = 0;
         private static Stopwatch GameEventMgrNotifyStopwatch;
         private static Dictionary<string, List<double>> GameEventMgrNotifyTimes = new();
+
+        public static bool StateMachineDebugEnabled { get => stateMachineDebugEnabled; private set => stateMachineDebugEnabled = value; }
 
         public static void TogglePerfCounters(bool enabled)
         {
@@ -34,6 +36,11 @@ namespace ECS.Debug
             }
 
             PerfCountersEnabled = enabled;
+        }
+
+        public static void ToggleStateMachineDebug(bool enabled)
+        {
+            StateMachineDebugEnabled = enabled;
         }
 
         public static void Tick()
@@ -67,7 +74,7 @@ namespace ECS.Debug
 
             InitializeStreamWriter();
             Stopwatch stopwatch = Stopwatch.StartNew();
-            lock(_perfCountersLock)
+            lock(_PerfCountersLock)
             {
                 PerfCounters.TryAdd(uniqueID, stopwatch);
             }
@@ -78,7 +85,7 @@ namespace ECS.Debug
             if (!PerfCountersEnabled)
                 return;
 
-            lock (_perfCountersLock)
+            lock (_PerfCountersLock)
             {
                 if (PerfCounters.TryGetValue(uniqueID, out Stopwatch stopwatch))
                     stopwatch.Stop();
@@ -91,7 +98,7 @@ namespace ECS.Debug
                 return;
 
             // Report perf counters that were active this frame and then flush them.
-            lock(_perfCountersLock)
+            lock(_PerfCountersLock)
             {
                 if (PerfCounters.Count > 0)
                 {
@@ -127,7 +134,7 @@ namespace ECS.Debug
 
             GameEventMgrNotifyStopwatch.Stop();
 
-            lock (_gameEventMgrNotifyLock)
+            lock (_GameEventMgrNotifyLock)
             {
                 if (GameEventMgrNotifyTimes.TryGetValue(e.Name, out List<double> EventTimeValues))
                     EventTimeValues.Add(GameEventMgrNotifyStopwatch.Elapsed.TotalMilliseconds);
@@ -164,7 +171,7 @@ namespace ECS.Debug
             string ActualInterval = Util.TruncateString((GameLoop.GetCurrentTime() - GameEventMgrNotifyTimerStartTick).ToString(), 5);
             Console.WriteLine($"==== GameEventMgr Notify() Costs (Requested Interval: {GameEventMgrNotifyTimerInterval}ms | Actual Interval: {ActualInterval}ms) ====");
 
-            lock (_gameEventMgrNotifyLock)
+            lock (_GameEventMgrNotifyLock)
             {
                 foreach (var NotifyData in GameEventMgrNotifyTimes)
                 {
@@ -304,6 +311,119 @@ namespace DOL.GS.Commands
 
                 NpcService.DebugTickCount = tickcount;
                 DisplayMessage(client, "Debugging next " + tickcount + " NPCThinkService tick(s)");
+            }
+        }
+    }
+
+    // This should be moved outside of this file if we want this as a real player-facing feature.
+    [CmdAttribute(
+        "&charstats",
+        ePrivLevel.GM,
+        "Shows normally hidden character stats.")]
+    public class CharStatsCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            List<string> messages = new();
+            string header = "Hidden Character Stats";
+            GamePlayer player = client.Player;
+            DbInventoryItem lefthand = player.Inventory.GetItem(eInventorySlot.LeftHandWeapon);
+
+            // Block chance.
+            if (player.HasAbility(Abilities.Shield))
+            {
+                if (lefthand == null)
+                    messages.Add($"Block Chance: No Shield Equipped!");
+                else
+                {
+                    double blockChance = player.GetBlockChance();
+                    messages.Add($"Block Chance: {blockChance}%");
+                }
+            }
+
+            // Parry chance.
+            if (player.HasSpecialization(Specs.Parry))
+            {
+                double parryChance = player.GetParryChance();
+                messages.Add($"Parry Chance: {parryChance}%");
+            }
+
+            // Evade chance.
+            if (player.HasAbility(Abilities.Evade))
+            {
+                double evadeChance = player.GetEvadeChance();
+                messages.Add($"Evade Chance: {evadeChance}%");
+            }
+
+            // Melee crit chance.
+            int meleeCritChance = player.GetModified(eProperty.CriticalMeleeHitChance);
+            messages.Add($"Melee Crit Chance: {meleeCritChance}%");
+
+            // Spell crit chance
+            int spellCritChance = player.GetModified(eProperty.CriticalSpellHitChance);
+            messages.Add($"Spell Crit Chance: {spellCritChance}");
+
+            // Spell casting speed bonus.
+            int spellCastSpeed = player.GetModified(eProperty.CastingSpeed);
+            messages.Add($"Spell Casting Speed Bonus: {spellCastSpeed}%");
+
+            // Heal crit chance.
+            int healCritChance = player.GetModified(eProperty.CriticalHealHitChance);
+            messages.Add($"Heal Crit Chance: {healCritChance}%");
+
+            // Archery crit chance.
+            if (player.HasSpecialization(Specs.Archery)
+                || player.HasSpecialization(Specs.CompositeBow)
+                || player.HasSpecialization(Specs.RecurveBow)
+                || player.HasSpecialization(Specs.ShortBow)
+                || player.HasSpecialization(Specs.Crossbow)
+                || player.HasSpecialization(Specs.Longbow))
+            {
+                int archeryCritChance = player.GetModified(eProperty.CriticalArcheryHitChance);
+                messages.Add($"Archery Crit Chance: {archeryCritChance}%");
+            }
+
+            // Finalize.
+            player.Out.SendCustomTextWindow(header, messages);
+        }
+    }
+
+    [CmdAttribute(
+    "&fsm",
+    ePrivLevel.GM,
+    "Toggle server logging of mob FSM states.",
+    "/fsm debug <on|off> to toggle performance diagnostics logging on server.")]
+    public class StateMachineCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (client == null || client.Player == null)
+                return;
+
+            if (IsSpammingCommand(client.Player, "fsm"))
+                return;
+
+            if (client.Account.PrivLevel < 2)
+                return;
+
+            if (args.Length < 3)
+            {
+                DisplaySyntax(client);
+                return;
+            }
+
+            if (args[1].ToLower().Equals("debug"))
+            {
+                if (args[2].ToLower().Equals("on"))
+                {
+                    Diagnostics.ToggleStateMachineDebug(true);
+                    DisplayMessage(client, "Mob state logging turned on.");
+                }
+                else if (args[2].ToLower().Equals("off"))
+                {
+                    Diagnostics.ToggleStateMachineDebug(false);
+                    DisplayMessage(client, "Mob state logging turned off.");
+                }
             }
         }
     }

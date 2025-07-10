@@ -38,6 +38,12 @@ namespace DOL.GS
 			}
 		}
 
+		public override long DamageRvRMemory
+		{
+			get => m_damageRvRMemory;
+			set => m_damageRvRMemory = value;
+		}
+
 		/// <summary>
 		/// Proc IDs for various pet weapons.
 		/// </summary>
@@ -97,35 +103,34 @@ namespace DOL.GS
 		/// </summary>
 		public override int GetModified(eProperty property)
 		{
-			if (Brain is not IControlledBrain brain)
+			if (Brain == null || (Brain as IControlledBrain) == null)
 				return base.GetModified(property);
 
 			switch (property)
 			{
 				case eProperty.MaxHealth:
 				{
-					// Possibly missing flat HP buff bonus. Maybe HP from Champion levels too?
-					int baseHp = 30 * Level;
-					GameLiving livingOwner = brain.GetLivingOwner();
+					int hitsCap = MaxHealthCalculator.GetItemBonusCap(Owner) + MaxHealthCalculator.GetItemBonusCapIncrease(Owner);
+					int conFromRa = 0;
+					int conFromItems = 0;
+					int maxHealthFromItems = 0;
+					double toughnessMod = 1.0;
+					
+					if ((Brain as IControlledBrain).GetLivingOwner() is GamePlayer playerOwner)
+					{
+						conFromRa = AtlasRAHelpers.GetStatEnhancerAmountForLevel(AtlasRAHelpers.GetAugConLevel(playerOwner));
+						conFromItems = playerOwner.GetModifiedFromItems(eProperty.Constitution);
+						maxHealthFromItems = playerOwner.ItemBonus[(int) eProperty.MaxHealth];
+						AtlasOF_ToughnessAbility toughness = playerOwner.GetAbility<AtlasOF_ToughnessAbility>();
 
-					if (livingOwner == null)
-						return baseHp;
+						if (toughness != null)
+							toughnessMod = 1 + toughness.GetAmountForLevel(toughness.Level) * 0.01;
+					}
 
-					int conFromRa = AtlasRAHelpers.GetStatEnhancerAmountForLevel(AtlasRAHelpers.GetAugConLevel(livingOwner));
-					int conFromItems = livingOwner.GetModifiedFromItems(eProperty.Constitution);
-					baseHp += (int) ((conFromItems + conFromRa) * 3.1);
-
-					int itemBonus = livingOwner.ItemBonus[(int) property];
-					int cap = MaxHealthCalculator.GetItemBonusCap(livingOwner) + MaxHealthCalculator.GetItemBonusCapIncrease(livingOwner);
-					itemBonus = Math.Min(itemBonus, cap);
-
-					int flatAbilityBonus = livingOwner.AbilityBonus[(int) property]; // New Toughness.
-					int multiplicativeAbilityBonus = livingOwner.AbilityBonus[(int) eProperty.Of_Toughness]; // Old Toughness.
-
-					double result = baseHp;
-					result *= 1 + multiplicativeAbilityBonus * 0.01;
-					result += itemBonus + flatAbilityBonus;
-					return (int) result;
+					int conBonus = (int) ((conFromItems + conFromRa) * 3.1);
+					int hitsBonus = 30 * Level + Math.Min(maxHealthFromItems, hitsCap);
+					int totalBonus = conBonus + hitsBonus;
+					return (int) (totalBonus * toughnessMod);
 				}
 				default:
 					return base.GetModified(property);
@@ -254,6 +259,31 @@ namespace DOL.GS
 		/// Pet-only insta spells.
 		/// </summary>
 		public static string PetInstaSpellLine => "Necro Pet Insta Spells";
+
+		/// <summary>
+		/// Called when necro pet is hit to see if spellcasting is interrupted.
+		/// </summary>
+		/// <param name="ad">information about the attack</param>
+		public override void OnAttackedByEnemy(AttackData ad)
+		{
+			if (ad.AttackType == AttackData.eAttackType.Spell && ad.Damage > 0)
+			{
+				GamePlayer player = Owner as GamePlayer;
+				string modmessage = "";
+
+				if (ad.Modifier > 0)
+					modmessage = " (+" + ad.Modifier + ")";
+				else if (ad.Modifier < 0)
+					modmessage = " (" + ad.Modifier + ")";
+
+				player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "GameLiving.AttackData.HitsForDamage"), ad.Attacker.GetName(0, true), ad.Target.Name, ad.Damage, modmessage), eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+
+				if (ad.CriticalDamage > 0)
+					player.Out.SendMessage(string.Format(LanguageMgr.GetTranslation(player.Client.Account.Language, "GameLiving.AttackData.CriticallyHitsForDamage"), ad.Attacker.GetName(0, true), ad.Target.Name, ad.CriticalDamage), eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+			}
+
+			base.OnAttackedByEnemy(ad);
+		}
 
 		public override void ModifyAttack(AttackData attackData)
 		{
@@ -516,16 +546,16 @@ namespace DOL.GS
 				}
 				else
 				{
-					if (ActiveWeapon != null)
+					if ((item = Inventory.GetItem(eInventorySlot.RightHandWeapon)) != null)
 					{
-						ActiveWeapon.DPS_AF = (int)(Level * 3.3);
-						ActiveWeapon.SPD_ABS = 37;
+						item.DPS_AF = (int)(Level * 3.3);
+						item.SPD_ABS = 37;
 					}
 
-					if (ActiveLeftWeapon != null)
+					if ((item = Inventory.GetItem(eInventorySlot.LeftHandWeapon)) != null)
 					{
-						ActiveLeftWeapon.DPS_AF = (int)(Level * 3.3);
-						ActiveLeftWeapon.SPD_ABS = 37;
+						item.DPS_AF = (int)(Level * 3.3);
+						item.SPD_ABS = 37;
 					}
 
 					SwitchWeapon(eActiveWeaponSlot.Standard);

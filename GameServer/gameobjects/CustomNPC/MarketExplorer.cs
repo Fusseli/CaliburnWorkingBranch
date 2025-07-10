@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using DOL.Database;
 using DOL.GS.Housing;
 using DOL.GS.PacketHandler;
@@ -13,8 +12,7 @@ namespace DOL.GS
 
         public const string EXPLORER_ITEM_LIST = "MarketExplorerItems";
 
-        private readonly Lock _lock = new();
-        public Lock Lock => _lock;
+        public object LockObject { get; } = new();
 
         public override bool Interact(GamePlayer player)
         {
@@ -164,7 +162,7 @@ namespace DOL.GS
                 GameInventoryObjectExtensions.IsBackpackSlot(toClientSlot) &&
                 player.ActiveInventoryObject == this)
             {
-                List<DbInventoryItem> list = player.TempProperties.GetProperty<List<DbInventoryItem>>(EXPLORER_ITEM_LIST);
+                List<DbInventoryItem> list = player.TempProperties.GetProperty<List<DbInventoryItem>>(EXPLORER_ITEM_LIST, null);
 
                 if (list == null)
                     return false;

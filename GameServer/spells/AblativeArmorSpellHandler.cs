@@ -6,7 +6,7 @@ using DOL.Language;
 namespace DOL.GS.Spells
 {
 	// Melee ablative.
-	[SpellHandler(eSpellType.AblativeArmor)]
+	[SpellHandlerAttribute("AblativeArmor")]
 	public class AblativeArmorSpellHandler : SpellHandler
 	{
 		public AblativeArmorSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -137,7 +137,7 @@ namespace DOL.GS.Spells
 	}
 
 	// Magic Ablative.
-	[SpellHandler(eSpellType.MagicAblativeArmor)]
+	[SpellHandlerAttribute("MagicAblativeArmor")]
 	public class MagicAblativeArmorSpellHandler : AblativeArmorSpellHandler
 	{
 		public MagicAblativeArmorSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
@@ -162,7 +162,7 @@ namespace DOL.GS.Spells
 	}
 
 	// Both magic and melee ablative.
-	[SpellHandler(eSpellType.BothAblativeArmor)]
+	[SpellHandlerAttribute("BothAblativeArmor")]
 	public class BothAblativeArmorSpellHandler : AblativeArmorSpellHandler
 	{
 		public BothAblativeArmorSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) { }
