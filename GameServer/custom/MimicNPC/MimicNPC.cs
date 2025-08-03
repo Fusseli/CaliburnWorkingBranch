@@ -8188,6 +8188,31 @@ namespace DOL.GS.Scripts
             return IsWithinRadius((GameObject)enemy, range);
         }
 
+        /// <summary>
+        /// Override IsVisibleTo to properly handle stealth detection for MimicNPCs.
+        /// This ensures that when a MimicNPC is stealthed, other players must use 
+        /// their CanDetect() method to determine if they can see the MimicNPC,
+        /// following the same stealth rules as regular players.
+        /// </summary>
+        /// <param name="checkObject">The object checking visibility (usually a GamePlayer)</param>
+        /// <returns>true if the MimicNPC is visible to the checkObject</returns>
+        public override bool IsVisibleTo(GameObject checkObject)
+        {
+            // First check base visibility (region, house, etc.)
+            if (!base.IsVisibleTo(checkObject))
+                return false;
+
+            // If this MimicNPC is stealthed and the observer is a GamePlayer,
+            // use the player's CanDetect method to determine visibility
+            if (IsStealthed && checkObject is GamePlayer observingPlayer)
+            {
+                return observingPlayer.CanDetect(this);
+            }
+
+            // For non-stealthed MimicNPCs or non-player observers, use base visibility
+            return true;
+        }
+
         #endregion Stealth / Wireframe
 
         #region Equipment/Encumberance
