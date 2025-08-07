@@ -1,6 +1,7 @@
 using System;
 using DOL.GS.Keeps;
 using DOL.GS.RealmAbilities;
+using DOL.GS.Scripts;
 using DOL.GS.ServerProperties;
 
 namespace DOL.GS.PropertyCalc
@@ -19,7 +20,7 @@ namespace DOL.GS.PropertyCalc
     {
         public override int CalcValue(GameLiving living, eProperty property)
         {
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 int hpBase = player.CalculateMaxHealth(player.Level, player.GetModified(eProperty.Constitution));
                 int buffBonus = player.BaseBuffBonusCategory[(int) property];
@@ -28,7 +29,7 @@ namespace DOL.GS.PropertyCalc
                     buffBonus = (int) ((1 + buffBonus / -100.0) * hpBase) - hpBase;
 
                 int itemBonus = player.ItemBonus[(int) property];
-                int cap = GetItemBonusCap(player) + GetItemBonusCapIncrease(player);
+                int cap = GetItemBonusCap((GameLiving)player) + GetItemBonusCapIncrease((GameLiving)player);
                 itemBonus = Math.Min(itemBonus, cap);
 
                 if (player.HasAbility(Abilities.ScarsOfBattle) && player.Level >= 40)

@@ -18,6 +18,7 @@
  */
 using System;
 using System.Reflection;
+using DOL.GS.Scripts;
 using log4net;
 
 namespace DOL.GS.PropertyCalc
@@ -38,9 +39,9 @@ namespace DOL.GS.PropertyCalc
 
 		public override int CalcValue(GameLiving living, eProperty property) 
 		{
-			if (living is GamePlayer) 
+			if (living is IGamePlayer) 
 			{
-				GamePlayer player = living as GamePlayer;
+				IGamePlayer player = living as IGamePlayer;
 				if (player.CharacterClass.ManaStat == eStat.UNDEFINED) 
                     return 1000000;
 

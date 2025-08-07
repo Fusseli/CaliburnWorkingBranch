@@ -18,6 +18,7 @@
  */
 
 using System;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {
@@ -63,7 +64,7 @@ namespace DOL.GS.PropertyCalc
 
             buffBonus -= Math.Abs(debuff);
 
-            if (buffBonus < 0 && living is GamePlayer)
+            if (buffBonus < 0 && living is IGamePlayer)
             {
                 itemBonus += buffBonus / 2;
                 buffBonus = 0;
@@ -85,7 +86,7 @@ namespace DOL.GS.PropertyCalc
         {
             int propertyIndex = (int)property;
             int debuff = Math.Abs(living.DebuffCategory[propertyIndex]);
-            int racialBonus = (living is GamePlayer) ? SkillBase.GetRaceResist(((living as GamePlayer).Race), (eResist)property) : 0;
+            int racialBonus = (living is IGamePlayer) ? SkillBase.GetRaceResist(((living as IGamePlayer).Race), (eResist)property) : 0;
             int itemBonus = CalcValueFromItems(living, property);
             int buffBonus = CalcValueFromBuffs(living, property);
 
@@ -130,7 +131,7 @@ namespace DOL.GS.PropertyCalc
 
             buffBonus -= Math.Abs(debuff);
 
-            if (living is GamePlayer && buffBonus < 0)
+            if (living is IGamePlayer && buffBonus < 0)
             {
                 itemBonus += buffBonus / 2;
                 buffBonus = 0;
@@ -246,7 +247,7 @@ namespace DOL.GS.PropertyCalc
 
             buffBonus -= Math.Abs(debuff);
 
-            if (living is GamePlayer && buffBonus < 0)
+            if (living is IGamePlayer && buffBonus < 0)
             {
                 itemBonus += buffBonus / 2;
                 buffBonus = 0;

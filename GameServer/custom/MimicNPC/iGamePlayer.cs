@@ -169,6 +169,7 @@ namespace DOL.GS.Scripts
         public int PowerRegenStackingBonus { get; set; }
 
         public int Endurance { get; set; }
+        public int DBMaxEndurance { get; set; }
         public short MaxSpeedBase { get; set; }
 
         public int Strength { get; }

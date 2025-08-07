@@ -1,4 +1,5 @@
 using System;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {
@@ -16,10 +17,8 @@ namespace DOL.GS.PropertyCalc
 	{
 		public override int CalcValue(GameLiving living, eProperty property)
 		{
-			if (living is GamePlayer)
+			if (living is IGamePlayer player)
 			{
-				GamePlayer player = living as GamePlayer;
-
 				int endurance = player.DBMaxEndurance;
 				endurance += (int)(endurance * (Math.Min(15, living.ItemBonus[(int)property]) * .01));
 				return endurance;

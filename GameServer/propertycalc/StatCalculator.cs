@@ -18,6 +18,7 @@
  */
 
 using System;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {
@@ -46,7 +47,7 @@ namespace DOL.GS.PropertyCalc
             int deathConDebuff = 0;
             GameLiving livingToCheck; // Used to get item and ability bonuses from the owner of a Necromancer pet.
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (property == (eProperty) player.CharacterClass.ManaStat)
                 {
@@ -55,7 +56,7 @@ namespace DOL.GS.PropertyCalc
                 }
 
                 deathConDebuff = player.TotalConstitutionLostAtDeath;
-                livingToCheck = player;
+                livingToCheck = (GameLiving)player;
             }
             else if (living is NecromancerPet necromancerPet)
                 livingToCheck = necromancerPet.Owner ?? living;
@@ -85,7 +86,7 @@ namespace DOL.GS.PropertyCalc
             int baseBuffBonus = living.BaseBuffBonusCategory[propertyIndex];
             int specBuffBonus = living.SpecBuffBonusCategory[propertyIndex];
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (property == (eProperty) player.CharacterClass.ManaStat)
                 {
@@ -95,8 +96,8 @@ namespace DOL.GS.PropertyCalc
             }
 
             // Caps and cap increases. Only players actually have a buff bonus cap, pets don't.
-            int baseBuffBonusCap = (living is GamePlayer) ? (int)(living.Level * 1.25) : short.MaxValue;
-            int specBuffBonusCap = (living is GamePlayer) ? (int)(living.Level * 1.5 * 1.25) : short.MaxValue;
+            int baseBuffBonusCap = (living is IGamePlayer) ? (int)(living.Level * 1.25) : short.MaxValue;
+            int specBuffBonusCap = (living is IGamePlayer) ? (int)(living.Level * 1.5 * 1.25) : short.MaxValue;
 
             baseBuffBonus = Math.Min(baseBuffBonus, baseBuffBonusCap);
             specBuffBonus = Math.Min(specBuffBonus, specBuffBonusCap);
@@ -111,7 +112,7 @@ namespace DOL.GS.PropertyCalc
             int itemBonus = living.ItemBonus[(int) property];
             int itemBonusCap = GetItemBonusCap(living);
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (property == (eProperty) player.CharacterClass.ManaStat)
                 {
@@ -138,7 +139,7 @@ namespace DOL.GS.PropertyCalc
             int itemBonusCapIncreaseCap = GetItemBonusCapIncreaseCap(living);
             int itemBonusCapIncrease = living.ItemBonus[(int)(eProperty.StatCapBonus_First - eProperty.Stat_First + property)];
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (property == (eProperty) player.CharacterClass.ManaStat)
                 {
@@ -159,7 +160,7 @@ namespace DOL.GS.PropertyCalc
             int mythicalItemBonusCapIncrease = living.ItemBonus[(int) (eProperty.MythicalStatCapBonus_First - eProperty.Stat_First + property)];
             int itemBonusCapIncrease = GetItemBonusCapIncrease(living, property);
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (property == (eProperty) player.CharacterClass.ManaStat)
                 {

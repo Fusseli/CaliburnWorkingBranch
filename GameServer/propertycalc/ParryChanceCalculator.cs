@@ -18,6 +18,7 @@
  */
 
 using DOL.AI.Brain;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {
@@ -37,7 +38,7 @@ namespace DOL.GS.PropertyCalc
         {
             int chance = 0;
 
-            if (living is GamePlayer player)
+            if (living is IGamePlayer player)
             {
                 if (player.HasSpecialization(Specs.Parry))
                     chance += (player.Dexterity * 2 - 100) / 4 + (player.GetModifiedSpecLevel(Specs.Parry) - 1) * (10 / 2) + 50;

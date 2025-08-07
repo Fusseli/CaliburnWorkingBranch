@@ -17,6 +17,7 @@
  *
  */
 using System;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.PropertyCalc
 {
@@ -38,12 +39,12 @@ namespace DOL.GS.PropertyCalc
 
 		public override int CalcValue(GameLiving living, eProperty property)
 		{
-			if (living is GamePlayer)
+			if (living is IGamePlayer)
 			{
 				int itemBonus = living.ItemBonus[(int)property];
 				int focusLevel = living.BaseBuffBonusCategory[(int)property];
 				if (SkillBase.CheckPropertyType(property, ePropertyType.Focus)
-				 && ((GamePlayer)living).CharacterClass.ClassType == eClassType.ListCaster)
+				 && ((IGamePlayer)living).CharacterClass.ClassType == eClassType.ListCaster)
 				{
 					focusLevel += living.BaseBuffBonusCategory[(int)eProperty.AllFocusLevels];
 					itemBonus = Math.Max(itemBonus, living.ItemBonus[(int)eProperty.AllFocusLevels]);

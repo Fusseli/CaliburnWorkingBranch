@@ -1,3 +1,5 @@
+using DOL.GS.Scripts;
+
 namespace DOL.GS.PropertyCalc
 {
     /// <summary>
@@ -34,7 +36,7 @@ namespace DOL.GS.PropertyCalc
                 else if (npc is not NecromancerPet)
                     regen *= 5;
             }
-            else if (living is GamePlayer)
+            else if (living is IGamePlayer)
             {
                 if (living.IsSitting)
                     regen *= 1.75;
