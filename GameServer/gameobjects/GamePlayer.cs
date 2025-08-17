@@ -14842,12 +14842,31 @@ namespace DOL.GS
         }
         #endregion
 
-		#region Constructors
-		/// <summary>
-		/// Returns the string representation of the GamePlayer
-		/// </summary>
-		/// <returns></returns>
-		public override string ToString()
+        #region Artifacts
+
+        /// <summary>
+        /// Checks if the player's class has at least one version of the artifact specified available to them.
+        /// </summary>
+        /// <param name="artifactID"></param>
+        /// <returns>True when at least one version exists, false when no versions are available.</returns>
+        public bool CanReceiveArtifact(string artifactID)
+        {
+            Dictionary<String, DbItemTemplate> possibleVersions = ArtifactMgr.GetArtifactVersions(artifactID, (eCharacterClass)CharacterClass.ID, Realm);
+
+            if (possibleVersions.Count == 0)
+                return false;
+
+            return true;
+        }
+
+        #endregion
+
+        #region Constructors
+        /// <summary>
+        /// Returns the string representation of the GamePlayer
+        /// </summary>
+        /// <returns></returns>
+        public override string ToString()
 		{
 			return new StringBuilder(base.ToString())
 				.Append(" class=").Append(CharacterClass.Name)

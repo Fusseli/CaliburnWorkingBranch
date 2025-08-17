@@ -756,9 +756,13 @@ namespace DOL.GS
 				if (!InitComponent(RelicMgr.Init(), "Relic Manager"))
 					return false;
 
-				//---------------------------------------------------------------
-				//Load all crafting managers
-				if (!InitComponent(CraftingMgr.Init(), "Crafting Managers"))
+                //---------------------------------------------------------------
+                //Load artifact manager
+                InitComponent(ArtifactMgr.Init(), "Artifact Manager");
+
+                //---------------------------------------------------------------
+                //Load all crafting managers
+                if (!InitComponent(CraftingMgr.Init(), "Crafting Managers"))
 					return false;
 
 				//---------------------------------------------------------------
