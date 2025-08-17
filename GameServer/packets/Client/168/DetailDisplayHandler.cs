@@ -121,8 +121,13 @@ namespace DOL.GS.PacketHandler.Client.v168
 						if (client.Player.DelveItem(invItem, objectInfo))
 							break;
 
-						#region Old Delve
-						
+                        #region Old Delve
+
+                        if (invItem is InventoryArtifact artifact)
+                        {
+                            artifact.Delve(objectInfo, client.Player);
+                            break;
+                        }
 
 						//**********************************
 						//show crafter name

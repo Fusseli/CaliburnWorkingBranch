@@ -3397,9 +3397,36 @@ namespace DOL.GS
                         }
                     }
 
-                    loot = new GameMoney(value, this);
-                    loot.Name = lootTemplate.Name;
-                    loot.Model = (ushort)lootTemplate.Model;
+					loot = new GameMoney(value, this);
+					loot.Name = lootTemplate.Name;
+					loot.Model = (ushort)lootTemplate.Model;
+				}
+                else if (lootTemplate.Name.StartsWith("scroll|"))
+                {
+                    String[] scrollData = lootTemplate.Name.Split('|');
+
+                    if (scrollData.Length >= 3)
+                    {
+                        String artifactID = scrollData[1];
+                        int pageNumber = UInt16.Parse(scrollData[2]);
+                        loot = ArtifactMgr.CreateScroll(artifactID, pageNumber);
+                    }
+
+                    if (loot == null)
+                    {
+                        log.Error($"Artifact scroll could not be created for data string [{lootTemplate.Name}]");
+                        continue;
+                    }
+                    else
+                    {
+                        loot.X = X;
+                        loot.Y = Y;
+                        loot.Z = Z;
+                        loot.Heading = Heading;
+                        loot.CurrentRegion = CurrentRegion;
+                        (loot as WorldInventoryItem).Item.IsCrafted = false;
+                        (loot as WorldInventoryItem).Item.Creator = Name;
+                    }
                 }
                 else
                 {

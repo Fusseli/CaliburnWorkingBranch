@@ -81,32 +81,38 @@ namespace DOL.GS
 								continue;
 							}
 
-							// Depending on whether or not the item is an artifact we will
-							// create different types of inventory items. That way we can speed
-							// up item type checks and implement item delve information in
-							// a natural way, i.e. through inheritance.
+                            // Depending on whether or not the item is an artifact we will
+                            // create different types of inventory items. That way we can speed
+                            // up item type checks and implement item delve information in
+                            // a natural way, i.e. through inheritance.
 
-							// Tolakram - Leaving this functionality as is for now.  InventoryArtifact now inherits from
-							// GameInventoryItem and utilizes the new Delve system.  No need to set ClassType for all artifacts when
-							// this code works fine as is.
+                            // Tolakram - Leaving this functionality as is for now.  InventoryArtifact now inherits from
+                            // GameInventoryItem and utilizes the new Delve system.  No need to set ClassType for all artifacts when
+                            // this code works fine as is.
 
+                            if (ArtifactMgr.IsArtifact(item))
+                            {
+                                m_items.Add(itemSlot, new InventoryArtifact(item));
+                            }
+                            else
+                            {
+                                GameInventoryItem playerItem = GameInventoryItem.Create(item);
 
-							GameInventoryItem playerItem = GameInventoryItem.Create(item);
-
-							if (playerItem.CheckValid(m_player))
-							{
-								m_items.Add(itemSlot, playerItem as DbInventoryItem);
-							}
-							else
-							{
-								Log.ErrorFormat("Item '{0}', ClassType '{1}' failed valid test for player '{2}'!", item.Name, item.ClassType, m_player.Name);
-								GameInventoryItem invalidItem = new GameInventoryItem();
-								invalidItem.Name = "Invalid Item";
-								invalidItem.OwnerID = item.OwnerID;
-								invalidItem.SlotPosition = item.SlotPosition;
-								invalidItem.AllowAdd = false;
-								m_items.Add(itemSlot, invalidItem);
-							}
+                                if (playerItem.CheckValid(m_player))
+							    {
+								    m_items.Add(itemSlot, playerItem as DbInventoryItem);
+							    }
+							    else
+							    {
+							   	    Log.ErrorFormat("Item '{0}', ClassType '{1}' failed valid test for player '{2}'!", item.Name, item.ClassType, m_player.Name);
+								    GameInventoryItem invalidItem = new GameInventoryItem();
+								    invalidItem.Name = "Invalid Item";
+								    invalidItem.OwnerID = item.OwnerID;
+								    invalidItem.SlotPosition = item.SlotPosition;
+								    invalidItem.AllowAdd = false;
+								    m_items.Add(itemSlot, invalidItem);
+                                }
+                            }
 
 							if (Log.IsWarnEnabled)
 							{
