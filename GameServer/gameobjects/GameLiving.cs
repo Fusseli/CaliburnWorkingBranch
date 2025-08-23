@@ -1631,7 +1631,17 @@ namespace DOL.GS
 				}
 			}*/
 
-            bool wasAlive = IsAlive;
+			bool wasAlive = IsAlive;
+
+			if (Health - damageAmount + criticalAmount < 0)
+			{
+				var cheatDeath = effectListComponent.GetAllEffects().FirstOrDefault(eff => eff.EffectType == eEffect.CheatDeath);
+				if (cheatDeath != null && Util.Chance((int) cheatDeath.Effectiveness))
+				{
+					if(this is GamePlayer p) p.Out.SendMessage($"You have cheated death.", eChatType.CT_Spell, eChatLoc.CL_SystemWindow);
+					return;
+				} 
+			}
 
             Health -= damageAmount + criticalAmount;
 

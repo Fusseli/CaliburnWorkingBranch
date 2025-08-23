@@ -4010,9 +4010,9 @@ namespace DOL.GS
 			{
 				m_styles = value;
                 // Kaedius - Not sure where to put these
-                //m_styles.Add(SkillBase.GetStyleByID(342, 23));
-                //m_styles.Add(SkillBase.GetStyleByID(106, 1));
-                //m_styles.Add(SkillBase.GetStyleByID(133, 1));
+                m_styles.Add(SkillBase.GetStyleByID(342, 23));
+                m_styles.Add(SkillBase.GetStyleByID(106, 1));
+                m_styles.Add(SkillBase.GetStyleByID(133, 1));
 				SortStyles();
 			}
 		}

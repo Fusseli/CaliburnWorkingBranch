@@ -245,7 +245,7 @@ namespace DOL.GS
         TargetModifier = 239,
         Tartaros = 240,
         Costume = 241,
-        BeltOfLight = 242,
+        BeltOfSun = 242,
         OmniLifedrain = 243,
         SummonTrebuchet = 244,
         Call = 245,
@@ -373,6 +373,9 @@ namespace DOL.GS
         Zephyr = 367,
         ZoAura = 368,
         ZoSummon = 369,
-        Null = 370
+        Null = 370,
+        HealFlask = 371,
+        DeadFlask = 372,
+        AtlantisTabletMorph = 373
     }
 }

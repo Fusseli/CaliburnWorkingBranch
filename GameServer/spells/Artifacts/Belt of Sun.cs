@@ -1,3 +1,22 @@
+/*
+* DAWN OF LIGHT - The first free open source DAoC server emulator
+*
+* This program is free software; you can redistribute it and/or
+* modify it under the terms of the GNU General Public License
+* as published by the Free Software Foundation; either version 2
+* of the License, or (at your option) any later version.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU General Public License for more details.
+*
+* You should have received a copy of the GNU General Public License
+* along with this program; if not, write to the Free Software
+* Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*
+*/
+
 using System;
 using DOL.Database;
 using DOL.Events;
@@ -457,7 +476,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunCrush = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
+                m_SunCrush = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
                 if (m_SunCrush == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Crush, loading it ...");
@@ -504,7 +523,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunSlash = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
+                m_SunSlash = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
                 if (m_SunSlash == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Slash, loading it ...");
@@ -551,7 +570,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunThrust = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Thrust");
+                m_SunThrust = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Thrust");
                 if (m_SunThrust == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Thrust, loading it ...");
@@ -598,7 +617,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunFlexScytheClaw = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Flex");
+                m_SunFlexScytheClaw = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Flex");
                 if (m_SunFlexScytheClaw == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Flex, loading it ...");
@@ -645,7 +664,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunPolearmSpear = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Polearm");
+                m_SunPolearmSpear = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Polearm");
                 if (m_SunPolearmSpear == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Polearm, loading it ...");
@@ -692,7 +711,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunTwoHanded = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
+                m_SunTwoHanded = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
                 if (m_SunTwoHanded == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_TwoHanded, loading it ...");
@@ -739,7 +758,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunBow = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
+                m_SunBow = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
                 if (m_SunBow == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Bow, loading it ...");
@@ -786,7 +805,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunStaff = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Staff");
+                m_SunStaff = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Staff");
                 if (m_SunStaff == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Staff, loading it ...");
@@ -833,7 +852,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunMStaff = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_MStaff");
+                m_SunMStaff = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_MStaff");
                 if (m_SunMStaff == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_MStaff, loading it ...");
@@ -880,7 +899,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunMFist = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_MFist");
+                m_SunMFist = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_MFist");
                 if (m_SunMFist == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_MFist, loading it ...");
@@ -929,7 +948,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunCrush = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
+                m_SunCrush = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
                 if (m_SunCrush == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Crush, loading it ...");
@@ -976,7 +995,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunSlash = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
+                m_SunSlash = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
                 if (m_SunSlash == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Slash, loading it ...");
@@ -1023,7 +1042,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunAxe = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Axe");
+                m_SunAxe = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Axe");
                 if (m_SunAxe == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Axe, loading it ...");
@@ -1070,7 +1089,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunLeftAxe = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_LeftAxe");
+                m_SunLeftAxe = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_LeftAxe");
                 if (m_SunLeftAxe == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_LeftAxe, loading it ...");
@@ -1117,7 +1136,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunFlexScytheClaw = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Claw");
+                m_SunFlexScytheClaw = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Claw");
                 if (m_SunFlexScytheClaw == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Claw, loading it ...");
@@ -1164,7 +1183,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunPolearmSpear = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Spear");
+                m_SunPolearmSpear = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Spear");
                 if (m_SunPolearmSpear == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Spear, loading it ...");
@@ -1211,7 +1230,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunTwoHanded = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
+                m_SunTwoHanded = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
                 if (m_SunTwoHanded == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_TwoHanded, loading it ...");
@@ -1258,7 +1277,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunBow = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
+                m_SunBow = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
                 if (m_SunBow == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Bow, loading it ...");
@@ -1305,7 +1324,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_Sun2HCrush = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_2HCrush");
+                m_Sun2HCrush = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_2HCrush");
                 if (m_Sun2HCrush == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_2HCrush, loading it ...");
@@ -1352,7 +1371,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_Sun2HAxe = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_2HAxe");
+                m_Sun2HAxe = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_2HAxe");
                 if (m_Sun2HAxe == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_2HAxe, loading it ...");
@@ -1402,7 +1421,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunCrush = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
+                m_SunCrush = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Crush");
                 if (m_SunCrush == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Crush, loading it ...");
@@ -1449,7 +1468,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunSlash = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
+                m_SunSlash = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Slash");
                 if (m_SunSlash == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Slash, loading it ...");
@@ -1496,7 +1515,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunThrust = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Thrust");
+                m_SunThrust = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Thrust");
                 if (m_SunThrust == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Thrust, loading it ...");
@@ -1544,7 +1563,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunFlexScytheClaw = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Scythe");
+                m_SunFlexScytheClaw = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Scythe");
                 if (m_SunFlexScytheClaw == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Scythe, loading it ...");
@@ -1591,7 +1610,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunPolearmSpear = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Spear");
+                m_SunPolearmSpear = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Spear");
                 if (m_SunPolearmSpear == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Spear, loading it ...");
@@ -1638,7 +1657,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunTwoHanded = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
+                m_SunTwoHanded = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_TwoHanded");
                 if (m_SunTwoHanded == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_TwoHanded, loading it ...");
@@ -1685,7 +1704,7 @@ namespace DOL.GS.Spells
         {
             get
             {
-                m_SunBow = (DbItemTemplate)GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
+                m_SunBow = GameServer.Database.FindObjectByKey<DbItemTemplate>("Sun_Bow");
                 if (m_SunBow == null)
                 {
                     if (log.IsWarnEnabled) log.Warn("Could not find Sun_Bow, loading it ...");
