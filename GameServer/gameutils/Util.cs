@@ -1,9 +1,12 @@
+using Microsoft.Diagnostics.Runtime;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 
 namespace DOL.GS
 {
@@ -218,6 +221,39 @@ namespace DOL.GS
         }
 
         #endregion
+
+        public static string GetFormattedStackTraceFrom(Thread targetThread)
+        {
+            var sb = new StringBuilder();
+            try
+            {
+                var dt = DataTarget.AttachToProcess(Process.GetCurrentProcess().Id, false);
+                var rt = dt.ClrVersions.Single().CreateRuntime();
+                ClrThread clrThread = null;
+                foreach (var t in rt.Threads)
+                {
+                    if (t.ManagedThreadId == targetThread.ManagedThreadId)
+                    {
+                        clrThread = t;
+                        break;
+                    }
+                }
+                foreach (var frame in clrThread.EnumerateStackTrace())
+                {
+                    var method = frame.Method;
+                    if (method != null)
+                    {
+                        sb.AppendLine($"   at {method.Signature}");
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                return e.StackTrace;
+            }
+            return sb.ToString();
+        }
+
     }
 
     public static class Extensions

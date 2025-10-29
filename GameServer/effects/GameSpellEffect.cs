@@ -158,6 +158,7 @@ namespace DOL.GS.Effects
 		/// The timer for pulsing effects
 		/// </summary>
 		protected ECSPulseEffect m_timer;
+		protected PETimer m_PEtimer;
 		#endregion
 
 		#region public Getters
@@ -741,5 +742,106 @@ namespace DOL.GS.Effects
 			return string.Format("Duration={0}, Owner.Name={1}, PulseFreq={2}, RemainingTime={3}, Effectiveness={4}, m_expired={5}\nSpellHandler info: {6}",
 			                     Duration, Owner == null ? "(null)" : Owner.Name, PulseFreq, RemainingTime, Effectiveness, m_expired, SpellHandler == null ? "(null)" : SpellHandler.ToString());
 		}
-	}
+
+        /// <summary>
+        /// Restart Timers after a Region Froze
+        /// </summary>
+        public virtual void RestartTimers()
+        {
+            lock (m_LockObject)
+            {
+                if (m_PEtimer != null)
+                {
+                    Duration = (int)Math.Max(1, Duration - (GameTimer.GetTickCount() - m_PEtimer.LastStartedTick));
+                    StartTimers();
+                }
+            }
+
+            UpdateEffect();
+        }
+        #region timer subclass		
+        /// <summary>
+        /// Handles effect pulses
+        /// </summary>
+        protected sealed class PETimer : GameTimer
+        {
+            /// <summary>
+            /// The pulsing effect
+            /// </summary>
+            private readonly GameSpellEffect m_effect;
+
+            /// <summary>
+            /// The time in milliseconds since timer start
+            /// </summary>
+            private int m_timeSinceStart;
+
+            /// <summary>
+            /// Gets the effect remaining time, decreased every interval
+            /// </summary>
+            public int TimeSinceStart
+            {
+                get { return IsAlive ? m_timeSinceStart - TimeUntilElapsed : 0; }
+            }
+
+            /// <summary>
+            /// Get tick when effect Last Started.
+            /// </summary>
+            public long LastStartedTick
+            {
+                get;
+                private set;
+            }
+
+            /// <summary>
+            /// Constructs a new pulsing timer
+            /// </summary>
+            /// <param name="effect">The pulsing effect</param>
+            public PETimer(GameSpellEffect effect) : base(effect.m_owner.CurrentRegion.TimeManager)
+            {
+                if (effect == null)
+                    throw new ArgumentNullException("effect");
+                m_effect = effect;
+            }
+
+            /// <summary>
+            /// Starts the timer with defined initial delay
+            /// </summary>
+            /// <param name="initialDelay">The initial timer delay. Must be more than 0 and less than MaxInterval</param>
+            public override void Start(int initialDelay)
+            {
+                base.Start(initialDelay);
+                m_timeSinceStart = initialDelay;
+                LastStartedTick = GameTimer.GetTickCount();
+            }
+
+            /// <summary>
+            /// Called on every timer tick
+            /// </summary>
+            protected override void OnTick()
+            {
+                if (m_effect.Concentration > 0 || m_timeSinceStart < m_effect.Duration)
+                {
+                    m_timeSinceStart += Interval;
+                    if (m_timeSinceStart > m_effect.Duration)
+                        Interval = m_timeSinceStart - m_effect.Duration;
+                    m_effect.PulseCallback();
+                }
+                else
+                {
+                    Stop();
+                    m_effect.ExpiredCallback();
+                }
+            }
+
+            /// <summary>
+            /// Returns short information about the timer
+            /// </summary>
+            /// <returns>Short info about the timer</returns>
+            public override string ToString()
+            {
+                return string.Format(" effect: ({0})", m_effect);
+            }
+        }
+        #endregion
+    }
 }

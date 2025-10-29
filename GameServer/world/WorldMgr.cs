@@ -157,6 +157,11 @@ namespace DOL.GS
 			get { return m_zones; }
 		}
 
+        /// <summary>
+        /// This array holds all gameclients connected to the game
+        /// </summary>
+        private static GameClient[] m_clients = Array.Empty<GameClient>();
+
 		private static DayNightCycleTimer _dayNightCycleTimer;
 
 		/// <summary>
@@ -230,11 +235,16 @@ namespace DOL.GS
 		/// </summary>
 		private const string ENTRY_ZONE_LAVA = "IsLava";
 
-		/// <summary>
-		/// Initializes the most important things that is needed for some code
-		/// </summary>
-		/// <param name="regionsData">The loaded regions data</param>
-		public static bool EarlyInit(out RegionData[] regionsData)
+        /// <summary>
+        /// Holds all region timers
+        /// </summary>
+        private static GameTimer.TimeManager[] m_regionTimeManagers;
+
+        /// <summary>
+        /// Initializes the most important things that is needed for some code
+        /// </summary>
+        /// <param name="regionsData">The loaded regions data</param>
+        public static bool EarlyInit(out RegionData[] regionsData)
 		{
 			log.Debug(GC.GetTotalMemory(true) / 1024 / 1024 + "MB - World Manager: EarlyInit");
 
@@ -455,6 +465,17 @@ namespace DOL.GS
 			}
 			return true;
 		}
+
+        /// <summary>
+        /// Gets all region time managers
+        /// </summary>
+        /// <returns>A copy of region time managers array</returns>
+        public static GameTimer.TimeManager[] GetRegionTimeManagers()
+        {
+            GameTimer.TimeManager[] timers = m_regionTimeManagers;
+            if (timers == null) return Array.Empty<GameTimer.TimeManager>();
+            return (GameTimer.TimeManager[])timers.Clone();
+        }
 
 #if NETFRAMEWORK
 		[Obsolete("Please use GetFormattedRelocateRegionsStackTrace() instead.")]
@@ -839,13 +860,25 @@ namespace DOL.GS
 			return reg.Objects.OfType<GameNPC>().Where(npc => npc.Realm == realm && type.IsInstanceOfType(npc)).ToList();
 		}
 
-		/// <summary>
-		/// Fetch an Object from a specific Region by it's ID
-		/// </summary>
-		/// <param name="regionID">Region ID of Region to search through</param>
-		/// <param name="oID">Object ID to search</param>
-		/// <returns>GameObject found in the Region or null</returns>
-		public static GameObject GetObjectByIDFromRegion(ushort regionID, ushort oID)
+        /// <summary>
+        /// Gets a copy of ALL clients no matter at what state they are
+        /// </summary>
+        /// <returns>ArrayList of GameClients</returns>
+        public static IList<GameClient> GetAllClients()
+        {
+            lock (m_clients.SyncRoot)
+            {
+                return m_clients.Where(c => c != null).ToList();
+            }
+        }
+
+        /// <summary>
+        /// Fetch an Object from a specific Region by it's ID
+        /// </summary>
+        /// <param name="regionID">Region ID of Region to search through</param>
+        /// <param name="oID">Object ID to search</param>
+        /// <returns>GameObject found in the Region or null</returns>
+        public static GameObject GetObjectByIDFromRegion(ushort regionID, ushort oID)
 		{
 			Region reg = GetRegion(regionID);
 			if (reg == null)
@@ -913,7 +946,59 @@ namespace DOL.GS
 			return reg.GetItemsInRadius(new Point3D(x, y ,z), radiusToCheck);
 		}
 
-		#region Instances
+        /// <summary>
+        /// Removes a GameClient and free's it's ID again!
+        /// </summary>
+        /// <param name="entry">The GameClient to be removed</param>
+        public static void RemoveClient(GameClient entry)
+        {
+            if (entry == null)
+                return;
+            int sessionid = -1;
+            int i = 1;
+            lock (m_clients.SyncRoot)
+            {
+                foreach (GameClient client in m_clients)
+                {
+                    if (client == entry)
+                    {
+                        sessionid = i;
+                        break;
+                    }
+                    i++;
+                }
+            }
+
+            // do NOT remove sessionid in lock of clients
+            // or a deadlock can occur under certain circumstances!
+            if (sessionid > 0)
+            {
+                RemoveSessionID(sessionid);
+            }
+        }
+
+        /// <summary>
+        /// Removes a GameClient based on it's ID
+        /// </summary>
+        /// <param name="id">The SessionID to free</param>
+        public static void RemoveSessionID(int id)
+        {
+            GameClient client;
+            lock (m_clients.SyncRoot)
+            {
+                client = m_clients[id - 1];
+                m_clients[id - 1] = null;
+            }
+            if (client == null)
+                return;
+            if (client.Player == null)
+                return;
+            //client.Player.RemoveFromWorld();
+            client.Player.Delete();
+            return;
+        }
+
+        #region Instances
 
 		//Dinberg: We must now store the region data here. This is incase admins wish to create instances
 		//that require information from regions Data, like instance of underwater ToA areas as a prime

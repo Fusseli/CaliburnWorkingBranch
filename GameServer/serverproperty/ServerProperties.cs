@@ -60,10 +60,16 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("system", "enable_debug", "Enable Debug mode? Used to alter some features during server startup to make debugging easier", false)]
 		public static bool ENABLE_DEBUG;
 
-		/// <summary>
-		/// Use raw RNG instead of Deck of Cards
-		/// </summary>
-		[ServerProperty("system", "override_deck_rng", "Should we use raw RNG instead of Deck-Of-Cards normalization?", false)]
+        /// <summary>
+        /// Whether to use the sync timer utility or not
+        /// </summary>
+        [ServerProperty("system", "use_sync_timer", "Shall we use the sync timers utility?", true)]
+        public static bool USE_SYNC_UTILITY;
+
+        /// <summary>
+        /// Use raw RNG instead of Deck of Cards
+        /// </summary>
+        [ServerProperty("system", "override_deck_rng", "Should we use raw RNG instead of Deck-Of-Cards normalization?", false)]
 		public static bool OVERRIDE_DECK_RNG;
 
 		/// <summary>
@@ -2318,8 +2324,11 @@ namespace DOL.GS.ServerProperties
 
 		[ServerProperty("spells", "spell_interrupt_maxstagelength", "Max length of stage 1 and 3, 1000 = 1 second", 1500)]
 		public static int SPELL_INTERRUPT_MAXSTAGELENGTH;
-		
-		[ServerProperty("spells", "spell_charm_named_check", "Prevents charm spell to work on Named Mobs, 0 = disable, 1 = enable", 1)]
+
+        [ServerProperty("spells", "spell_interrupt_max_intermediate_stagelength", "Max length of stage 2, 1000 = 1 second. 999999 to disable", 3000)]
+        public static int SPELL_INTERRUPT_MAX_INTERMEDIATE_STAGELENGTH;
+
+        [ServerProperty("spells", "spell_charm_named_check", "Prevents charm spell to work on Named Mobs, 0 = disable, 1 = enable", 1)]
 		public static int SPELL_CHARM_NAMED_CHECK;
 
 		#endregion

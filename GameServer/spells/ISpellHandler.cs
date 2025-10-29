@@ -6,9 +6,19 @@ namespace DOL.GS.Spells
 {
 	public interface ISpellHandler
 	{
-		GameLiving Target { get; }
+		eCastState CastState { get; set; }
+		GameLiving Target { get; set; }
+		bool HasLos { get; set; }
 
         ECSGameSpellEffect CreateECSEffect(ECSGameEffectInitParams initParams);
+
+        /// <summary>
+        /// Called when a spell is casted
+        /// </summary>
+        bool CastSpell();
+        bool CastSpell(DbInventoryItem item);
+        bool CastSpell(GameLiving target);
+        bool CastSpell(GameLiving target, DbInventoryItem item);
 
         /// <summary>
         /// Starts the spell, without displaying cast message etc.
@@ -120,7 +130,12 @@ namespace DOL.GS.Spells
         /// </summary>
         bool AllowCoexisting { get; }
 
-		long CastStartTick { get; }
+		/// <summary>
+		/// Does this spell ignore all damage caps?
+		/// </summary>
+		bool IgnoreDamageCap { get; set; }
+
+	    long CastStartTick { get; }
 		/// <summary>
 		/// Should this spell use the minimum variance for the type?
 		/// Followup style effects, for example, always use the minimum variance
@@ -205,6 +220,11 @@ namespace DOL.GS.Spells
         /// Current depth of delve info
         /// </summary>
         byte DelveInfoDepth { get; set; }
+
+        /// <summary>
+        /// Event raised when casting sequence is completed and execution of spell can start
+        /// </summary>
+        event CastingCompleteCallback CastingCompleteEvent;
 
         DbPlayerXEffect GetSavedEffect(GameSpellEffect e);
         void OnEffectRestored(GameSpellEffect effect, int[] RestoreVars);

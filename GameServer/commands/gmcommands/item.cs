@@ -67,7 +67,8 @@ namespace DOL.GS.Commands
 	     "/item saveunique <id_nb> <slot> - update a unique item",
 	     "GMCommands.Item.Usage.FindID",
 	     "GMCommands.Item.Usage.FindName",
-	     "/item load <id_nb> - Load an item from the DB and replace or add item to the ItemTemplate cache",
+         "/item loadartifacts - Re-load all the artifact entries from the DB.  ItemTemplates must be loaded separately and prior to loading artifacts.",
+         "/item load <id_nb> - Load an item from the DB and replace or add item to the ItemTemplate cache",
 	     "/item loadpackage <packageid> | **all** - Load all the items in a package from the DB and replace or add to the ItemTemplate cache. **all** is loading all items [! SLOW !]",
 	     "/item loadspells - Read each item spell from the database and update the global spell list")]
 	public class ItemCommandHandler : AbstractCommandHandler, ICommandHandler
@@ -1945,6 +1946,13 @@ namespace DOL.GS.Commands
 							break;
 						}
 						#endregion LoadPackage
+						#region LoadArtifacts
+					case "loadartifacts":
+						{
+							DisplayMessage(client, "{0} Artifacts re-loaded.", DOL.GS.ArtifactMgr.LoadArtifacts());
+						}
+						break;
+						#endregion LoadArtifacts
 						#region LoadSpells
 					case "loadspells":
 						{

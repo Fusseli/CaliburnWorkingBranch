@@ -15,6 +15,7 @@ using DOL.GS.PacketHandler;
 using DOL.GS.Quests;
 using DOL.GS.Scripts;
 using DOL.GS.ServerProperties;
+using DOL.GS.Spells;
 using DOL.GS.Styles;
 using DOL.Language;
 using ECS.Debug;
@@ -899,10 +900,13 @@ namespace DOL.GS
             movementComponent.PathTo(target, speed);
         }
 
-        public virtual void StopMoving()
-        {
-            movementComponent.StopMoving();
-        }
+		public virtual void StopMoving()
+		{
+			movementComponent.StopMoving();
+		}
+
+        public const int STICKMINIMUMRANGE = 100;
+        public const int STICKMAXIMUMRANGE = 5000;
 
         public virtual void Follow(GameObject target, int minDistance, int maxDistance)
         {
@@ -3841,7 +3845,111 @@ namespace DOL.GS
 				}
 			} // foreach
 
-            //SortedSpells = true;
+			//SortedSpells = true;
+		}
+
+        /// <summary>
+        /// The spell action of this living
+        /// </summary>
+        public class SpellAction : RegionAction
+        {
+            /// <summary>
+            /// Constructs a new attack action
+            /// </summary>
+            /// <param name="owner">The action source</param>
+            public SpellAction(GameLiving owner)
+                : base(owner)
+            {
+            }
+
+            /// <summary>
+            /// Called on every timer tick
+            /// </summary>
+            protected override void OnTick()
+            {
+                GameNPC owner = null;
+                if (m_actionSource != null && m_actionSource is GameNPC)
+                    owner = (GameNPC)m_actionSource;
+                else
+                {
+                    Stop();
+                    return;
+                }
+
+                if (owner.TargetObject == null || !owner.AttackState)
+                {
+                    Stop();
+                    return;
+                }
+
+                //If we started casting a spell, stop the timer and wait for
+                //GameNPC.OnAfterSpellSequenceCast to start again
+                if (owner.Brain is StandardMobBrain && ((StandardMobBrain)owner.Brain).CheckSpells(StandardMobBrain.eCheckSpellType.Offensive))
+                {
+                    Stop();
+                    return;
+                }
+                else
+                {
+                    //If we aren't a distance NPC, lets make sure we are in range to attack the target!
+                    if (owner.ActiveWeaponSlot != eActiveWeaponSlot.Distance && !owner.IsWithinRadius(owner.TargetObject, STICKMINIMUMRANGE))
+                        ((GameNPC)owner).Follow(owner.TargetObject, STICKMINIMUMRANGE, STICKMAXIMUMRANGE);
+                }
+
+                if (owner.Brain != null)
+                {
+                    Interval = Math.Min(1500, owner.Brain.CastInterval);
+                }
+                else
+                {
+                    Interval = 1500;
+                }
+            }
+        }
+
+
+        private SpellAction m_spellaction = null;
+        /// <summary>
+        /// The timer that controls an npc's spell casting
+        /// </summary>
+        public SpellAction SpellTimer
+        {
+            get { return m_spellaction; }
+            set { m_spellaction = value; }
+        }
+
+        /// <summary>
+        /// Callback after spell execution finished and next spell can be processed
+        /// </summary>
+        /// <param name="handler"></param>
+        public virtual void OnAfterSpellCastSequence(ISpellHandler handler)
+        {
+            if (SpellTimer != null)
+            {
+                if (this == null || this.ObjectState != eObjectState.Active || !this.IsAlive || this.TargetObject == null || (this.TargetObject is GameLiving && this.TargetObject.ObjectState != eObjectState.Active || !(this.TargetObject as GameLiving).IsAlive))
+                    SpellTimer.Stop();
+                else
+                {
+                    int interval = 1500;
+
+                    if (Brain != null)
+                    {
+                        interval = Math.Min(interval, Brain.ThinkInterval);
+                    }
+
+                    SpellTimer.Start(interval);
+                }
+            }
+
+            /*if (m_runningSpellHandler != null)
+            {
+                //prevent from relaunch
+                base.OnAfterSpellCastSequence(handler);
+            }*/
+
+            // Notify Brain of Cast Finishing.
+            if (Brain != null)
+                Brain.Notify(GameNPCEvent.CastFinished, this, new CastingEventArgs(handler));
         }
 
         /// <summary>

@@ -10,6 +10,7 @@ using DOL.Events;
 using DOL.GS.Keeps;
 using DOL.GS.ServerProperties;
 using log4net;
+using static DOL.GS.GameTimer;
 
 namespace DOL.GS
 {
@@ -117,6 +118,11 @@ namespace DOL.GS
         /// Contains the # of players in the region
         /// </summary>
         protected int m_numPlayer = 0;
+
+        /// <summary>
+        /// The region time manager
+        /// </summary>
+        protected readonly GameTimer.TimeManager m_timeManager;
 
         #endregion
 
@@ -483,6 +489,19 @@ namespace DOL.GS
         }
 
         /// <summary>
+        /// Gets the region time manager
+        /// </summary>
+        public virtual GameTimer.TimeManager TimeManager
+        {
+            get { return m_timeManager; }
+        }
+
+        /// <summary>
+        /// The Region Mob's Respawn Timer Collection
+        /// </summary>
+        protected readonly ConcurrentDictionary<GameNPC, int> m_mobsRespawning = new ConcurrentDictionary<GameNPC, int>();
+
+        /// <summary>
         /// Gets the current region time in milliseconds
         /// </summary>
         public virtual long Time
@@ -636,6 +655,14 @@ namespace DOL.GS
                 return m_isNightTime;
             }
             set { m_isNightTime = value; }
+        }
+
+        public virtual ConcurrentDictionary<GameNPC, int> MobsRespawning
+        {
+            get
+            {
+                return m_mobsRespawning;
+            }
         }
 
         #endregion

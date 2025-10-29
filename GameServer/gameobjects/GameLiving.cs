@@ -4203,10 +4203,15 @@ namespace DOL.GS
             return base.HasEffect(effectType);
         }
 
+		/// <summary>
+		/// Active spellhandler or null
+		/// </summary>
+		public ISpellHandler CurrentSpellHandler => castingComponent.SpellHandler;
+
         /// <summary>
-        /// Active spellhandler or null
+        /// Holds the currently running spell handler
         /// </summary>
-        public ISpellHandler CurrentSpellHandler => castingComponent.SpellHandler;
+        protected ISpellHandler m_runningSpellHandler;
 
         /// <summary>
         /// Immediately stops currently casting spell
