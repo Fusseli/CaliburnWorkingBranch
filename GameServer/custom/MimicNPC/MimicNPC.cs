@@ -4589,6 +4589,10 @@ namespace DOL.GS.Scripts
             if (keyName.StartsWith(GlobalSpellsLines.Realm_Spells))
                 return Level;
 
+            // Mimics cast spells using "Mob Spells" line, so return appropriate spec level
+            if (keyName == GlobalSpellsLines.Mob_Spells)
+                return Level;
+
             Specialization spec = null;
             int level = 0;
             lock (((ICollection)m_specialization).SyncRoot)
