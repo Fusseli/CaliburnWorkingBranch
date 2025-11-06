@@ -13,7 +13,7 @@ namespace DOL.GS
     {
         private const int SummonSpellEffect = 0x1818;
         private const int InvisibleModel = 0x29a;
-        private readonly object _lock = new();
+        private readonly Lock _lock = new();
 
         /// <summary>
         /// Creates a new SummonedDjinn.

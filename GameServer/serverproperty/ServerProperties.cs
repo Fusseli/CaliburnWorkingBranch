@@ -2205,12 +2205,6 @@ namespace DOL.GS.ServerProperties
 
 		#region CLASSES
 		/// <summary>
-		/// Use Atlas/Old Frontiers Realm Abilities instead of Live realm abilities
-		/// </summary>
-		[ServerProperty("classes", "use_atlas_realm_abilities", "Use Atlas/Old Frontiers Realm Abilities instead of Live realm abilities?", true)]
-		public static bool USE_ATLAS_REALM_ABILITIES;
-
-		/// <summary>
 		/// Allow players to /train without having a trainer present
 		/// </summary>
 		[ServerProperty("classes", "allow_train_anywhere", "Allow players to use the /train command to open a trainer window anywhere in the world?", true)]

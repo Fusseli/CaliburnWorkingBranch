@@ -29,7 +29,7 @@ namespace DOL.GS.Spells
     /// The spell that combines artifact scrolls.
     /// </summary>
     /// <author>Aredhel</author>
-    [SpellHandler("CombineScrolls")]
+    [SpellHandler(eSpellType.CombineScrolls)]
     class CombineScrolls : SpellHandler
     {
 		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
