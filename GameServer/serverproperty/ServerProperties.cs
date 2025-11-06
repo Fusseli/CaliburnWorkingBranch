@@ -503,10 +503,16 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("server", "serverlistupdate_password", "Password for serverlistupdate.", "")]
 		public static string SERVER_LIST_UPDATE_PASS;
 
-		/// <summary>
-		/// Post 1.108 Passive RA 9-Tiers
-		/// </summary>
-		[ServerProperty("server", "use_new_passives_ras_scaling", "Use new passives realmabilities scaling (1.108+) ?", false)]
+        /// <summary>
+        /// Use OldFrontiers RAs instead of LiveLike ones
+        /// </summary>
+		[ServerProperty("server", "use_atlas_realm_abilities", "Use OldFrontiers Realm Abilities (true), or Live-like RAs (false)", false)]
+        public static bool USE_ATLAS_REALM_ABILITIES;
+
+        /// <summary>
+        /// Post 1.108 Passive RA 9-Tiers
+        /// </summary>
+        [ServerProperty("server", "use_new_passives_ras_scaling", "Use new passives realmabilities scaling (1.108+) ?", false)]
 		public static bool USE_NEW_PASSIVES_RAS_SCALING;
 
 		/// <summary>
