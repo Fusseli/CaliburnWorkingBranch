@@ -58,12 +58,12 @@ nunit-*.xml
 dlldata.c
 
 # Benchmark Results
-BenchmarkDotNet.Artifacts/
+# BenchmarkDotNet.Artifacts/
 
 # .NET
 project.lock.json
 project.fragment.lock.json
-artifacts/
+# artifacts/
 
 # Tye
 .tye/
@@ -485,5 +485,3 @@ $RECYCLE.BIN/
 
 # OpenDAoC
 /Pathing/Detour/Build
-/.claude
-/build

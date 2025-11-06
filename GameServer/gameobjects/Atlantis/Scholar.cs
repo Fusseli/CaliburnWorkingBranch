@@ -159,9 +159,9 @@ namespace DOL.GS
 					}
 				}
 
-                // ...or continuing a quest?
+				// ...or continuing a quest?
 
-                foreach (AbstractQuest quest in player.DataQuestList)
+				foreach (AbstractQuest quest in player.DataQuestList)
 				{
 					if (quest is ArtifactQuest && (HasQuest(quest.GetType()) != null))
 						if ((quest as ArtifactQuest).WhisperReceive(player, this, text))
@@ -233,39 +233,130 @@ namespace DOL.GS
 			quest.WhisperReceive(player, this, quest.ArtifactID);
 		}
 
-		/// <summary>
-		/// Invoked when scholar receives an item.
-		/// </summary>
-		/// <param name="source"></param>
-		/// <param name="item"></param>
-		/// <returns></returns>
-		public override bool ReceiveItem(GameLiving source, DbInventoryItem item)
-		{
-			if (base.ReceiveItem(source, item))
-				return true;
+        /// <summary>
+        /// Invoked when scholar receives an item.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        /// <summary>
+        /// Invoked when scholar receives an item.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public override bool ReceiveItem(GameLiving source, DbInventoryItem item)
+        {
+            Console.WriteLine($"[SCHOLAR DEBUG] ReceiveItem CALLED! Player: {(source as GamePlayer)?.Name}, Item: {item?.Name}");
 
-			GamePlayer player = source as GamePlayer;
+            if (base.ReceiveItem(source, item))
+            {
+                Console.WriteLine("[SCHOLAR DEBUG] base.ReceiveItem returned TRUE");
+                return true;
+            }
 
-			if (player != null)
-			{
-				lock (QuestListToGive.SyncRoot)
-				{
-					try
-					{
-						foreach (AbstractQuest quest in player.DataQuestList)
-							if (quest is ArtifactQuest && (HasQuest(quest.GetType()) != null))
-								if ((quest as ArtifactQuest).ReceiveItem(player, this, item))
-									return true;
-					}
-					catch (Exception ex)
-					{
-						log.Error("Scholar ReceiveItem Error: ", ex);
-						SayTo(player, eChatLoc.CL_PopupWindow, "I'm very sorry but I'm having trouble locating an artifact for you.  Please /report this problem to my superiors.");
-					}
-				}
-			}
+            GamePlayer player = source as GamePlayer;
+            if (player == null || item == null)
+            {
+                Console.WriteLine("[SCHOLAR DEBUG] Player or Item is NULL!");
+                return false;
+            }
 
-			return false;
-		}
+            Console.WriteLine($"[SCHOLAR DEBUG] Processing item: {item.Name}");
+
+            // 1. Prüfen auf Credit Items
+            if (item.Name.EndsWith("Credit"))
+            {
+                Console.WriteLine($"[SCHOLAR DEBUG] Item is Credit item, processing...");
+                if (ArtifactMgr.GrantArtifactBountyCredit(player, item.Name))
+                {
+                    player.Inventory.RemoveItem(item);
+                    InventoryLogging.LogInventoryAction(player, this, eInventoryActionType.Merchant, item.Template, item.Count);
+                    return true;
+                }
+                else
+                {
+                    player.Inventory.RemoveItem(item);
+                    InventoryLogging.LogInventoryAction(player, this, eInventoryActionType.Merchant, item.Template, item.Count);
+                    long totalValue = item.Price;
+                    player.GainBountyPoints(totalValue);
+                    player.Out.SendUpdatePoints();
+                    player.Out.SendMessage(totalValue + " Bounty Points refunded", eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
+                    player.Out.SendMessage("You already have this credit or your class is not eligible to receive this artifact. " + totalValue + " Bounty Points refunded!", eChatType.CT_Merchant, eChatLoc.CL_SystemWindow);
+                    return true;
+                }
+            }
+
+            // 2. Prüfen ob das Item ein Artifact Book ist
+            string bookArtifactID = null;
+            var pageNumbers = ArtifactMgr.GetPageNumbers(item, ref bookArtifactID);
+
+            Console.WriteLine($"[SCHOLAR DEBUG] BookArtifactID: {bookArtifactID}, PageNumbers: {pageNumbers}");
+
+            // ? NEU: Prüfe BEIDE Quest-Listen!
+            Console.WriteLine($"[SCHOLAR DEBUG] Scholar '{Name}' has {QuestListToGive.Count} quests to give");
+            foreach (var quest in QuestListToGive)
+            {
+                Console.WriteLine($"[SCHOLAR DEBUG]   - Quest: {quest.GetType().Name}");
+            }
+
+            // 3. Quest Items an die entsprechende Quest weitergeben
+            lock (QuestListToGive.SyncRoot)
+            {
+                try
+                {
+                    // ? WICHTIG: Durchsuche player.QuestList (geskriptete Quests) statt DataQuestList!
+                    Console.WriteLine($"[SCHOLAR DEBUG] Player has {player.QuestList.Count} active quests (scripted)");
+
+                    foreach (var questEntry in player.QuestList)
+                    {
+                        AbstractQuest quest = questEntry.Key;
+
+                        if (quest is ArtifactQuest artifactQuest && HasQuest(quest.GetType()) != null)
+                        {
+                            Console.WriteLine($"[SCHOLAR DEBUG] Checking quest: {artifactQuest.Name}, ArtifactID: {artifactQuest.ArtifactID}, Step: {artifactQuest.Step}");
+
+                            // Wenn es ein vollständiges Buch ist, prüfen wir ob es zur Quest passt
+                            if (pageNumbers == ArtifactMgr.Book.AllPages &&
+                                bookArtifactID != null &&
+                                bookArtifactID == artifactQuest.ArtifactID)
+                            {
+                                Console.WriteLine($"[SCHOLAR DEBUG] Book matches quest {artifactQuest.Name}, calling ReceiveItem on quest");
+
+                                // Übergebe das Item an die Quest
+                                if (artifactQuest.ReceiveItem(player, this, item))
+                                {
+                                    Console.WriteLine($"[SCHOLAR DEBUG] Quest accepted the item!");
+                                    return true;
+                                }
+                                else
+                                {
+                                    Console.WriteLine($"[SCHOLAR DEBUG] Quest REJECTED the item!");
+                                }
+                            }
+                            else
+                            {
+                                Console.WriteLine($"[SCHOLAR DEBUG] Book doesn't match quest, trying as normal item...");
+                                // Versuche das Item als normales Quest-Item zu übergeben
+                                if (artifactQuest.ReceiveItem(player, this, item))
+                                {
+                                    Console.WriteLine($"[SCHOLAR DEBUG] Quest accepted the item as normal item!");
+                                    return true;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[SCHOLAR DEBUG] Exception: {ex.Message}");
+                    log.Error("Scholar ReceiveItem Error: ", ex);
+                    SayTo(player, eChatLoc.CL_PopupWindow, "I'm very sorry but I'm having trouble locating an artifact for you. Please /report this problem to my superiors.");
+                }
+            }
+
+            Console.WriteLine($"[SCHOLAR DEBUG] Item NOT accepted! Returning FALSE");
+            return false;
+        }
     }
 }

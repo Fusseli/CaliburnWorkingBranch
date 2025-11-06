@@ -29,7 +29,7 @@ namespace DOL.GS.Spells
     /// The spell that combines artifact scrolls.
     /// </summary>
     /// <author>Aredhel</author>
-	[SpellHandlerAttribute("CombineScrolls")]
+    [SpellHandler(eSpellType.CombineScrolls)]
     class CombineScrolls : SpellHandler
     {
 		private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
@@ -70,7 +70,7 @@ namespace DOL.GS.Spells
         /// </summary>
         /// <param name="target"></param>
         /// <param name="effectiveness"></param>
-        public override void ApplyEffectOnTarget(GameLiving target)
+        public override void OnDirectEffect(GameLiving target)
         {
             GamePlayer player = Caster as GamePlayer;
             if (player == null)
