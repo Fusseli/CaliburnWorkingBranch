@@ -672,9 +672,14 @@ namespace DOL.GS
 				if (!InitComponent(StartScriptComponents(), "Script components"))
 					return false;
 
-				//---------------------------------------------------------------
-				//Load all faction managers
-				if (!InitComponent(FactionMgr.Init(), "Faction Managers"))
+                //---------------------------------------------------------------
+                //Load all Artifact managers
+                if (!InitComponent(ArtifactMgr.Init(), "Artifact Manager"))
+                    return false;
+
+                //---------------------------------------------------------------
+                //Load all faction managers
+                if (!InitComponent(FactionMgr.Init(), "Faction Managers"))
 					return false;
 
 				//---------------------------------------------------------------
@@ -755,10 +760,6 @@ namespace DOL.GS
 				//Load the relic manager
 				if (!InitComponent(RelicMgr.Init(), "Relic Manager"))
 					return false;
-
-                //---------------------------------------------------------------
-                //Load artifact manager
-                InitComponent(ArtifactMgr.Init(), "Artifact Manager");
 
                 //---------------------------------------------------------------
                 //Load all crafting managers

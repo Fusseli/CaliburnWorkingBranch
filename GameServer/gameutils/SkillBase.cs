@@ -436,63 +436,86 @@ namespace DOL.GS
 			}
 		}
 
-		/// <summary>
-		/// Load Class Realm Abilities Relations
-		/// Wipes any script loaded Relation
-		/// </summary>
-		private static void LoadClassRealmAbilities()
-		{
-			m_syncLockUpdates.EnterWriteLock();
-			try
-			{
-				// load class RA
-				m_classRealmAbilities.Clear();
+        /// <summary>
+        /// Load Class Realm Abilities Relations
+        /// Wipes any script loaded Relation
+        /// </summary>
+        private static void LoadClassRealmAbilities()
+        {
+            m_syncLockUpdates.EnterWriteLock();
+            try
+            {
+                // load class RA
+                m_classRealmAbilities.Clear();
 
-				if (log.IsInfoEnabled)
-					log.Info("Loading class to realm ability associations...");
+                if (log.IsInfoEnabled)
+                    log.Info("Loading class to realm ability associations...");
 
-				IList<DbClassXRealmAbility> classxra = GameServer.Database.SelectAllObjects<DbClassXRealmAbility>();
+                // **TOGGLE: Load either Atlas/OF RAs or Live-like RAs**
+                IList<DbClassXRealmAbility> classxra;
 
-				if (classxra != null)
-				{
-					foreach (DbClassXRealmAbility cxra in classxra)
-					{
-						if (!m_classRealmAbilities.ContainsKey(cxra.CharClass))
-							m_classRealmAbilities.Add(cxra.CharClass, new List<string>());
+                if (ServerProperties.Properties.USE_ATLAS_REALM_ABILITIES)
+                {
+                    // Load Atlas/OF RAs
+                    if (log.IsInfoEnabled)
+                        log.Info("Using Old Frontiers Realm Abilities ...");
 
-						try
-						{
-							DbAbility dba = m_abilityIndex[cxra.AbilityKey];
+                    var atlasRAs = GameServer.Database.SelectAllObjects<DbClassXRealmAbilityAtlas>();
+                    classxra = atlasRAs.Select(ra => new DbClassXRealmAbility
+                    {
+                        CharClass = ra.CharClass,
+                        AbilityKey = ra.AbilityKey
+                    }).ToList();
+                }
+                else
+                {
+                    // Load Live-like RAs
+                    if (log.IsInfoEnabled)
+                        log.Info("Using New Frontiers Realm Abilities ...");
 
-							if (!m_classRealmAbilities[cxra.CharClass].Contains(dba.KeyName))
-								m_classRealmAbilities[cxra.CharClass].Add(dba.KeyName);
-						}
-						catch (Exception e)
-						{
-							if (log.IsWarnEnabled)
-								log.WarnFormat("Error while Adding RealmAbility {0} to Class {1} : {2}", cxra.AbilityKey, cxra.CharClass, e);
+                    classxra = GameServer.Database.SelectAllObjects<DbClassXRealmAbility>();
+                }
 
-						}
-					}
-				}
+                if (classxra != null)
+                {
+                    foreach (DbClassXRealmAbility cxra in classxra)
+                    {
+                        if (!m_classRealmAbilities.ContainsKey(cxra.CharClass))
+                            m_classRealmAbilities.Add(cxra.CharClass, new List<string>());
 
-				log.Info("Realm Abilities assigned to classes!");
-			}
-			finally
-			{
-				m_syncLockUpdates.ExitWriteLock();
-			}
-		}
+                        try
+                        {
+                            DbAbility dba = m_abilityIndex[cxra.AbilityKey];
 
-		/// <summary>
-		/// Load Specialization from Database
-		/// Also load Relation SpecXAbility, SpecXSpellLine, SpecXStyle
-		/// This is Master Loader for Styles, Styles can't work without an existing Database Spec !
-		/// Wipe Specs Index, SpecXAbility, SpecXSpellLine, StyleDict, StyleIndex
-		/// Anything loaded in this from scripted behavior can be lost... (try to not use Scripted Career !!)
-		/// </summary>
-		/// <returns>number of specs loaded.</returns>
-		[RefreshCommandAttribute]
+                            if (!m_classRealmAbilities[cxra.CharClass].Contains(dba.KeyName))
+                                m_classRealmAbilities[cxra.CharClass].Add(dba.KeyName);
+                        }
+                        catch (Exception e)
+                        {
+                            if (log.IsWarnEnabled)
+                                log.WarnFormat("Error while Adding RealmAbility {0} to Class {1} : {2}", cxra.AbilityKey, cxra.CharClass, e);
+                        }
+                    }
+                }
+
+                if (log.IsInfoEnabled)
+                    log.Info("Realm Abilities assigned to classes!");
+            }
+            finally
+            {
+                m_syncLockUpdates.ExitWriteLock();
+            }
+        }
+
+        /// <summary>
+        /// Load Specialization from Database
+        /// Also load Relation SpecXAbility, SpecXSpellLine, SpecXStyle
+        /// This is Master Loader for Styles, Styles can't work without an existing Database Spec !
+        /// Wipe Specs Index, SpecXAbility, SpecXSpellLine, StyleDict, StyleIndex
+        /// Anything loaded in this from scripted behavior can be lost... (try to not use Scripted Career !!)
+        /// </summary>
+        /// <returns>number of specs loaded.</returns>
+        [RefreshCommandAttribute]
 		public static int LoadSpecializations()
 		{
 			m_syncLockUpdates.EnterWriteLock();
