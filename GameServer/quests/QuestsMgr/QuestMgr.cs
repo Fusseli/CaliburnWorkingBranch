@@ -24,6 +24,7 @@ using System.Collections;
 using System.Collections.Specialized;
 using System.Linq;
 using System.Reflection;
+using log4net;
 
 namespace DOL.GS.Quests
 {
@@ -35,11 +36,8 @@ namespace DOL.GS.Quests
     public sealed class QuestMgr
     {
 		#region Declaration
-
-		/// <summary>
-		/// Defines a logger for this class.
-		/// </summary>
-		private static readonly Logging.Logger log = Logging.LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
+        
+        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		/// <summary>
 		/// Holds all the quests descriptors used in the world (unique id => descriptor)
