@@ -16,14 +16,16 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-// using DOL.GS.Quests.Atlantis;
-using DOL.Database;
-using DOL.GS.Quests.Atlantis;
 using System;
 using System.Collections;
 using System.Collections.Specialized;
-using System.Linq;
 using System.Reflection;
+using System.Linq;
+
+using log4net;
+
+using DOL.GS.Quests.Atlantis;
+using DOL.Database;
 
 namespace DOL.GS.Quests
 {
@@ -39,7 +41,7 @@ namespace DOL.GS.Quests
 		/// <summary>
 		/// Defines a logger for this class.
 		/// </summary>
-		private static readonly Logging.Logger log = Logging.LoggerManager.Create(MethodBase.GetCurrentMethod().DeclaringType);
+		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		/// <summary>
 		/// Holds all the quests descriptors used in the world (unique id => descriptor)
@@ -78,15 +80,15 @@ namespace DOL.GS.Quests
                         if (log.IsInfoEnabled)
                             log.Info("Registering quest: " + type.FullName);
                         RegisterQuestType(type);
-                        if (type.IsSubclassOf(typeof(ArtifactQuest)))
-                        {
-                            log.Info(String.Format("Initialising quest: {0}", type.FullName));
-                            type.InvokeMember("Init",
-                                BindingFlags.InvokeMethod,
-                                null,
-                                null,
-                                Array.Empty<object>());
-                        }
+						if (type.IsSubclassOf(typeof(ArtifactQuest)))
+						{
+						 	log.Info(String.Format("Initialising quest: {0}", type.FullName));
+						 	type.InvokeMember("Init",
+						 		BindingFlags.InvokeMethod,
+						 		null,
+						 		null,
+						 		new object[] { });
+						 }
                     }
                 }
             }

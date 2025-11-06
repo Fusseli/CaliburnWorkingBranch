@@ -16,15 +16,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-using DOL.Database;
-using DOL.Events;
-using DOL.GS.PacketHandler;
-using DOL.GS.Quests;
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
+using DOL.Events;
+using DOL.GS.Quests;
+using DOL.Database;
+using DOL.GS.PacketHandler;
+using System.Collections;
 
 namespace DOL.GS.Quests.Atlantis.Artifacts
 {
@@ -107,73 +106,53 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
             return (player.Level >= 45);
         }
 
-        /// <summary>
-        /// Handle an item given to the scholar.
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="item"></param>
-        /// <param name="target"></param>
-        /// <returns></returns>
-        public override bool ReceiveItem(GameLiving source, GameLiving target, DbInventoryItem item)
-        {
-            if (base.ReceiveItem(source, target, item))
-                return true;
+		/// <summary>
+		/// Handle an item given to the scholar.
+		/// </summary>
+		/// <param name="source"></param>
+		/// <param name="item"></param>
+		/// <param name="target"></param>
+		/// <returns></returns>
+		public override bool ReceiveItem(GameLiving source, GameLiving target, DbInventoryItem item)
+		{
+			if (base.ReceiveItem(source, target, item))
+				return true;
 
-            GamePlayer player = source as GamePlayer;
-            Scholar scholar = target as Scholar;
-            if (player == null || scholar == null)
-                return false;
+			GamePlayer player = source as GamePlayer;
+			Scholar scholar = target as Scholar;
+			if (player == null || scholar == null)
+				return false;
 
-            if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
-            {
-                Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
-                    (eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
+			if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
+			{
+				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
+					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
+				
+				if (versions.Count > 0 && RemoveItem(player, item))
+				{
+					GiveItem(scholar, player, ArtifactID, versions[";;"]);
+					String reply = String.Format("Brilliant, thank you! Here, take the artifact. {0} {1} {2}",
+						"I've unlocked its powers for you. As I've said before, I'm more interested",
+						"in the stories and the history behind these artifacts than the actual items",
+						"themselves.");
+					scholar.TurnTo(player);
+					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
+					FinishQuest();
+					return true;
+				}
+			}
 
-                if (versions.Count > 0 && RemoveItem(player, item))
-                {
-                    // ? Hole die ERSTE Version aus dem Dictionary
-                    DbItemTemplate template = versions.Values.First();
+			return false;
+		}
 
-                    // ? Falls mehrere Versionen existieren, zeige Auswahl
-                    if (versions.Count > 1)
-                    {
-                        StringBuilder versionList = new StringBuilder();
-                        versionList.Append($"Multiple versions available for {ArtifactID}. Please choose: ");
-                        foreach (var ver in versions.Keys)
-                        {
-                            versionList.Append($"[{ver}] ");
-                        }
-                        scholar.TurnTo(player);
-                        scholar.SayTo(player, eChatLoc.CL_PopupWindow, versionList.ToString());
-                        // TODO: Implementiere Mehrfachauswahl-Logik hier
-                        return false;
-                    }
-
-                    // ? Gebe das Artifact mit der korrekten Template
-                    GiveItem(scholar, player, ArtifactID, template);
-
-                    String reply = String.Format("Brilliant, thank you! Here, take the artifact. {0} {1} {2}",
-                        "I've unlocked its powers for you. As I've said before, I'm more interested",
-                        "in the stories and the history behind these artifacts than the actual items",
-                        "themselves.");
-                    scholar.TurnTo(player);
-                    scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
-                    FinishQuest();
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// Handle whispers to the scholar.
-        /// </summary>
-        /// <param name="source"></param>
-        /// <param name="target"></param>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        public override bool WhisperReceive(GameLiving source, GameLiving target, string text)
+		/// <summary>
+		/// Handle whispers to the scholar.
+		/// </summary>
+		/// <param name="source"></param>
+		/// <param name="target"></param>
+		/// <param name="text"></param>
+		/// <returns></returns>
+		public override bool WhisperReceive(GameLiving source, GameLiving target, string text)
 		{
 			if (base.WhisperReceive(source, target, text))
 				return true;

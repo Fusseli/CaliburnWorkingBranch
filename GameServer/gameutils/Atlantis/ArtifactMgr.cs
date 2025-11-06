@@ -25,6 +25,7 @@ using System.Reflection;
 using log4net;
 using DOL.GS.PacketHandler;
 using DOL.GS.Quests;
+using DOL.GS;
 using DOL.Events;
 
 namespace DOL.GS
@@ -40,13 +41,11 @@ namespace DOL.GS
 		/// </summary>
 		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
-        private static Dictionary<String, DbArtifact> m_artifacts;
-        private static Dictionary<String, List<DbArtifactXItem>> m_artifactVersions;
-        private static List<DbArtifactBonus> m_artifactBonuses;
-        private static Dictionary<String, int> m_artifactVersionReuseTimer; // ? NEU: Dictionary für Reuse Timer
-        private static volatile bool _loaded = false;
+		private static Dictionary<String, DbArtifact> m_artifacts;
+		private static Dictionary<String, List<DbArtifactXItem>> m_artifactVersions;
+		private static List<DbArtifactBonus> m_artifactBonuses;
 
-        public enum Book { NoPage = 0x0, Page1 = 0x1, Page2 = 0x2, Page3 = 0x4, AllPages = 0x7 };
+		public enum Book { NoPage = 0x0, Page1 = 0x1, Page2 = 0x2, Page3 = 0x4, AllPages = 0x7 };
 
 
 		public static bool Init()
@@ -55,98 +54,86 @@ namespace DOL.GS
 			return true;
 		}
 
-        /// <summary>
-        /// Load artifacts from the DB.
-        /// </summary>
-        public static int LoadArtifacts()
-        {
-            // Load artifacts and books.
-            var artifactDbos = GameServer.Database.SelectAllObjects<DbArtifact>();
-            m_artifacts = new Dictionary<String, DbArtifact>();
-            foreach (DbArtifact artifact in artifactDbos)
-                m_artifacts.Add(artifact.ArtifactID, artifact);
+		/// <summary>
+		/// Load artifacts from the DB.
+		/// </summary>
+		public static int LoadArtifacts()
+		{
+			// Load artifacts and books.
 
-            // ? New: Load Reuse Timer for Artifacts
-            m_artifactVersionReuseTimer = new Dictionary<String, int>();
-            foreach (DbArtifact artifact in artifactDbos)
-            {
-                if (!m_artifactVersionReuseTimer.ContainsKey(artifact.ArtifactID))
-                    m_artifactVersionReuseTimer.Add(artifact.ArtifactID, artifact.ReuseTimer);
-            }
+			var artifactDbos = GameServer.Database.SelectAllObjects<DbArtifact>();
+			m_artifacts = new Dictionary<String, DbArtifact>();
+			foreach (DbArtifact artifact in artifactDbos)
+				m_artifacts.Add(artifact.ArtifactID, artifact);
 
-            // Load artifact versions.
+			// Load artifact versions.
+
 			var artifactItemDbos = GameServer.Database.SelectAllObjects<DbArtifactXItem>();
-            m_artifactVersions = new Dictionary<String, List<DbArtifactXItem>>();
-            List<DbArtifactXItem> versionList;
-            foreach (DbArtifactXItem artifactVersion in artifactItemDbos)
-            {
-                if (m_artifactVersions.ContainsKey(artifactVersion.ArtifactID))
-                    versionList = m_artifactVersions[artifactVersion.ArtifactID];
-                else
-                {
-                    versionList = new List<DbArtifactXItem>();
-                    m_artifactVersions.Add(artifactVersion.ArtifactID, versionList);
-                }
-                versionList.Add(artifactVersion);
-            }
+			m_artifactVersions = new Dictionary<String, List<DbArtifactXItem>>();
+			List<DbArtifactXItem> versionList;
+			foreach (DbArtifactXItem artifactVersion in artifactItemDbos)
+			{
+				if (m_artifactVersions.ContainsKey(artifactVersion.ArtifactID))
+					versionList = m_artifactVersions[artifactVersion.ArtifactID];
+				else
+				{
+					versionList = new List<DbArtifactXItem>();
+					m_artifactVersions.Add(artifactVersion.ArtifactID, versionList);
+				}
+				versionList.Add(artifactVersion);
+			}
 
-            // Load artifact bonuses.
-            var artifactBonusDbos = GameServer.Database.SelectAllObjects<DbArtifactBonus>();
-            m_artifactBonuses = new List<DbArtifactBonus>();
-            foreach (DbArtifactBonus artifactBonus in artifactBonusDbos)
-                m_artifactBonuses.Add(artifactBonus);
+			// Load artifact bonuses.
 
-            // Install event handlers.
-            GameEventMgr.AddHandler(GamePlayerEvent.GainedExperience, new DOLEventHandler(PlayerGainedExperience));
-            log.Info(String.Format("{0} artifacts loaded", m_artifacts.Count));
-            _loaded = true;
-            return m_artifacts.Count;
-        }
+			var artifactBonusDbos = GameServer.Database.SelectAllObjects<DbArtifactBonus>();
+			m_artifactBonuses = new List<DbArtifactBonus>();
+			foreach (DbArtifactBonus artifactBonus in artifactBonusDbos)
+				m_artifactBonuses.Add(artifactBonus);
 
-        /// <summary>
-        /// Find the matching artifact for the item
-        /// </summary>
-        /// <param name="itemID"></param>
-        /// <returns></returns>
-        public static String GetArtifactIDFromItemID(String itemID)
-        {
-            if (itemID == null)
-                return null;
+			// Install event handlers.
 
-            // ? Entferne die Unique-Suffix, falls vorhanden (z.B. "Band of Stars#12345" -> "Band of Stars")
-            string baseItemId = itemID;
-            int separatorIndex = itemID.IndexOf(DbItemUnique.UNIQUE_SEPARATOR);
-            if (separatorIndex > 0)
-            {
-                baseItemId = itemID.Substring(0, separatorIndex);
-            }
+			GameEventMgr.AddHandler(GamePlayerEvent.GainedExperience, new DOLEventHandler(PlayerGainedExperience));
 
-            String artifactID = null;
-            lock (m_artifactVersions)
-            {
-                foreach (List<DbArtifactXItem> list in m_artifactVersions.Values)
-                {
-                    foreach (DbArtifactXItem AxI in list)
-                    {
-                        if (AxI.ItemID == baseItemId) // ? Verwende die Base-ID
-                        {
-                            artifactID = AxI.ArtifactID;
-                            break;
-                        }
-                    }
-                }
-            }
+			log.Info(String.Format("{0} artifacts loaded", m_artifacts.Count));
+			return m_artifacts.Count;
+		}
 
-            return artifactID;
-        }
+		/// <summary>
+		/// Find the matching artifact for the item
+		/// </summary>
+		/// <param name="itemID"></param>
+		/// <returns></returns>
+		public static String GetArtifactIDFromItemID(String itemID)
+		{
+			if (itemID == null)
+				return null;
+
+			String artifactID = null;
+			lock (m_artifactVersions)
+			{
+				foreach (List<DbArtifactXItem> list in m_artifactVersions.Values)
+				{
+					foreach (DbArtifactXItem AxI in list)
+					{
+						if (AxI.ItemID == itemID)
+						{
+							artifactID = AxI.ArtifactID;
+							break;
+						}
+					}
+				}
+			}
+
+			return artifactID;
+		}
 
 
-        /// <summary>
-        /// Get all artifacts
-        /// </summary>
-        /// <param name="zone"></param>
-        /// <returns></returns>
-        public static List<DbArtifact> GetArtifacts()
+		/// <summary>
+		/// Get all artifacts
+		/// </summary>
+		/// <param name="zone"></param>
+		/// <returns></returns>
+		public static List<DbArtifact> GetArtifacts()
 		{
 			List<DbArtifact> artifacts = new List<DbArtifact>();
 
@@ -187,63 +174,51 @@ namespace DOL.GS
 			return artifacts;
 		}
 
-        /// <summary>
-        /// Get the cooldown for this artifact.
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        public static int GetReuseTimer(InventoryArtifact item)
-        {
-            // ? Validierung hinzufügen
-            if (item == null)
-            {
-                log.Error("GetReuseTimer called with null item!");
-                return 0;
-            }
+		/// <summary>
+		/// Get the cooldown for this artifact.
+		/// </summary>
+		/// <param name="item"></param>
+		/// <returns></returns>
+		public static int GetReuseTimer(InventoryArtifact item)
+		{
+			if (item == null)
+				return 0;
 
-            if (string.IsNullOrEmpty(item.ArtifactID))
-            {
-                log.Error($"GetReuseTimer called with null ArtifactID! Item: {item.Name}, Template: {item.Template?.Id_nb}");
-                return 0;
-            }
+			String artifactID = GetArtifactIDFromItemID(item.Id_nb);
+			lock (m_artifacts)
+			{
+				if (!m_artifacts.ContainsKey(artifactID))
+				{
+					log.Warn(String.Format("Can't find artifact for ID '{0}'", artifactID));
+					return 0;
+				}
 
-            // ? Prüfe ob Key existiert BEVOR ContainsKey() aufgerufen wird
-            if (!m_artifactVersionReuseTimer.ContainsKey(item.ArtifactID))
-            {
-                log.Warn($"GetReuseTimer: ArtifactID '{item.ArtifactID}' not found in m_artifactVersionReuseTimer!");
-                return 0; // ? Default: kein Reuse Timer
-            }
+				DbArtifact artifact = m_artifacts[artifactID];
+				return artifact.ReuseTimer;
+			}
+		}
 
-            return m_artifactVersionReuseTimer[item.ArtifactID];
-        }
+		/// <summary>
+		/// Get a list of all scholars studying this artifact.
+		/// </summary>
+		/// <param name="artifactID"></param>
+		/// <returns></returns>
+		public static String[] GetScholars(String artifactID)
+		{
+			if (artifactID != null)
+				lock (m_artifacts)
+					if (m_artifacts.ContainsKey(artifactID))
+						return Util.SplitCSV(m_artifacts[artifactID].ScholarID).ToArray();
 
-        /// <summary>
-        /// Get a list of all scholars studying this artifact.
-        /// </summary>
-        /// <param name="artifactID"></param>
-        /// <returns></returns>
-        public static String[] GetScholars(String artifactID)
-        {
-            if (artifactID != null && m_artifacts != null)
-            {
-                log.Error("ArtifactMgr: m_artifacts ist noch nicht initialisiert, Zugriff auf GetScholars vor Init()!");
-            }
-            {
-                lock (m_artifacts)
-                {
-                    if (m_artifacts.ContainsKey(artifactID))
-                        return Util.SplitCSV(m_artifacts[artifactID].ScholarID).ToArray();
-                }
-            }
-            return null;
-        }
+			return null;
+		}
 
-        /// <summary>
-        /// Checks whether or not the item is an artifact.
-        /// </summary>
-        /// <param name="item"></param>
-        /// <returns></returns>
-        public static bool IsArtifact(DbInventoryItem item)
+		/// <summary>
+		/// Checks whether or not the item is an artifact.
+		/// </summary>
+		/// <param name="item"></param>
+		/// <returns></returns>
+		public static bool IsArtifact(DbInventoryItem item)
 		{
 			if (item == null)
 				return false;
@@ -352,9 +327,9 @@ namespace DOL.GS
 			if (player == null || xpArgs == null)
 				return;
 
-            // Artifacts only gain XP on NPC and player kills
-            if (xpArgs.XPSource != eXPSource.Player && xpArgs.XPSource != eXPSource.NPC)
-                return;
+			// Artifacts only gain XP on NPC and player kills
+			if (xpArgs.XPSource != eXPSource.Player && xpArgs.XPSource != eXPSource.NPC)
+				return;
 			
 			if (player.IsPraying)
 				return;
@@ -446,17 +421,17 @@ namespace DOL.GS
 			}
 		}
 
-        #endregion
+		#endregion
 
-        #region Artifact Versions
+		#region Artifact Versions
 
-        /// <summary>
-        /// Get a list of all versions for this artifact.
-        /// </summary>
-        /// <param name="artifactID"></param>
-        /// <param name="realm"></param>
-        /// <returns></returns>
-        private static List<DbArtifactXItem> GetArtifactVersions(String artifactID, eRealm realm)
+		/// <summary>
+		/// Get a list of all versions for this artifact.
+		/// </summary>
+		/// <param name="artifactID"></param>
+		/// <param name="realm"></param>
+		/// <returns></returns>
+		private static List<DbArtifactXItem> GetArtifactVersions(String artifactID, eRealm realm)
 		{
 			List<DbArtifactXItem> versions = new List<DbArtifactXItem>();
 			if (artifactID != null)

@@ -75,14 +75,10 @@ namespace DOL.Events
 		/// The GiveMoney event is fired whenever the player wants to give away money
 		/// </summary>
 		public static readonly GamePlayerEvent GiveMoney = new GamePlayerEvent("GamePlayer.GiveMoney");
-        /// <summary>
-        /// The GainedExperience event is fired whenever the player gains experience
-        /// </summary>
-        public static readonly GamePlayerEvent GainedExperience = new GamePlayerEvent("GamePlayer.GainedExperience");
-        /// <summary>
-        /// The Quit event is fired whenever the player the player quits the game
-        /// </summary>
-        public static readonly GamePlayerEvent Quit = new GamePlayerEvent("GamePlayer.Quit");
+		/// <summary>
+		/// The Quit event is fired whenever the player the player quits the game
+		/// </summary>
+		public static readonly GamePlayerEvent Quit = new GamePlayerEvent("GamePlayer.Quit");
 		/// <summary>
 		/// The UseSlot event is fired whenever the player tries to use the slot
 		/// </summary>

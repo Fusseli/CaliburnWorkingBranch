@@ -16,19 +16,17 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  *
  */
-using DOL.Database;
-using DOL.Events;
-using DOL.GS;
-using DOL.GS.API;
-using DOL.GS.PacketHandler;
-using DOL.Language;
-using log4net;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
 using System.Text;
+using DOL.GS;
+using log4net;
+using System.Reflection;
+using DOL.Database;
+using DOL.Events;
+using DOL.GS.PacketHandler;
+using DOL.Language;
 
 namespace DOL.GS
 {
@@ -53,116 +51,65 @@ namespace DOL.GS
 		/// </summary>
 		private InventoryArtifact() { }
 
-        /// <summary>
-        /// Create a new inventory artifact from an item template.
-        /// </summary>
-        /// <param name="template"></param>
-        public InventoryArtifact(DbItemTemplate template) : base()
-        {
-            // ? Setze ArtifactID ZUERST (vor allen anderen Initialisierungen!)
-            ArtifactID = ArtifactMgr.GetArtifactIDFromItemID(template.Id_nb);
+		/// <summary>
+		/// Create a new inventory artifact from an item template.
+		/// </summary>
+		/// <param name="template"></param>
+		public InventoryArtifact(DbItemTemplate template)
+			: base(template)
+			
+		{
+			Template = Template.Clone() as DbItemTemplate;
+			ArtifactID = ArtifactMgr.GetArtifactIDFromItemID(template.Id_nb);
+			ArtifactLevel = 0;
+			m_levelRequirements = ArtifactMgr.GetLevelRequirements(ArtifactID);
 
-            if (string.IsNullOrEmpty(ArtifactID))
-            {
-                log.Error($"Failed to get ArtifactID from template: {template.Id_nb}");
-                return; // ? Verhindere weitere Initialisierung
-            }
+			for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
+			{
+				// Clear all bonuses except the base (L0) bonuses.
 
-            // ? Lade Level Requirements SOFORT nach ArtifactID
-            m_levelRequirements = ArtifactMgr.GetLevelRequirements(ArtifactID);
+				if (m_levelRequirements[(int)bonusID] > 0)
+				{
+					Template.SetBonusType(bonusID, 0);
+					Template.SetBonusAmount(bonusID, 0);
+				}
+			}
+		}
 
-            // ? Erstelle ein DbItemUnique aus dem Template
-            DbItemUnique uniqueTemplate = new DbItemUnique(template);
+		/// <summary>
+		/// Create a new inventory artifact from an existing inventory item.
+		/// </summary>
+		/// <param name="item"></param>
+		public InventoryArtifact(DbInventoryItem item)
+			: base(item)
+		{
+			if (item != null)
+			{
+				// We want a new copy from the DB to avoid everyone sharing the same template
+				var template = item.Template != null ? item.Template.Clone() as DbItemTemplate : item.Template;
 
-            uniqueTemplate.AllowAdd = true;
-            uniqueTemplate.AllowUpdate = true;
-            uniqueTemplate.ClassType = "DOL.GS.InventoryArtifact";
+				if (template == null)
+				{
+					log.ErrorFormat("Artifact: Error loading artifact for owner {0} holding item {1} with an id_nb of {2}", item.OwnerID, item.Name, item.Id_nb);
+					return;
+				}
 
-            // ? Speichere das Unique Template in der Datenbank
-            GameServer.Database.AddObject(uniqueTemplate);
-
-            // ? WICHTIG: Setze das Template NACH dem Speichern!
-            Template = uniqueTemplate;
-
-            // ? Setze die richtigen Template-IDs
-            UTemplate_Id = uniqueTemplate.Id_nb;
-            ITemplate_Id = null;
-
-            // ? Setze OwnerID auf NULL, damit das Item noch nicht gespeichert wird
-            OwnerID = null;
-            AllowAdd = true; // ? Erlaube das Speichern, wenn OwnerID gesetzt wird!
-
-            // ? ArtifactLevel auf 0 setzen
-            ArtifactLevel = 0;
-
-            // ? Initialisiere die Item-Eigenschaften
-            m_color = uniqueTemplate.Color;
-            m_emblem = uniqueTemplate.Emblem;
-            m_count = uniqueTemplate.PackSize;
-            m_extension = uniqueTemplate.Extension;
-            m_salvageextension = uniqueTemplate.SalvageExtension;
-            m_condition = uniqueTemplate.MaxCondition;
-            m_durability = uniqueTemplate.MaxDurability;
-            m_charges = uniqueTemplate.Charges > 0 ? uniqueTemplate.Charges : uniqueTemplate.MaxCharges;
-            m_charges1 = uniqueTemplate.Charges1 > 0 ? uniqueTemplate.Charges1 : uniqueTemplate.MaxCharges1;
-            m_poisonCharges = uniqueTemplate.PoisonCharges;
-            m_poisonMaxCharges = uniqueTemplate.PoisonMaxCharges;
-            m_poisonSpellID = uniqueTemplate.PoisonSpellID;
-            m_iscrafted = false;
-            m_creator = string.Empty;
-            m_sellPrice = 0;
-            m_experience = 0;
-
-            // ? Entferne ALLE Boni (werden später durch OnLevelGained() hinzugefügt)
-            for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
-            {
-                if (m_levelRequirements[(int)bonusID] > 0)
-                {
-                    uniqueTemplate.SetBonusType(bonusID, 0);
-                    uniqueTemplate.SetBonusAmount(bonusID, 0);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Create a new inventory artifact from an existing inventory item.
-        /// </summary>
-        /// <param name="item"></param>
-        public InventoryArtifact(DbInventoryItem item) : base(item)
-        {
-            if (item != null)
-            {
-                // ? Verwende das Template aus dem DbInventoryItem (nicht neu aus DB laden!)
-                var template = item.Template;
-
-                if (template == null)
-                {
-                    log.ErrorFormat("Artifact: Error loading artifact for owner {0} holding item {1} with an id_nb of {2}",
-                                    item.OwnerID, item.Name, item.Id_nb);
-                    return;
-                }
-
-                // ? Klone das Template, um es zu modifizieren (wichtig!)
-                this.Template = template.Clone() as DbItemTemplate;
-                this.ObjectId = item.ObjectId;
-                this.OwnerID = item.OwnerID;
-                CanUseEvery = ArtifactMgr.GetReuseTimer(this);
-
-                // ? Extrahiere die Base-ID (ohne #suffix)
-                ArtifactID = ArtifactMgr.GetArtifactIDFromItemID(Id_nb);
-                ArtifactLevel = ArtifactMgr.GetCurrentLevel(this);
-                m_levelRequirements = ArtifactMgr.GetLevelRequirements(ArtifactID);
-
-                // ? WICHTIG: UpdateAbilities() verwendet jetzt DbArtifactBonus!
-                UpdateAbilities();
-            }
-        }
+				this.Template = template;
+				this.ObjectId = item.ObjectId;	// This is the key for the 'inventoryitem' table
+				this.OwnerID = item.OwnerID;
+				CanUseEvery = ArtifactMgr.GetReuseTimer(this);
+				ArtifactID = ArtifactMgr.GetArtifactIDFromItemID(Id_nb);
+				ArtifactLevel = ArtifactMgr.GetCurrentLevel(this);
+				m_levelRequirements = ArtifactMgr.GetLevelRequirements(ArtifactID);
+				UpdateAbilities(template);
+			}
+		}
 
 
-        /// <summary>
-        /// The ID of this artifact.
-        /// </summary>
-        public String ArtifactID
+		/// <summary>
+		/// The ID of this artifact.
+		/// </summary>
+		public String ArtifactID
 		{
 			get { return m_artifactID; }
 			protected set { m_artifactID = value; }
@@ -203,115 +150,77 @@ namespace DOL.GS
 			}
 		}
 
-        /// <summary>
-        /// Verify that this artifact has all the correct abilities
-        /// </summary>
-        public void UpdateAbilities()
-        {
-            // ? Extrahiere die Base-ID (ohne #suffix)
-            string baseItemId = Id_nb;
-            int separatorIndex = baseItemId.IndexOf(DbItemUnique.UNIQUE_SEPARATOR);
-            if (separatorIndex > 0)
-            {
-                baseItemId = baseItemId.Substring(0, separatorIndex);
-            }
+		/// <summary>
+		/// Verify that this artifact has all the correct abilities
+		/// </summary>
+		public void UpdateAbilities(DbItemTemplate template)
+		{
+			if (template == null)
+				return;
 
-            // ? Lade das ORIGINAL-Template direkt aus der DB
-            DbItemTemplate originalTemplate = GameServer.Database.FindObjectByKey<DbItemTemplate>(baseItemId);
+			for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
+			{
+				if (m_levelRequirements[(int)bonusID] <= ArtifactLevel)
+				{
+					Template.SetBonusType(bonusID, template.GetBonusType(bonusID));
+					Template.SetBonusAmount(bonusID, template.GetBonusAmount(bonusID));
+				}
+				else
+				{
+					Template.SetBonusType(bonusID, 0);
+					Template.SetBonusAmount(bonusID, 0);
+				}
+			}
+		}
 
-            if (originalTemplate == null)
-            {
-                log.Warn(String.Format("Original template '{0}' not found for artifact '{1}'", baseItemId, ArtifactID));
-                return;
-            }
+		/// <summary>
+		/// Add all abilities for this level.
+		/// </summary>
+		/// <param name="artifactLevel">The level to add abilities for.</param>
+		/// <param name="player"></param>
+		/// <returns>True, if artifact gained 1 or more abilities, else false.</returns>
+		private bool AddAbilities(GamePlayer player, int artifactLevel)
+		{
+			DbItemTemplate template = GameServer.Database.FindObjectByKey<DbItemTemplate>(Id_nb);
 
-            for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
-            {
-                if (m_levelRequirements[(int)bonusID] <= ArtifactLevel)
-                {
-                    // ? Kopiere vom Original-Template
-                    Template.SetBonusType(bonusID, originalTemplate.GetBonusType(bonusID));
-                    Template.SetBonusAmount(bonusID, originalTemplate.GetBonusAmount(bonusID));
-                }
-                else
-                {
-                    // Bonus ist noch nicht freigeschaltet
-                    Template.SetBonusType(bonusID, 0);
-                    Template.SetBonusAmount(bonusID, 0);
-                }
-            }
-        }
+			if (template == null)
+			{
+				log.Warn(String.Format("Item template missing for artifact '{0}'", Name));
+				return false;
+			}
 
-        /// <summary>
-        /// Add all abilities for this level.
-        /// </summary>
-        /// <param name="artifactLevel">The level to add abilities for.</param>
-        /// <param name="player"></param>
-        /// <returns>True, if artifact gained 1 or more abilities, else false.</returns>
-        private bool AddAbilities(GamePlayer player, int artifactLevel)
-        {
-            // ? Extrahiere die Base-ID (ohne #suffix)
-            string baseItemId = Id_nb;
-            int separatorIndex = baseItemId.IndexOf(DbItemUnique.UNIQUE_SEPARATOR);
-            if (separatorIndex > 0)
-            {
-                baseItemId = baseItemId.Substring(0, separatorIndex);
-            }
+			bool abilityGained = false;
 
-            // ? Lade das ORIGINAL-Template direkt aus der DB
-            DbItemTemplate originalTemplate = GameServer.Database.FindObjectByKey<DbItemTemplate>(baseItemId);
+			for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
+			{
+				if (m_levelRequirements[(int)bonusID] == artifactLevel)
+				{
+					Template.SetBonusType(bonusID, template.GetBonusType(bonusID));
+					Template.SetBonusAmount(bonusID, template.GetBonusAmount(bonusID));
 
-            if (originalTemplate == null)
-            {
-                log.Warn(String.Format("Original template '{0}' not found for artifact '{1}'", baseItemId, ArtifactID));
-                return false;
-            }
+					if (bonusID <= DbArtifactBonus.ID.MaxStat)
+						player.Notify(PlayerInventoryEvent.ItemBonusChanged, this, new ItemBonusChangedEventArgs(Template.GetBonusType(bonusID), Template.GetBonusAmount(bonusID)));
 
-            bool abilityGained = false;
+					abilityGained = true;
+				}
+			}
 
-            for (DbArtifactBonus.ID bonusID = DbArtifactBonus.ID.Min; bonusID <= DbArtifactBonus.ID.Max; ++bonusID)
-            {
-                if (m_levelRequirements[(int)bonusID] == artifactLevel)
-                {
-                    // ? Kopiere vom Original-Template
-                    int bonusType = originalTemplate.GetBonusType(bonusID);
-                    int bonusAmount = originalTemplate.GetBonusAmount(bonusID);
+			return abilityGained;
+		}
 
-                    Template.SetBonusType(bonusID, bonusType);
-                    Template.SetBonusAmount(bonusID, bonusAmount);
+		#region Delve
 
-                    if (bonusID <= DbArtifactBonus.ID.MaxStat)
-                        player.Notify(PlayerInventoryEvent.ItemBonusChanged, this,
-                                      new ItemBonusChangedEventArgs(bonusType, bonusAmount));
-
-                    abilityGained = true;
-                }
-            }
-
-            return abilityGained;
-        }
-
-        #region Delve
-
-        /// <summary>
-        /// Artifact delve information.
-        /// </summary>
-        public override void Delve(List<String> delve, GamePlayer player)
+		/// <summary>
+		/// Artifact delve information.
+		/// </summary>
+		public override void Delve(List<String> delve, GamePlayer player)
 		{
 			if (player == null)
 				return;
 
-            // ? Prüfe ob ArtifactID null ist
-            if (string.IsNullOrEmpty(ArtifactID))
-            {
-                log.Error($"InventoryArtifact.Delve() called with null ArtifactID! Item: {Name}, Template: {Template?.Id_nb}");
-                base.Delve(delve, player);
-                return;
-            }
+			// Artifact specific information.
 
-            // Artifact specific information.
-
-            if (ArtifactLevel < 10)
+			if (ArtifactLevel < 10)
 			{
 				delve.Add(string.Format("Artifact (Current level: {0})", ArtifactLevel));
 				delve.Add(string.Format("- {0}% exp earned towards level {1}",
@@ -345,10 +254,10 @@ namespace DOL.GS
 
 			// Spells & Procs
 
-			DelveMagicalAbility(delve, player, DbArtifactBonus.ID.Spell, m_levelRequirements[(int)DbArtifactBonus.ID.Spell]);
-			DelveMagicalAbility(delve, player, DbArtifactBonus.ID.ProcSpell, m_levelRequirements[(int)DbArtifactBonus.ID.ProcSpell]);
-			DelveMagicalAbility(delve, player, DbArtifactBonus.ID.Spell1, m_levelRequirements[(int)DbArtifactBonus.ID.Spell1]);
-			DelveMagicalAbility(delve, player, DbArtifactBonus.ID.ProcSpell1, m_levelRequirements[(int)DbArtifactBonus.ID.ProcSpell1]);
+			DelveMagicalAbility(delve, DbArtifactBonus.ID.Spell, m_levelRequirements[(int)DbArtifactBonus.ID.Spell]);
+			DelveMagicalAbility(delve, DbArtifactBonus.ID.ProcSpell, m_levelRequirements[(int)DbArtifactBonus.ID.ProcSpell]);
+			DelveMagicalAbility(delve, DbArtifactBonus.ID.Spell1, m_levelRequirements[(int)DbArtifactBonus.ID.Spell1]);
+			DelveMagicalAbility(delve, DbArtifactBonus.ID.ProcSpell1, m_levelRequirements[(int)DbArtifactBonus.ID.ProcSpell1]);
 
 			delve.Add("");
 
@@ -469,26 +378,14 @@ namespace DOL.GS
 				                        bonusAmount));
 		}
 
-        private static class DelveCompat
-        {
-            public static void AddSpellDelve(GamePlayer player, SpellLine line, Spell spell, System.Collections.Generic.List<string> delve)
-            {
-                var handler = ScriptMgr.CreateSpellHandler(player, spell, line);
-                if (handler != null)
-                    delve.AddRange(handler.DelveInfo);
-                else
-                    delve.Add("- " + (spell?.Name ?? "Unknown Spell") + " (No SpellHandler found!)");
-            }
-        }
-
-        /// <summary>
-        /// Artifact Magical Ability delve information (spells, procs).
-        /// </summary>
-        /// <param name="delve"></param>
-        /// <param name="bonusID"></param>
-        /// <param name="levelRequirement"></param>
-        public virtual void DelveMagicalAbility(List<string> delve, GamePlayer player, DbArtifactBonus.ID bonusID, int levelRequirement)
-        {
+		/// <summary>
+		/// Artifact Magical Ability delve information (spells, procs).
+		/// </summary>
+		/// <param name="delve"></param>
+		/// <param name="bonusID"></param>
+		/// <param name="levelRequirement"></param>
+		public virtual void DelveMagicalAbility(List<String> delve, DbArtifactBonus.ID bonusID, int levelRequirement)
+		{
 			String levelTag = (levelRequirement > 0)
 				? String.Format("[L{0}]: ", levelRequirement)
 				: "";
@@ -528,25 +425,16 @@ namespace DOL.GS
 			delve.Add(String.Format("{0}{1}Magical Ability:", levelTag,
 			                        (isSecondary) ? "Secondary " : ""));
 
-            SpellLine spellLine = SkillBase.GetSpellLine(GlobalSpellsLines.Item_Effects);
-            if (spellLine != null)
-            {
-                var spells = SkillBase.GetSpellList(spellLine.KeyName);
-                foreach (var spl in spells)
-                {
-                    if (spl.ID == spellID)
-                    {
-                        DelveCompat.AddSpellDelve(player, spellLine, spl, delve); // ? statt spell.Delve(...)
-                        break;
-                    }
-                }
-            }
-            else
-            {
-                delve.Add("- Item_Effects Spell Line fehlt");
-            }
+			SpellLine spellLine = SkillBase.GetSpellLine(GlobalSpellsLines.Item_Effects);
+			if (spellLine != null)
+			{
+				List<Spell> spells = SkillBase.GetSpellList(spellLine.KeyName);
+				foreach (Spell spell in spells)
+					if (spell.ID == spellID)
+						spell.Delve(delve);
+			}
 
-            if (isProc)
+			if (isProc)
 				delve.Add(String.Format("- Spell has a chance of casting when this {0} enemy.",
 				                        (GlobalConstants.IsWeapon(Object_Type))
 				                        ? "weapon strikes an" : "armor is hit by"));

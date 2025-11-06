@@ -24,9 +24,17 @@ using DOL.GS.PacketHandler;
 
 namespace DOL.GS
 {
-    [Obsolete("This is going to removed. See GameItemCurrencyMerchant's obsolete message for more details.")]
+    /// <summary>
+    /// A bounty merchant for artifact credit.
+    /// </summary>
+    /// <author>Aredhel</author>
     public class ArtifactCreditMerchant : GameBountyMerchant
     {
+        /// <summary>
+        /// A player right-clicked the merchant.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
         public override bool Interact(GamePlayer player)
         {
             if (!base.Interact(player))
@@ -38,6 +46,13 @@ namespace DOL.GS
             return true;
         }
 
+
+        /// <summary>
+        /// Merchant has received a /whisper.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="text"></param>
+        /// <returns></returns>
         public override bool WhisperReceive(GameLiving source, String text)
         {
             GamePlayer player = source as GamePlayer;
@@ -74,6 +89,12 @@ namespace DOL.GS
             return base.WhisperReceive(source, text);
         }
 
+        /// <summary>
+        /// The merchant received an item from another GameLiving.
+        /// </summary>
+        /// <param name="source"></param>
+        /// <param name="item"></param>
+        /// <returns></returns>
         public override bool ReceiveItem(GameLiving source, DbInventoryItem item)
         {
             GamePlayer player = source as GamePlayer;
@@ -93,7 +114,8 @@ namespace DOL.GS
                     InventoryLogging.LogInventoryAction(player, this, eInventoryActionType.Merchant, item.Template, item.Count);
 
 					long totalValue = item.Price;
-					player.GainBountyPoints(totalValue);
+
+                    player.GainBountyPoints(totalValue);
 					player.Out.SendUpdatePoints();
 					player.Out.SendMessage(totalValue + " Bounty Points refunded", eChatType.CT_ScreenCenterSmaller, eChatLoc.CL_SystemWindow);
 					player.Out.SendMessage("You already have this credit or your class is not eligible to receive this artifact. " + totalValue + " Bounty Points refunded!", eChatType.CT_Merchant, eChatLoc.CL_SystemWindow);

@@ -14541,7 +14541,7 @@ namespace DOL.GS
             RefreshSpecDependantSkills(false);
             Out.SendUpdatePlayer();
             Out.SendUpdatePoints();
-            Out.SendUpdatePlayerSkills(true);
+            Out.SendUpdatePlayerSkills();
             UpdatePlayerStatus();
         }
 
@@ -14571,7 +14571,7 @@ namespace DOL.GS
             }
 
             RefreshSpecDependantSkills(true);
-            Out.SendUpdatePlayerSkills(true);
+            Out.SendUpdatePlayerSkills();
 
             Notify(GamePlayerEvent.ChampionLevelUp, this);
             Out.SendMessage("You have gained one champion level!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
@@ -14851,14 +14851,14 @@ namespace DOL.GS
         /// <returns>True when at least one version exists, false when no versions are available.</returns>
         public bool CanReceiveArtifact(string artifactID)
         {
-            var possibleVersions = ArtifactMgr.GetArtifactVersions(
-                artifactID,
-                (eCharacterClass)CharacterClass.ID,
-                Realm
-            );
+            Dictionary<String, DbItemTemplate> possibleVersions = ArtifactMgr.GetArtifactVersions(artifactID, (eCharacterClass)CharacterClass.ID, Realm);
 
-            return possibleVersions != null && possibleVersions.Count > 0;
+            if (possibleVersions.Count == 0)
+                return false;
+
+            return true;
         }
+
         #endregion
 
         #region Constructors
