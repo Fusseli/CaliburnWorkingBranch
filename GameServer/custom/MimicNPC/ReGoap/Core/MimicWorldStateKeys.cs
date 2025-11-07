@@ -108,6 +108,9 @@ namespace DOL.GS.Scripts.ReGoap
         /// <summary>Tank's threat as percentage of highest threat (for tank priority)</summary>
         public const string THREAT_PERCENT_OF_HIGHEST = "threatPercentOfHighest";
 
+        /// <summary>Healer is currently under attack (enemies targeting healer)</summary>
+        public const string HEALER_UNDER_ATTACK = "healerUnderAttack";
+
         #endregion
 
         #region Group State (from Body.Group.MimicGroup)
@@ -259,6 +262,12 @@ namespace DOL.GS.Scripts.ReGoap
 
         /// <summary>Mezz needs refresh (expiring in <10s)</summary>
         public const string MEZZ_NEEDS_REFRESH = "mezzNeedsRefresh";
+
+        /// <summary>Enemies immune to crowd control (list) - targets that returned explicit immunity messages</summary>
+        public const string CC_IMMUNE_ENEMIES = "ccImmuneEnemies";
+
+        /// <summary>Number of adds that are controllable (not already controlled AND not immune)</summary>
+        public const string NUM_CONTROLLABLE_ADDS = "numControllableAdds";
 
         /// <summary>Main Assist player from MimicGroup.MainAssist</summary>
         public const string MAIN_ASSIST = "mainAssist";
