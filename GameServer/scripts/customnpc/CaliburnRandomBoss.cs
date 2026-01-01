@@ -1,15 +1,20 @@
 using DOL.AI.Brain;
 using DOL.Database;
+using DOL.GS.SkillHandler;
+using DOL.GS.Spells;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using log4net;
+using System.Reflection;
 
 namespace DOL.GS
 {
-    public class RandomBoss : GameNPC
+    public class CaliburnRandomBoss : GameNPC
     {
+        private static new readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
         static List<DbSpell> m_AllSpells = null;
 
         private class SpellChoice
@@ -30,10 +35,23 @@ namespace DOL.GS
         {
             if (m_AllSpells == null)
             {
-                m_AllSpells = GameServer.Database.SelectAllObjects<DbSpell>().ToList();
+                try
+                {
+                    m_AllSpells = GameServer.Database.SelectAllObjects<DbSpell>().ToList();
+                    if (m_AllSpells == null || m_AllSpells.Count == 0)
+                    {
+                        log.Error("CaliburnRandomBoss: Failed to load spells from database!");
+                        return false;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"CaliburnRandomBoss: Error loading spells from database: {ex.Message}");
+                    return false;
+                }
             }
 
-            SetOwnBrain(new RandomBossBrain());
+            SetOwnBrain(new CaliburnRandomBossBrain());
 
             if (base.AddToWorld())
             {
@@ -106,11 +124,12 @@ namespace DOL.GS
                 DbSpell spell = new DbSpell();
                 spell.AllowAdd = false;
                 spell.CastTime = instant ? 0 : Util.RandomDouble() * 3;
-                spell.Range = 2000;
+                spell.Radius = Util.Chance(30) ? 300 : 0; // Allow AoE stuns
+                spell.Range = 2000; // Always have range for stuns
                 DbSpell effectSpell = m_AllSpells.Where(a =>
                     a.Type == eSpellType.Stun.ToString() &&
                     ((a.CastTime == 0 && instant) || (a.CastTime > 0 && !instant)) &&
-                    (spell.IsRangedAoE() == a.IsRangedAoE() && spell.IsSingleTarget() == a.IsSingleTarget())
+                    (spell.IsRangedAoE() == a.IsRangedAoE() && spell.IsPBAoE() == a.IsPBAoE() && spell.IsSingleTarget() == a.IsSingleTarget())
                 ).OrderBy(a => Guid.NewGuid()).FirstOrDefault();
 
                 if (effectSpell == null) continue;
@@ -233,7 +252,7 @@ namespace DOL.GS
                 spell.SpellID = 11890;
                 spell.Target = "Enemy";
                 spell.Frequency = Util.Random(10, 40);
-                spell.Duration = (spell.Frequency * Util.Random(6, 10)) / 10;
+                spell.Duration = Math.Max(1, (spell.Frequency * Util.Random(6, 10)) / 10); // Ensure minimum 1 second duration
                 spell.Type = eSpellType.DamageOverTime.ToString();
                 spell.Uninterruptible = true;
 
@@ -629,13 +648,349 @@ namespace DOL.GS
         }
     }
 
-    public class RandomBossBrain : StandardMobBrain
+    public class CaliburnRandomBossBrain : StandardMobBrain
     {
+        private const int HEAL_THRESHOLD = 75; // Heal when HP drops below 75%
+        private const long CAST_TIME_BUFFER = 500; // Buffer in milliseconds to start casting before effect expires
+        private bool m_buffsAppliedOnSpawn = false;
+        private long m_lastBuffCheck = 0;
+        private const long BUFF_CHECK_INTERVAL = 2000; // Check buffs every 2 seconds
+
         public override int AggroRange { get => 1000; set => base.AggroRange = value; }
         public override int AggroLevel { get => 100; set => base.AggroLevel = value; }
+
+        public override void Think()
+        {
+            base.Think();
+
+            if (Body == null || !Body.IsAlive)
+                return;
+
+            long currentTime = GameLoop.GameLoopTime;
+
+            // Apply buffs on spawn (only once)
+            if (!m_buffsAppliedOnSpawn)
+            {
+                if (Body.IsAlive)
+                {
+                    ApplyBuffsOnSpawn();
+                }
+                m_buffsAppliedOnSpawn = true; // Set flag even if Body is dead to prevent repeated checks
+            }
+
+            // Periodically check and refresh buffs
+            if (currentTime - m_lastBuffCheck > BUFF_CHECK_INTERVAL)
+            {
+                CheckAndRefreshBuffs();
+                m_lastBuffCheck = currentTime;
+            }
+        }
+
+        /// <summary>
+        /// Apply self-buffs on spawn (like damage shields, stat buffs, etc.)
+        /// </summary>
+        private void ApplyBuffsOnSpawn()
+        {
+            if (Body?.Spells == null || Body.IsCasting)
+                return;
+
+            foreach (Spell spell in Body.Spells)
+            {
+                // Only apply self-targeted buffs that aren't heals
+                if (spell.Target == eSpellTarget.SELF && 
+                    spell.SpellType != eSpellType.Heal && 
+                    spell.SpellType != eSpellType.HealOverTime)
+                {
+                    // Check if the buff is already applied
+                    if (!LivingHasEffect(Body, spell))
+                    {
+                        // Check if spell is on cooldown
+                        if (Body.GetSkillDisabledDuration(spell) > 0)
+                            continue;
+                        
+                        Body.TargetObject = Body;
+                        if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                        {
+                            // Only cast one spell at a time, break after successful cast
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check buffs and heals (HoTs) and refresh them if they're about to expire (accounting for cast time)
+        /// </summary>
+        private void CheckAndRefreshBuffs()
+        {
+            if (Body?.Spells == null || !Body.IsAlive || Body.IsCasting)
+                return;
+
+            foreach (Spell spell in Body.Spells)
+            {
+                // Refresh self-targeted buffs and HoTs (but not instant heals)
+                if (spell.Target == eSpellTarget.SELF && 
+                    spell.SpellType != eSpellType.Heal && // Skip instant heals (they're handled in CheckSpells)
+                    spell.Duration > 0)
+                {
+                    // Check if buff/HoT exists and is about to expire
+                    eEffect spellEffect = EffectService.GetEffectFromSpell(spell);
+                    if (spellEffect != eEffect.Unknown)
+                    {
+                        ECSGameSpellEffect effect = EffectListService.GetSpellEffectOnTarget(Body, spellEffect);
+                        if (effect != null && !effect.IsDisabled && effect.ExpireTick > GameLoop.GameLoopTime)
+                        {
+                            // Calculate remaining duration in milliseconds
+                            long remainingDuration = effect.ExpireTick - GameLoop.GameLoopTime;
+                            
+                            // Get cast time in milliseconds (already stored in milliseconds)
+                            long castTime = spell.CastTime;
+                            
+                            // Start casting when remaining duration <= cast time + buffer
+                            // This ensures the buff/HoT is refreshed right as it expires (or just before)
+                            if (remainingDuration > 0 && remainingDuration <= (castTime + CAST_TIME_BUFFER))
+                            {
+                                // Refresh the buff or HoT
+                                // For HoTs, only refresh if HP is below threshold
+                                if (spell.SpellType == eSpellType.HealOverTime && Body.HealthPercent >= HEAL_THRESHOLD)
+                                    continue;
+                                
+                                // Check if spell is on cooldown
+                                if (Body.GetSkillDisabledDuration(spell) > 0)
+                                    continue;
+                                
+                                bool canCast = spell.SpellType == eSpellType.HealOverTime 
+                                    ? Body.CanCastHealSpells 
+                                    : Body.CanCastMiscSpells;
+                                
+                                if (canCast && !Body.IsCasting)
+                                {
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                    {
+                                        // Only cast one spell at a time
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        else if (!LivingHasEffect(Body, spell))
+                        {
+                            // Buff/HoT is missing, reapply it
+                            // For HoTs, only reapply if HP is below threshold
+                            if (spell.SpellType == eSpellType.HealOverTime)
+                            {
+                                if (Body.HealthPercent < HEAL_THRESHOLD && Body.CanCastHealSpells && !Body.IsCasting)
+                                {
+                                    // Check if spell is on cooldown
+                                    if (Body.GetSkillDisabledDuration(spell) > 0)
+                                        continue;
+                                    
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                    {
+                                        // Only cast one spell at a time
+                                        break;
+                                    }
+                                }
+                            }
+                            // For buffs: apply combat buffs during combat, others when not in combat
+                            else if (spell.SpellType == eSpellType.CombatSpeedBuff && Body.InCombat)
+                            {
+                                // Apply combat buffs during combat
+                                if (Body.CanCastMiscSpells && !Body.IsCasting)
+                                {
+                                    // Check if spell is on cooldown
+                                    if (Body.GetSkillDisabledDuration(spell) > 0)
+                                        continue;
+                                    
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                    {
+                                        // Only cast one spell at a time
+                                        break;
+                                    }
+                                }
+                            }
+                            else if (!Body.InCombat)
+                            {
+                                // Apply non-combat buffs when not in combat
+                                if (Body.CanCastMiscSpells && !Body.IsCasting)
+                                {
+                                    // Check if spell is on cooldown
+                                    if (Body.GetSkillDisabledDuration(spell) > 0)
+                                        continue;
+                                    
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                    {
+                                        // Only cast one spell at a time
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         public override bool CheckSpells(eCheckSpellType type)
         {
+            if (Body == null || Body.Spells == null || Body.Spells.Count == 0)
+                return false;
+
+            // Handle defensive spells (heals, self-buffs)
+            if (type == eCheckSpellType.Defensive)
+            {
+                // Check for healing spells first (priority)
+                if (Body.HealthPercent < HEAL_THRESHOLD)
+                {
+                    foreach (Spell spell in Body.Spells)
+                    {
+                        if ((spell.SpellType == eSpellType.Heal || spell.SpellType == eSpellType.HealOverTime) &&
+                            spell.Target == eSpellTarget.SELF)
+                        {
+                            if (Body.CanCastHealSpells && !Body.IsCasting)
+                            {
+                                // For HoT: check if it exists and needs refresh (accounting for cast time)
+                                if (spell.SpellType == eSpellType.HealOverTime)
+                                {
+                                    eEffect spellEffect = EffectService.GetEffectFromSpell(spell);
+                                    if (spellEffect != eEffect.Unknown)
+                                    {
+                                        ECSGameSpellEffect effect = EffectListService.GetSpellEffectOnTarget(Body, spellEffect);
+                                        if (effect != null && !effect.IsDisabled && effect.ExpireTick > GameLoop.GameLoopTime)
+                                        {
+                                            // Calculate remaining duration in milliseconds
+                                            long remainingDuration = effect.ExpireTick - GameLoop.GameLoopTime;
+                                            
+                                            // Get cast time in milliseconds
+                                            long castTime = spell.CastTime;
+                                            
+                                            // Refresh HoT when remaining duration <= cast time + buffer
+                                            if (remainingDuration > 0 && remainingDuration <= (castTime + CAST_TIME_BUFFER))
+                                            {
+                                                // Check if spell is on cooldown
+                                                if (Body.GetSkillDisabledDuration(spell) == 0)
+                                                {
+                                                    Body.TargetObject = Body;
+                                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                                        return true;
+                                                }
+                                            }
+                                            // If HoT still has time, don't cast another one
+                                            continue;
+                                        }
+                                    }
+                                    // If HoT doesn't exist, we'll cast it below
+                                }
+
+                                // For regular Heal or missing HoT, cast it
+                                // Check if spell is on cooldown
+                                if (Body.GetSkillDisabledDuration(spell) == 0)
+                                {
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                        return true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Check for combat buffs during combat
+                if (Body.InCombat)
+                {
+                    foreach (Spell spell in Body.Spells)
+                    {
+                        if (spell.Target == eSpellTarget.SELF && 
+                            spell.SpellType == eSpellType.CombatSpeedBuff &&
+                            !LivingHasEffect(Body, spell))
+                        {
+                            if (Body.CanCastMiscSpells && !Body.IsCasting)
+                            {
+                                // Check if spell is on cooldown
+                                if (Body.GetSkillDisabledDuration(spell) == 0)
+                                {
+                                    Body.TargetObject = Body;
+                                    if (Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells)))
+                                        return true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Call base implementation for offensive spells and other defensive spells
             return base.CheckSpells(type);
+        }
+
+        protected override GameLiving FindTargetForDefensiveSpell(Spell spell)
+        {
+            // Handle self-targeted defensive spells
+            if (spell.Target == eSpellTarget.SELF)
+            {
+                // Check if spell is on cooldown first
+                if (Body.GetSkillDisabledDuration(spell) > 0)
+                    return null;
+                
+                // Heals: only cast when HP is below threshold
+                if (spell.SpellType == eSpellType.Heal || spell.SpellType == eSpellType.HealOverTime)
+                {
+                    if (Body.HealthPercent < HEAL_THRESHOLD)
+                    {
+                        // For HoT: check if it needs refresh (accounting for cast time)
+                        if (spell.SpellType == eSpellType.HealOverTime)
+                        {
+                            eEffect spellEffect = EffectService.GetEffectFromSpell(spell);
+                            if (spellEffect != eEffect.Unknown)
+                            {
+                                ECSGameSpellEffect effect = EffectListService.GetSpellEffectOnTarget(Body, spellEffect);
+                                if (effect != null && !effect.IsDisabled && effect.ExpireTick > GameLoop.GameLoopTime)
+                                {
+                                    // Calculate remaining duration in milliseconds
+                                    long remainingDuration = effect.ExpireTick - GameLoop.GameLoopTime;
+                                    
+                                    // Get cast time in milliseconds
+                                    long castTime = spell.CastTime;
+                                    
+                                    // Refresh HoT when remaining duration <= cast time + buffer
+                                    if (remainingDuration > 0 && remainingDuration <= (castTime + CAST_TIME_BUFFER))
+                                        return Body;
+                                    
+                                    // HoT still has time, don't cast another one
+                                    return null;
+                                }
+                            }
+                        }
+                        
+                        // For regular Heal or missing HoT, cast it if not present
+                        if (!LivingHasEffect(Body, spell))
+                            return Body;
+                    }
+                    return null;
+                }
+
+                // Combat buffs: apply during combat
+                if (spell.SpellType == eSpellType.CombatSpeedBuff)
+                {
+                    if (Body.InCombat && !LivingHasEffect(Body, spell))
+                        return Body;
+                    return null;
+                }
+
+                // Other self-buffs: apply if not present
+                if (!LivingHasEffect(Body, spell))
+                    return Body;
+                
+                return null;
+            }
+
+            // For non-self spells, use base implementation
+            return base.FindTargetForDefensiveSpell(spell);
         }
     }
 
