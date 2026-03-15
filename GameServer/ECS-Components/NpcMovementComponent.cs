@@ -16,7 +16,6 @@ namespace DOL.GS
         public const short DEFAULT_WALK_SPEED = 70;
         public const int MIN_ALLOWED_FOLLOW_DISTANCE = 100;
         public const int MIN_ALLOWED_PET_FOLLOW_DISTANCE = 90;
-        private const double FOLLOW_SPEED_SCALAR = 2.5;
 
         private MovementState _movementState;
         private long _nextFollowTick;
@@ -30,6 +29,7 @@ namespace DOL.GS
         private Point3D _positionForUpdatePackets;
         private bool _needsBroadcastUpdate;
         private short _currentMovementDesiredSpeed;
+        private PathVisualization _pathVisualization;
 
         public new GameNPC Owner { get; }
         public Vector3 Velocity { get; private set; }
@@ -186,7 +186,9 @@ namespace DOL.GS
             {
                 if (PathID == null)
                 {
-                    log.Error($"Called {nameof(MoveOnPath)} but PathID is null (NPC: {Owner})");
+                    if (log.IsErrorEnabled)
+                        log.Error($"Called {nameof(MoveOnPath)} but PathID is null (NPC: {Owner})");
+
                     return;
                 }
 
@@ -194,7 +196,9 @@ namespace DOL.GS
 
                 if (CurrentWaypoint == null)
                 {
-                    log.Error($"Called {nameof(MoveOnPath)} but LoadPath returned null (PathID: {PathID}) (NPC: {Owner})");
+                    if (log.IsErrorEnabled)
+                        log.Error($"Called {nameof(MoveOnPath)} but LoadPath returned null (PathID: {PathID}) (NPC: {Owner})");
+
                     return;
                 }
 
@@ -222,7 +226,7 @@ namespace DOL.GS
 
                 PathTo(CurrentWaypoint, Owner.MaxSpeed);
             }
-            else
+            else if (log.IsErrorEnabled)
                 log.Error($"Called {nameof(MoveOnPath)} but both CurrentWaypoint and ON_PATH are already set. (NPC: {Owner})");
         }
 
@@ -342,6 +346,25 @@ namespace DOL.GS
             base.DisableTurning(add);
         }
 
+        public void TogglePathVisualization()
+        {
+            // Toggle both visualization for `PathCalculator` (pathfinding) and `PathPoint` (patrols, horse routes).
+
+            _pathCalculator.ToggleVisualization();
+
+            if (_pathVisualization != null)
+            {
+                _pathVisualization.CleanUp();
+                _pathVisualization = null;
+                return;
+            }
+
+            _pathVisualization = new();
+
+            if (CurrentWaypoint != null)
+                _pathVisualization.Visualize(MovementMgr.FindFirstPathPoint(CurrentWaypoint), Owner.CurrentRegion);
+        }
+
         private void UpdateVelocity(double distanceToTarget)
         {
             MovementStartTick = GameLoop.GameLoopTime;
@@ -427,20 +450,29 @@ namespace DOL.GS
                 return;
             }
 
-            Tuple<Vector3?, NoPathReason> res = _pathCalculator.CalculateNextTarget(destinationForPathCalculator);
-            Vector3? nextNode = res.Item1;
-            //NoPathReason noPathReason = res.Item2;
-            //bool shouldUseAirPath = noPathReason == NoPathReason.RECAST_FOUND_NO_PATH;
-            //bool didFindPath = PathCalculator.DidFindPath;
+            Vector3? nextNode = _pathCalculator.CalculateNextTarget(destinationForPathCalculator, out ENoPathReason noPathReason);
 
-            if (!nextNode.HasValue)
+            // Fall back to normal walking method if no path is found.
+            if (noPathReason is ENoPathReason.NoPath or ENoPathReason.End)
             {
                 UnsetFlag(MovementState.PATHING);
                 WalkToInternal(destination, speed);
                 return;
             }
 
-            // Do the actual pathing bit: Walk towards the next pathing node
+            // Pause movement and turn toward the destination the path contains a closed door.
+            if (noPathReason is ENoPathReason.ClosedDoor)
+            {
+                TurnTo(destination.X, destination.Y);
+                UnsetFlag(MovementState.PATHING);
+
+                if (IsMoving)
+                    UpdateMovement(null, 0.0, 0);
+
+                return;
+            }
+
+            // Walk towards the next pathing node.
             _movementRequest = new(destination, speed, PathToInternal);
             SetFlag(MovementState.PATHING);
             WalkToInternal(new Point3D(nextNode.Value.X, nextNode.Value.Y, nextNode.Value.Z), speed);
@@ -618,7 +650,7 @@ namespace DOL.GS
             oldPathPoint.FiredFlag = !oldPathPoint.FiredFlag;
 
             if (CurrentWaypoint != null)
-                WalkToInternal(CurrentWaypoint, Math.Min(_moveOnPathSpeed, CurrentWaypoint.MaxSpeed));
+                PathToInternal(CurrentWaypoint, Math.Min(_moveOnPathSpeed, CurrentWaypoint.MaxSpeed));
             else
                 StopMovingOnPath();
         }

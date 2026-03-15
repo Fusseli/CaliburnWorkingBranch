@@ -21,6 +21,7 @@ namespace DOL.GS
         public int Locked { get; set; }
         public override int DoorID { get; set; }
         public override uint Flag { get; set; }
+        public override bool CanBeOpenedViaInteraction => Locked == 0;
 
         public override eDoorState State
         {
