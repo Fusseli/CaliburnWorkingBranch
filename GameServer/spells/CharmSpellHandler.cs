@@ -223,6 +223,8 @@ namespace DOL.GS.Spells
                         isCharmable = false;
                     if (charmMob is GameEpicBoss or GameEpicNPC) // Any epic mobs or bosses
                         isCharmable = false;
+                    if (charmMob is CaliburnRandomBoss) // Any CaliburnRandomBoss
+                        isCharmable = false;
 
                     // If the mob's ClassType matches any of the above, it cannot be charmed
                     if (isCharmable == false)
