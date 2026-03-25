@@ -1,10 +1,13 @@
 namespace DOL.GS
 {
-    public enum ENoPathReason
-    {
-        NoProblem,
-        End,
-        NoPath,
-        ClosedDoor,
-    }
+  /// <summary>
+  /// Reason for why no path was found
+  /// </summary>
+  public enum NoPathReason
+  {
+    NOPROBLEM,
+    UNKNOWN,
+    RECAST_FOUND_NO_PATH,
+    DOOR_EN_ROUTE,
+  }
 }
