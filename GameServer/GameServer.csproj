@@ -4,7 +4,7 @@
   </PropertyGroup>
   <Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <AssemblyName>GameServer</AssemblyName>
@@ -34,12 +34,12 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="discord-webhook-client" Version="3.1.0" />
-    <PackageReference Include="log4net" Version="3.0.3" />
-    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="9.0.0" />
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.12.0" />
+    <PackageReference Include="log4net" Version="2.0.16" />
+    <PackageReference Include="Microsoft.AspNetCore.SpaServices.Extensions" Version="8.0.3" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
     <PackageReference Include="Microsoft.Diagnostics.Runtime" Version="3.1.512801" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="9.0.0" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
     <PackageReference Include="System.Text.RegularExpressions" Version="4.3.1" />
     <ProjectReference Include="..\CoreBase\CoreBase.csproj" Name="CoreBase" />
@@ -49,6 +49,13 @@
     <EmbeddedResource Include=".\config\*" />
     <TranslationFiles Include=".\language\**\*.txt" />
     <APIDocs Include=".\API\docs\*" />
+  </ItemGroup>
+  <ItemGroup>
+    <APIDocs Remove="custom\MimicNPC\Invasion System\**" />
+    <Compile Remove="custom\MimicNPC\Invasion System\**" />
+    <EmbeddedResource Remove="custom\MimicNPC\Invasion System\**" />
+    <None Remove="custom\MimicNPC\Invasion System\**" />
+    <TranslationFiles Remove="custom\MimicNPC\Invasion System\**" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="API\docs\index.css" />
