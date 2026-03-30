@@ -79,8 +79,10 @@ namespace DOL.GS.Commands
     [Cmd("&monty", ePrivLevel.Player, "Think Camelot is a silly place", "/monty")]
     [Cmd("&loco", ePrivLevel.Player, "Think this is crazy", "/loco")]
     [Cmd("&cower", ePrivLevel.Player, "Cower", "/cower")]
-	
-	public class EmoteCommandHandler : AbstractCommandHandler, ICommandHandler
+    [CmdAttribute("&chicken", ePrivLevel.Player, "Make a chicken gesture to insult someone", "/chicken")]
+
+
+    public class EmoteCommandHandler : AbstractCommandHandler, ICommandHandler
 	{
 		private const ushort EMOTE_RANGE_TO_TARGET = 2048; // 2064 was out of range and 2020 in range;
 		private const ushort EMOTE_RANGE_TO_OTHERS = 512; // 519 was out of range and 504 in range;
@@ -356,8 +358,12 @@ namespace DOL.GS.Commands
                 case "&cower":
                     emoteID = eEmote.Cower;
                     emoteMessages = EMOTE_MESSAGES_COWER;
+					break;
+                case "&chicken":
+                    emoteID = eEmote.Chicken;
+                    emoteMessages = EMOTE_MESSAGES_Chicken;
                     break;
-				default:
+                default:
 					return;
 			}
 
@@ -796,5 +802,11 @@ namespace DOL.GS.Commands
             "You cower before {0}.",
             "{0} cowers before {1}.",
         };
-	}
+        private readonly string[] EMOTE_MESSAGES_Chicken = {
+            "You make a taunting gesture.",
+            "{0} makes a taunting gesture.",
+            "You taunt {0}.",
+            "{0} taunts {1}.",
+        };
+    }
 }

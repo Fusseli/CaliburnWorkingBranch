@@ -348,9 +348,9 @@ namespace DOL.GS.PacketHandler
 		Ponder = 0x17,
 		Military = 0x18,
 		Present = 0x19,
-		/*Taunt = 0x1a,*/
+		Taunt = 0x1a,
 		Rude = 0x1b,
-		Taunt = 0x1c,
+		Chicken = 0x1c,
 		Hug = 0x1d,
 		LetsGo = 0x1e,
 		Meditate = 0x1f,
