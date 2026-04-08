@@ -29,8 +29,8 @@ namespace DOL.GS.Scripts
                                                     new Point3D(53300, 26100, 4270),
                                                     300,
                                                     1500,
-                                                    20,
-                                                    24);
+                                                    25,
+                                                    29);
         }
 
         public class MimicBattleground
@@ -78,7 +78,8 @@ namespace DOL.GS.Scripts
             private int m_currentMaxHib;
             private int m_currentMaxMid;
 
-            private int m_groupChance = 50;
+            //default value 50
+            private int m_groupChance = 90;
 
             public void Start()
             {
@@ -87,9 +88,9 @@ namespace DOL.GS.Scripts
                     if (!m_masterTimer.IsAlive)
                         m_masterTimer.Start();
 
-                    m_albSpawner.Start();
-                    m_hibSpawner.Start();
-                    m_midSpawner.Start();
+                    m_albSpawner?.Start();
+                    m_hibSpawner?.Start();
+                    m_midSpawner?.Start();
                 }
                 else
                 {
@@ -100,6 +101,12 @@ namespace DOL.GS.Scripts
                     m_albSpawner = new MimicSpawner(eRealm.Albion, m_minLevel, m_maxLevel, m_currentMaxAlb, m_albSpawnPoint, m_region, 0, true);
                     m_hibSpawner = new MimicSpawner(eRealm.Hibernia, m_minLevel, m_maxLevel, m_currentMaxHib, m_hibSpawnPoint, m_region, 0, true);
                     m_midSpawner = new MimicSpawner(eRealm.Midgard, m_minLevel, m_maxLevel, m_currentMaxMid, m_midSpawnPoint, m_region, 0, true);
+
+                    //FIX: Start everything immediately
+                    m_masterTimer.Start();
+                    m_albSpawner.Start();
+                    m_hibSpawner.Start();
+                    m_midSpawner.Start();
                 }
             }
 
@@ -161,7 +168,11 @@ namespace DOL.GS.Scripts
                 log.Info("Mid: " + m_midSpawner.Mimics.Count + "/" + m_currentMaxMid);
                 log.Info("Total Mimics: " + totalMimics + "/" + m_currentMaxTotalMimics);
 
-                return m_timerInterval + Util.Random(-300000, 300000); // 10 minutes + or - 5 minutes
+                // Restart the timer explicitly for the next cycle
+                timer?.Start();
+
+                // Return next interval
+                return m_timerInterval + Util.Random(-300000, 300000);
             }
 
             /// <summary>
@@ -208,7 +219,7 @@ namespace DOL.GS.Scripts
                                 }
 
                                 list[groupLeaderIndex].Group.AddMember(list[i + 1]);
-                                groupChance -= 5;
+                                groupChance -= 2; //default value 5
                             }
                             else
                             {
@@ -361,6 +372,9 @@ namespace DOL.GS.Scripts
             log.Info("MimicManager Initializing...");
 
             MimicBattlegrounds.Initialize();
+
+            //FIX: auto start on server boot
+            MimicBattlegrounds.ThidBattleground?.Start();
 
             return true;
         }
