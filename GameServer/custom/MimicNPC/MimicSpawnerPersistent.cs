@@ -1,33 +1,28 @@
 ﻿using DOL.AI;
+using DOL.AI.Brain;
 using DOL.GS.PacketHandler;
 using System;
 using System.Collections.Generic;
-using System.Collections.Immutable;
 using System.Linq;
 
 namespace DOL.GS.Scripts
 {
     public class MimicSpawnerPersistent : GameNPC
     {
-        public bool IsRunning { get { return _timer.IsAlive; } }
-        public List<MimicNPC> Mimics { get { return _mimics; } }
-        public int SpawnCount { get { return _spawnCount; } }
+        public bool IsRunning => _timer != null && _timer.IsAlive;
+        public List<MimicNPC> Mimics => _mimics;
+        public int SpawnCount => _spawnCount;
         public bool SpawnAndStop { get; set; }
- 
 
         public override eGameObjectType GameObjectType => eGameObjectType.NPC;
-           
 
         private int _spawnCount;
-
         private ECSGameTimer _timer;
         private int _dormantInterval;
         private int _timerIntervalMin = 10000;
         private int _timerIntervalMax = 30000;
 
         private List<MimicNPC> _mimics;
-
-        
 
         public int LevelMin => base.Strength;
         public int LevelMax => base.Dexterity;
@@ -36,38 +31,28 @@ namespace DOL.GS.Scripts
         public int MinGroupSize => base.Constitution;
         public int MaxGroupSize => base.Charisma;
 
-        Group mimicGroup = null;
-
         bool deleteAllOnNextTick = false;
-      
+
+        // ✅ NEW: PreventCombat support
+        public bool PreventCombat =>
+            !string.IsNullOrEmpty(PackageID) && PackageID.Contains("PREVENT_COMBAT");
+
         private int TimerCallback(ECSGameTimer timer)
         {
-            /*
-            if (SpawnAndStop && _spawnCount >= SpawnMax)
-            {
-                _spawnCount = 0;
-
-                if (_dormantInterval > 0)
-                    return _dormantInterval;
-                else
-                    Stop();
-            }
-            */
             int interval = Util.Random(_timerIntervalMin, _timerIntervalMax);
 
             if (_mimics.Count >= SpawnMax)
                 return interval;
 
-            var playersInRegion = ClientService.GetPlayersOfRegion(CurrentRegion).Where(a => a.Client != null && a.Client.Account?.PrivLevel == (uint)ePrivLevel.Player).ToList();
+            var playersInRegion = ClientService.GetPlayersOfRegion(CurrentRegion)
+                .Where(a => a.Client != null && a.Client.Account?.PrivLevel == (uint)ePrivLevel.Player)
+                .ToList();
+
             if (!HasIgnorePlayerCheck && playersInRegion.Count == 0)
             {
                 if (deleteAllOnNextTick)
                 {
-                    if (Mimics.Count > 0)
-                    {
-                        log.Info($"MimicSpawner {this.Name} deleting {Mimics.Count} mimics! There's been nothing in this region for 1 minutes");
-                    }   
-                    foreach (var mimic in Mimics.ToList())
+                    foreach (var mimic in _mimics.ToList())
                     {
                         mimic.RemoveFromWorld();
                         mimic.Delete();
@@ -78,66 +63,88 @@ namespace DOL.GS.Scripts
                 else
                 {
                     deleteAllOnNextTick = true;
-                    log.Info($"MimicSpawner {this.Name} has nothing in region, going to sleep for 1mins");
                 }
+
                 return 1000 * 60 * 5;
             }
 
-            //handle groups
-            if (MinGroupSize >= 1 && MaxGroupSize > 1)
+            // ✅ CLEAN group size logic
+            int grpCount = Util.Random(MinGroupSize, MaxGroupSize);
+            grpCount = Math.Max(1, grpCount);
+
+            List<MimicNPC> groupMembers = new List<MimicNPC>();
+
+            for (int i = 0; i < grpCount; i++)
             {
+                MimicNPC mimic = SpawnSingleMimic();
 
-                int grpCount = Util.Random(MinGroupSize,  MaxGroupSize > MinGroupSize ? MaxGroupSize : MinGroupSize);
-                for (int i = 1; i <= grpCount; i++)
+                if (mimic != null)
+                    groupMembers.Add(mimic);
+            }
+
+            // ✅ FIXED: Group is LOCAL per spawn cycle
+            if (groupMembers.Count > 0)
+            {
+                if (groupMembers.Count > 1)
                 {
-                    int randomX = Util.Random(-100, 100);
-                    int randomY = Util.Random(-100, 100);
+                    Group group = new Group(groupMembers[0]);
 
-                    Point3D spawnPoint = new Point3D(this.X + randomX, this.Y + randomY, this.Z);
-
-                    eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
-                    MimicNPC mimicNPC = MimicManager.GetMimic(mimicClass, (byte)Util.Random(LevelMin, LevelMax));
-
-                    if (MimicManager.AddMimicToWorld(mimicNPC, spawnPoint, this.CurrentRegionID))
+                    foreach (var member in groupMembers)
                     {
-                        _mimics.Add(mimicNPC);
-                        mimicNPC.MimicSpawnerPersistent = this;
+                        group.AddMember(member);
 
-
-                        if (mimicGroup == null)
+                        // ✅ NEW: FSM activation
+                        if (member.Brain is MimicBrain brain)
                         {
-                            mimicGroup = new Group(mimicNPC);
-                            mimicGroup.AddMember(mimicNPC);
-                        } else
-                        {
-                            mimicGroup.AddMember(mimicNPC);
+                            brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
                         }
-
-                        if (SpawnAndStop)
-                            _spawnCount++;
                     }
                 }
-                log.Info($"mimicSpawnerPersistent spawned {grpCount} mimics min:{MinGroupSize}/max:{MaxGroupSize}!");
-            } else
-            {
-                int randomX = Util.Random(-100, 100);
-                int randomY = Util.Random(-100, 100);
-
-                Point3D spawnPoint = new Point3D(this.X + randomX, this.Y + randomY, this.Z);
-
-                eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
-                MimicNPC mimicNPC = MimicManager.GetMimic(mimicClass, (byte)Util.Random(LevelMin, LevelMax));
-
-                if (MimicManager.AddMimicToWorld(mimicNPC, spawnPoint, this.CurrentRegionID))
+                else
                 {
-                    _mimics.Add(mimicNPC);
-                    mimicNPC.MimicSpawnerPersistent = this; 
-
-                    if (SpawnAndStop)
-                        _spawnCount++;
+                    // Single mimic still wakes up
+                    if (groupMembers[0].Brain is MimicBrain brain)
+                    {
+                        brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
+                    }
                 }
             }
+
             return interval;
+        }
+
+        // ✅ NEW: Centralized spawn logic
+        private MimicNPC SpawnSingleMimic()
+        {
+            int randomX = Util.Random(-100, 100);
+            int randomY = Util.Random(-100, 100);
+
+            Point3D spawnPoint = new Point3D(
+                this.X + randomX,
+                this.Y + randomY,
+                this.Z
+            );
+
+            eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
+
+            MimicNPC mimicNPC = MimicManager.GetMimic(
+                mimicClass,
+                (byte)Util.Random(LevelMin, LevelMax),
+                preventCombat: PreventCombat
+            );
+
+            if (MimicManager.AddMimicToWorld(mimicNPC, spawnPoint, this.CurrentRegionID))
+            {
+                _mimics.Add(mimicNPC);
+                mimicNPC.MimicSpawnerPersistent = this;
+
+                if (SpawnAndStop)
+                    _spawnCount++;
+
+                return mimicNPC;
+            }
+
+            return null;
         }
 
         public void Remove(MimicNPC mimic)
@@ -147,80 +154,30 @@ namespace DOL.GS.Scripts
 
             lock (_mimics)
             {
-                if (_mimics.Contains(mimic))
-                    _mimics.Remove(mimic);
+                _mimics.Remove(mimic);
             }
         }
 
-        public override short Strength 
-        { 
-            get 
-            {
-                OnChangeInfo();
-                return base.Strength;
-            }
-            set => base.Strength = value;
-        }
-        public override short Dexterity
-        {
-            get
-            {
-                OnChangeInfo();
-                return base.Dexterity;
-            }
-            set => base.Dexterity = value;
-        }
-        public override short Intelligence
-        {
-            get
-            {
-                OnChangeInfo();
-                return base.Intelligence;
-            }
-            set => base.Intelligence = value;
-        }
-        public override short Quickness
-        {
-            get
-            {
-                OnChangeInfo();
-                return base.Quickness;
-            }
-            set => base.Quickness = value;
-        }
-        public override short Constitution
-        {
-            get
-            {
-                OnChangeInfo();
-                return base.Constitution;
-            }
-            set => base.Constitution = value;
-        }
-        public override short Charisma
-        {
-            get
-            {
-                OnChangeInfo();
-                return base.Charisma;
-            }
-            set => base.Charisma = value;
-        }
+        public override short Strength { get { OnChangeInfo(); return base.Strength; } set => base.Strength = value; }
+        public override short Dexterity { get { OnChangeInfo(); return base.Dexterity; } set => base.Dexterity = value; }
+        public override short Intelligence { get { OnChangeInfo(); return base.Intelligence; } set => base.Intelligence = value; }
+        public override short Quickness { get { OnChangeInfo(); return base.Quickness; } set => base.Quickness = value; }
+        public override short Constitution { get { OnChangeInfo(); return base.Constitution; } set => base.Constitution = value; }
+        public override short Charisma { get { OnChangeInfo(); return base.Charisma; } set => base.Charisma = value; }
+
         public void OnChangeInfo()
         {
             if (_mimics == null)
-            {
                 return;
-            }
-            Say($"My spawner stats have changed, talk to me to see my new stats! Killed existing mimics. Killed {_mimics.Count} mimics");
-            
+
             foreach (var mimic in _mimics.ToList())
             {
                 mimic.RemoveFromWorld();
             }
+
             _mimics.Clear();
-            mimicGroup = null;
         }
+
         public override bool AddToWorld()
         {
             /*
@@ -259,18 +216,15 @@ namespace DOL.GS.Scripts
             _dormantInterval = 5000;
             SpawnAndStop = false;
 
-            if (_timer != null)
-            {
-                _timer.Stop();
-                _timer = null;
-            }
-            if (MimicSpawning.MimicSpawnersPersistent.Contains(this))
-            {
-                MimicSpawning.MimicSpawnersPersistent.Remove(this);
-            }
-            _timer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(TimerCallback), Util.Random(_timerIntervalMin, _timerIntervalMax));
-            MimicSpawning.MimicSpawnersPersistent.Add(this);
+            _timer?.Stop();
+            _timer = null;
 
+            MimicSpawning.MimicSpawnersPersistent.Remove(this);
+
+            _timer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(TimerCallback),
+                Util.Random(_timerIntervalMin, _timerIntervalMax));
+
+            MimicSpawning.MimicSpawnersPersistent.Add(this);
 
             Flags |= eFlags.PEACE;
 
@@ -290,13 +244,9 @@ namespace DOL.GS.Scripts
             return base.IsVisibleTo(checkObject);
         }
 
-        public bool HasIgnorePlayerCheck
-        {
-            get
-            {
-                return !string.IsNullOrEmpty(PackageID) && PackageID.Contains("IGNORE_PLAYERCHECK");
-            }
-        }
+        public bool HasIgnorePlayerCheck =>
+            !string.IsNullOrEmpty(PackageID) && PackageID.Contains("IGNORE_PLAYERCHECK");
+
         public override bool Interact(GamePlayer player)
         {
             if (!base.Interact(player))
@@ -322,13 +272,17 @@ namespace DOL.GS.Scripts
                 $"MinGroupSize: {base.Constitution} (Constitution)\n" +
                 $"MaxGroupSize: {base.Charisma} (Charisma)\n" +
                 $"IgnorePlayerCheck: {HasIgnorePlayerCheck} (add IGNORE_PLAYERCHECK to packageid)\n" +
+                $"PreventCombat: {PreventCombat} (add PREVENT_COMBAT to packageid)\n" +
                 "\n" +
-                "Running: " + _timer.IsAlive + "\n" +
-                "Spawns: " + _mimics.Count + "/" + SpawnMax + "\n\n" +
+                $"Running: {IsRunning}\n" +
+                $"Spawns: {_mimics.Count}/{SpawnMax}\n\n" +
                 "[Toggle]\n" +
                 "[List]\n\n" +
-                "[Delete]"
-                , eChatType.CT_Say, eChatLoc.CL_PopupWindow);
+                "[Delete]",
+                eChatType.CT_Say,
+                eChatLoc.CL_PopupWindow
+            );
+
             return true;
         }
 
@@ -337,9 +291,7 @@ namespace DOL.GS.Scripts
             if (!base.WhisperReceive(source, str))
                 return false;
 
-            GamePlayer player = source as GamePlayer;
-
-            if (player == null)
+            if (source is not GamePlayer player)
                 return false;
 
             string message = string.Empty;
@@ -348,17 +300,16 @@ namespace DOL.GS.Scripts
             {
                 case "Toggle":
                     {
-                        if (_timer.IsAlive)
+                        if (IsRunning)
                         {
-                            _timer.Stop();
+                            Stop();
                             message = "Spawner is no longer running.";
                         }
                         else
                         {
-                            _timer.Start();
+                            Start();
                             message = "Spawner is now running.";
                         }
-
                         break;
                     }
 
@@ -367,15 +318,22 @@ namespace DOL.GS.Scripts
                         if (MimicSpawning.MimicSpawnersPersistent.Contains(this))
                         {
                             MimicSpawning.MimicSpawnersPersistent.Remove(this);
-
-                            if (_timer.IsAlive)
-                                _timer.Stop();
-
-                            _timer = null;
-
-                            message = "Spawner has been deleted.";
                         }
 
+                        if (_timer != null && _timer.IsAlive)
+                            _timer.Stop();
+
+                        // ✅ Clean up mimics before delete (important!)
+                        foreach (var mimic in _mimics.ToList())
+                        {
+                            mimic.RemoveFromWorld();
+                            mimic.Delete();
+                        }
+                        _mimics.Clear();
+
+                        _timer = null;
+
+                        message = "Spawner has been deleted.";
                         Delete();
 
                         break;
@@ -385,30 +343,32 @@ namespace DOL.GS.Scripts
                     {
                         foreach (MimicNPC mimic in _mimics)
                         {
-                            message += mimic.Name + " " + mimic.CharacterClass.Name + " " + mimic.Level + " Region: " + mimic.CurrentRegionID + "\n";
+                            message += $"{mimic.Name} {mimic.CharacterClass.Name} {mimic.Level} Region: {mimic.CurrentRegionID}\n";
                         }
-
                         break;
                     }
 
-                default: break;
+                default:
+                    break;
             }
 
             if (message.Length > 0)
+            {
                 player.Out.SendMessage(message, eChatType.CT_System, eChatLoc.CL_PopupWindow);
+            }
 
             return true;
         }
 
         public void Stop()
         {
-            if (_timer.IsAlive)
+            if (_timer != null && _timer.IsAlive)
                 _timer.Stop();
         }
 
         public void Start()
         {
-            if (!_timer.IsAlive)
+            if (_timer != null && !_timer.IsAlive)
                 _timer.Start();
         }
     }
