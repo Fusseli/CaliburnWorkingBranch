@@ -226,6 +226,7 @@ namespace DOL.GS.Spells
                     if (charmMob is CaliburnRandomBoss) // Any CaliburnRandomBoss
                         isCharmable = false;
 
+
                     // If the mob's ClassType matches any of the above, it cannot be charmed
                     if (isCharmable == false)
                     {
