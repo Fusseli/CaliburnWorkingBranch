@@ -167,12 +167,10 @@ namespace DOL.GS.ReGoap.Mimic.Actions
         /// <returns>True if immune, false otherwise</returns>
         private bool IsTargetImmuneToCC(GameLiving target)
         {
-            // Check for CC immunity effect
-            if (EffectListService.GetEffectOnTarget(target, eEffect.CCImmunity) != null)
-                return true;
+            // Check specific CC immunities instead of generic CC immunity
 
             // Check for mezz immunity effect
-            if (IsMezzSpell(_spell) && EffectListService.GetEffectOnTarget(target, eEffect.MezzImmunity) != null)
+            if (IsMezzSpell(_spell) && EffectListService.GetEffectOnTarget(target, eEffect.MezImmunity) != null)
                 return true;
 
             // Check for stun immunity effect
@@ -222,7 +220,7 @@ namespace DOL.GS.ReGoap.Mimic.Actions
             {
                 // Verify target is now rooted (check via effect list)
                 ccApplied = EffectListService.GetEffectOnTarget(livingTarget, eEffect.MovementSpeedDebuff) != null ||
-                           EffectListService.GetEffectOnTarget(livingTarget, eEffect.Root) != null;
+                           EffectListService.GetEffectOnTarget(livingTarget, eEffect.Snare) != null;
             }
             else
             {
@@ -414,8 +412,8 @@ namespace DOL.GS.ReGoap.Mimic.Actions
             if (target.IsMezzed || target.IsStunned)
                 return true;
 
-            // Check for root effect
-            if (EffectListService.GetEffectOnTarget(target, eEffect.Root) != null)
+            // Check for snare effect
+            if (EffectListService.GetEffectOnTarget(target, eEffect.Snare) != null)
                 return true;
 
             return false; // Target not controlled
@@ -436,7 +434,7 @@ namespace DOL.GS.ReGoap.Mimic.Actions
             // Check for mezz immunity (indicates recent mezz)
             if (IsMezzSpell(spell))
             {
-                var mezzImmunity = EffectListService.GetEffectOnTarget(target, eEffect.MezzImmunity);
+                var mezzImmunity = EffectListService.GetEffectOnTarget(target, eEffect.MezImmunity);
                 if (mezzImmunity != null)
                     return true; // Recently mezzed, diminishing returns active
             }
@@ -462,12 +460,9 @@ namespace DOL.GS.ReGoap.Mimic.Actions
         /// <returns>True if likely immune, false otherwise</returns>
         private bool IsTargetLikelyImmune(GameLiving target, Spell spell)
         {
-            // Check for general CC immunity
-            if (EffectListService.GetEffectOnTarget(target, eEffect.CCImmunity) != null)
-                return true;
 
             // Check for specific immunity based on spell type
-            if (IsMezzSpell(spell) && EffectListService.GetEffectOnTarget(target, eEffect.MezzImmunity) != null)
+            if (IsMezzSpell(spell) && EffectListService.GetEffectOnTarget(target, eEffect.MezImmunity) != null)
                 return true;
 
             if (IsStunSpell(spell) && EffectListService.GetEffectOnTarget(target, eEffect.StunImmunity) != null)

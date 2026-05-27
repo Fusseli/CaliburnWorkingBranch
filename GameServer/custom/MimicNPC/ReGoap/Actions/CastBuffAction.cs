@@ -189,13 +189,13 @@ namespace DOL.GS.ReGoap.Mimic.Actions
             if (spellType.Contains("dexteritybuff") || spellType.Contains("dex"))
                 return eEffect.DexterityBuff;
             if (spellType.Contains("armorabsorptionbuff") || spellType.Contains("armorabsorbbuff"))
-                return eEffect.ArmorFactorBuff;
-            if (spellType.Contains("combatspeedbuff") || spellType.Contains("haste"))
-                return eEffect.Haste;
+                return eEffect.ArmorAbsorptionBuff;
+            if (spellType.Contains("combatspeedbuff") || spellType.Contains("haste") || spellType.Contains("celerity"))
+                return eEffect.MeleeHasteBuff;
             if (spellType.Contains("damage") && spellType.Contains("add"))
                 return eEffect.DamageAdd;
             if (spellType.Contains("damage") && spellType.Contains("shield"))
-                return eEffect.DamageShield;
+                return eEffect.DamageReturn;
             if (spellType.Contains("enduranceregeneration"))
                 return eEffect.EnduranceRegenBuff;
             if (spellType.Contains("healthregeneration") || spellType.Contains("regen"))
@@ -204,6 +204,8 @@ namespace DOL.GS.ReGoap.Mimic.Actions
                 return eEffect.AcuityBuff;
             if (spellType.Contains("speed"))
                 return eEffect.MovementSpeedBuff;
+            if (spellType.Contains("armorfactorbuff"))
+                return eEffect.BaseAFBuff;
 
             // Default: Unknown (will use exact spell ID check instead)
             return eEffect.Unknown;
