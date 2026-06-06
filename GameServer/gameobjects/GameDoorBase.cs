@@ -14,6 +14,8 @@
         public abstract int DoorID { get; set; }
         public abstract eDoorState State { get; set; }
 
+	public virtual bool CanBeOpenedViaInteraction => false;
+
         public abstract void Close(GameLiving closer = null);
         public abstract void NPCManipulateDoorRequest(GameNPC npc, bool open);
         public abstract void Open(GameLiving opener = null);
