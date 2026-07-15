@@ -130,7 +130,14 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 				
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					GiveItem(scholar, player, ArtifactID, versions[";;"]);
+					DbItemTemplate template = null;
+					foreach (DbItemTemplate versionTemplate in versions.Values)
+					{
+						template = versionTemplate;
+						break;
+					}
+					
+					GiveItem(scholar, player, ArtifactID, template);
 					String reply = String.Format("Brilliant, thank you! Here, take the artifact. {0} {1} {2}",
 						"I've unlocked its powers for you. As I've said before, I'm more interested",
 						"in the stories and the history behind these artifacts than the actual items",

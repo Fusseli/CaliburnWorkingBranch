@@ -4974,9 +4974,9 @@ namespace DOL.GS
                     Level++;
                 }
             }
+
             Out.SendUpdatePoints();
         }
-
         /// <summary>
         /// Called whenever this player gains experience
         /// </summary>
@@ -5269,6 +5269,9 @@ namespace DOL.GS
                     Level++;
                 }
             }
+
+            if (notify)
+                Notify(GameLivingEvent.GainedExperience, this, new GainedExperienceEventArgs(expTotal, expCampBonus, expGroupBonus, expOutpostBonus, sendMessage, allowMultiply, xpSource));
 
             Out.SendUpdatePoints();
         }

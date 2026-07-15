@@ -139,7 +139,14 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					GiveItem(scholar, player, ArtifactID, versions[";;"]);
+					DbItemTemplate template = null;
+					foreach (DbItemTemplate versionTemplate in versions.Values)
+					{
+						template = versionTemplate;
+						break;
+					}
+					
+					GiveItem(scholar, player, ArtifactID, template);
 					String reply = "Can you feel the magic of the Guard of Valor flowing once again? ";
 					reply += "It comes from Aloeus' love for his beautiful Nikolia. When Aloeus ";
 					reply += "presented the gift to Nikolia, the magic in it bound to her. And now as ";

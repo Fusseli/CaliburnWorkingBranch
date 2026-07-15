@@ -98,7 +98,7 @@ namespace DOL.GS
 			else
 			{
 				intro = String.Format("Which artifact may I assist you with, {0}? {1} {2}",
-					player.Name,
+					player.CharacterClass.Name,
 					"I study the lore and magic of the following artifacts:",
 					artifacts);
 
@@ -161,7 +161,7 @@ namespace DOL.GS
 
                 // ...or continuing a quest?
 
-                foreach (AbstractQuest quest in player.DataQuestList)
+                foreach (AbstractQuest quest in player.QuestList.Keys)
 				{
 					if (quest is ArtifactQuest && (HasQuest(quest.GetType()) != null))
 						if ((quest as ArtifactQuest).WhisperReceive(player, this, text))
@@ -252,7 +252,7 @@ namespace DOL.GS
 				{
 					try
 					{
-						foreach (AbstractQuest quest in player.DataQuestList)
+						foreach (AbstractQuest quest in player.QuestList.Keys)
 							if (quest is ArtifactQuest && (HasQuest(quest.GetType()) != null))
 								if ((quest as ArtifactQuest).ReceiveItem(player, this, item))
 									return true;

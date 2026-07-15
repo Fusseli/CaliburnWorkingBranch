@@ -130,7 +130,14 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					GiveItem(scholar, player, ArtifactID, versions[";;"]);
+					DbItemTemplate template = null;
+					foreach (DbItemTemplate versionTemplate in versions.Values)
+					{
+						template = versionTemplate;
+						break;
+					}
+					
+					GiveItem(scholar, player, ArtifactID, template);
 					String reply = String.Format("Ahh. This is a tale about some great {0} {1} {2} {3}.",
 						"crazy champion named Remus. There's not much known about him, or his father,",
 						"except what is in this tale. I've read pieces of it, but never did we find all",

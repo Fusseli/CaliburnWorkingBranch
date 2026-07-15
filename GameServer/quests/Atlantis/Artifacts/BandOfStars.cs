@@ -130,7 +130,14 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					GiveItem(scholar, player, ArtifactID, versions[";;"]);
+					DbItemTemplate template = null;
+					foreach (DbItemTemplate versionTemplate in versions.Values)
+					{
+						template = versionTemplate;
+						break;
+					}
+					
+					GiveItem(scholar, player, ArtifactID, template);
 					String reply = String.Format("Do you see how the stars in the {0} {1}? {2} {3} {4} {5} {6} {7}.",
 						"band have begun to glow, ",
 						player.Name,
