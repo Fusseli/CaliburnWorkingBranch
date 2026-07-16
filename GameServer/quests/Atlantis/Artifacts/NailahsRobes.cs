@@ -1,4 +1,4 @@
-/*
+﻿/*
  * DAWN OF LIGHT - The first free open source DAoC server emulator
  * 
  * This program is free software; you can redistribute it and/or
@@ -17,58 +17,21 @@
  *
  */
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Text;
-using DOL.Events;
-using DOL.GS.Quests;
 using DOL.Database;
 using DOL.GS.PacketHandler;
-using System.Collections;
 
 namespace DOL.GS.Quests.Atlantis.Artifacts
 {
-	/// <summary>
-	/// Quest for the A Flask artifact.
-	/// </summary>
-	/// <author>Aredhel</author>
-	class NailahsRobes : ArtifactQuest
-	{
-		private static int m_requiredLevel = 45;
-
-		/// <summary>
-		/// The name of the quest (not necessarily the same as
-		/// the name of the reward).
-		/// </summary>
-		public override String Name
-		{
-			get { return "Nailahs Robes"; }
-		}
-
-		/// <summary>
-		/// The reward for this quest.
-		/// </summary>
-		private const String m_artifactID = "Nailahs Robes";
-		public override String ArtifactID
-		{
-			get { return m_artifactID; }
-		}
-
-		/// <summary>
-		/// Description for the current step.
-		/// </summary>
-		public override string Description
-		{
-			get
-			{
-				switch (Step)
-				{
-					default:
-						return base.Description;
-				}
-			}
-		}
-
-		public NailahsRobes()
+    /// <summary>
+    /// Quest for the Nailah's Robes artifact.
+    /// </summary>
+    /// <author>Aredhel</author>
+    public class NailahsRobes : ArtifactQuest
+    {
+        public NailahsRobes()
 			: base() { }
 
 		public NailahsRobes(GamePlayer questingPlayer)
@@ -79,7 +42,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		/// <param name="questingPlayer"></param>
 		/// <param name="dbQuest"></param>
-		public NailahsRobes(GamePlayer questingPlayer, DbQuest dbQuest)
+        public NailahsRobes(GamePlayer questingPlayer, DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
 
 		/// <summary>
@@ -87,22 +50,22 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		public static void Init()
 		{
-			ArtifactQuest.Init(m_artifactID, typeof(NailahsRobes));
+            ArtifactQuest.Init("Nailah's Robes", typeof(NailahsRobes));
 		}
 
-		/// <summary>
-		/// Check if player is eligible for this quest.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool CheckQuestQualification(GamePlayer player)
-		{
-			if (!base.CheckQuestQualification(player))
-				return false;
+        /// <summary>
+        /// Check if player is eligible for this quest.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool CheckQuestQualification(GamePlayer player)
+        {
+            if (!base.CheckQuestQualification(player))
+                return false;
 
-			// TODO: Check if this is the correct level for the quest.
-			return (player.Level >= m_requiredLevel);
-		}
+            // TODO: Check if this is the correct level for the quest.
+            return (player.Level >= 45);
+        }
 
 		/// <summary>
 		/// Handle an item given to the scholar.
@@ -121,28 +84,17 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
+			if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
 			{
 				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
 					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
 
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					DbItemTemplate template = null;
-					foreach (DbItemTemplate versionTemplate in versions.Values)
-					{
-						template = versionTemplate;
-						break;
-					}
-					
-					GiveItem(scholar, player, ArtifactID, template);
-					String reply = String.Format("Here is the {0}, {1} {2} {3} {4}, {5}!",
-						"restored to its original power. It is a fine item and I wish I could keep",
-						"it, but it is for you and you alone. Do not destroy it because you will never",
-						"have access to its full power again. Take care of it and it shall aid you in",
-						"the trials",
-						ArtifactID,
-						player.Name);
+					IDictionaryEnumerator versionsEnum = versions.GetEnumerator();
+					versionsEnum.MoveNext();
+					GiveItem(scholar, player, ArtifactID, versionsEnum.Value as DbItemTemplate);
+					String reply = String.Format("Here is your robe. Do not lose it, it is irreplaceable.");
 					scholar.TurnTo(player);
 					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 					FinishQuest();
@@ -170,25 +122,54 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && text.ToLower() == ArtifactID.ToLower())
+			if (Step == 1 && text.ToLower() == ArtifactID.ToLower())
 			{
-				/* Commenting out to give a template for future development
-				String reply = String.Format("Vara was a very skilled healer and she put her skills {0} {1} {2}",
-					"into the Healer's Embrace cloak. It would help me to unlock them if I was to read",
-					"her Medical Log. Please give me Vara's Medical Log now so that I may awaken the",
-					"magic within the Cloak for you.");
+                String reply = String.Format("Nailah's Robes is an interesting robe. The story of its {0} {1}",
+					"making rather unique, don't you think? If you give me the scroll, I'll give you the",
+					"robe, with all its ancient powers back.");
 				scholar.TurnTo(player);
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;
-				return true;*/
+				return true;
 			}
 
 			return false;
 		}
 
-		public override void Notify(DOLEvent e, object sender, EventArgs args)
+		/// <summary>
+		/// Description for the current step.
+		/// </summary>
+		public override string Description
 		{
-			// Need to do anything here?
+			get
+			{
+				switch (Step)
+				{
+					case 1:
+						return "Defeat Sebak.";
+					case 2:
+						return "Turn in the completed book.";
+					default:
+						return base.Description;
+				}
+			}
 		}
-	}
+
+		/// <summary>
+		/// The name of the quest (not necessarily the same as
+		/// the name of the reward).
+		/// </summary>
+		public override string Name
+		{
+            get { return "Nailah's Robes"; }
+		}
+
+		/// <summary>
+		/// The reward for this quest.
+		/// </summary>
+		public override String ArtifactID
+		{
+            get { return "Nailah's Robes"; }
+		}
+    }
 }

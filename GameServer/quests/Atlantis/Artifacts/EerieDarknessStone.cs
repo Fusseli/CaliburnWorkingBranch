@@ -28,47 +28,11 @@ using System.Collections;
 namespace DOL.GS.Quests.Atlantis.Artifacts
 {
 	/// <summary>
-	/// Quest for the A Flask artifact.
+	/// Quest for the Eerie Darkness Stone artifact.
 	/// </summary>
 	/// <author>Aredhel</author>
 	class EerieDarknessStone : ArtifactQuest
 	{
-		private static int m_requiredLevel = 45;
-
-		/// <summary>
-		/// The name of the quest (not necessarily the same as
-		/// the name of the reward).
-		/// </summary>
-		private const String m_Name = "Eerie Darkness Stone";
-		public override String Name
-		{
-			get { return m_Name; }
-		}
-
-		/// <summary>
-		/// The reward for this quest.
-		/// </summary>
-		private static String m_artifactID = "Eerie Darkness Stone";
-		public override String ArtifactID
-		{
-			get { return m_artifactID; }
-		}
-
-		/// <summary>
-		/// Description for the current step.
-		/// </summary>
-		public override string Description
-		{
-			get
-			{
-				switch (Step)
-				{
-					default:
-						return base.Description;
-				}
-			}
-		}
-
 		public EerieDarknessStone()
 			: base() { }
 
@@ -80,7 +44,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		/// <param name="questingPlayer"></param>
 		/// <param name="dbQuest"></param>
-		public EerieDarknessStone(GamePlayer questingPlayer, DbQuest dbQuest)
+        public EerieDarknessStone(GamePlayer questingPlayer, DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
 
 		/// <summary>
@@ -88,22 +52,22 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		public static void Init()
 		{
-			ArtifactQuest.Init(m_artifactID, typeof(EerieDarknessStone));
+            ArtifactQuest.Init("Eerie Darkness Stone", typeof(EerieDarknessStone));
 		}
 
-		/// <summary>
-		/// Check if player is eligible for this quest.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool CheckQuestQualification(GamePlayer player)
-		{
-			if (!base.CheckQuestQualification(player))
-				return false;
+        /// <summary>
+        /// Check if player is eligible for this quest.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool CheckQuestQualification(GamePlayer player)
+        {
+            if (!base.CheckQuestQualification(player))
+                return false;
 
-			// TODO: Check if this is the correct level for the quest.
-			return (player.Level >= m_requiredLevel);
-		}
+            // TODO: Check if this is the correct level for the quest.
+            return (player.Level >= 45);
+        }
 
 		/// <summary>
 		/// Handle an item given to the scholar.
@@ -122,11 +86,11 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
+			if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
 			{
 				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
 					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
-
+				
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
 					DbItemTemplate template = null;
@@ -135,15 +99,12 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 						template = versionTemplate;
 						break;
 					}
-					
+
 					GiveItem(scholar, player, ArtifactID, template);
-					String reply = String.Format("Here is the {0}, {1} {2} {3} {4}, {5}!",
-						"restored to its original power. It is a fine item and I wish I could keep",
-						"it, but it is for you and you alone. Do not destroy it because you will never",
-						"have access to its full power again. Take care of it and it shall aid you in",
-						"the trials",
-						ArtifactID,
-						player.Name);
+					String reply = String.Format("Brilliant, thank you! Here, take the artifact. {0} {1} {2}",
+						"I've unlocked its powers for you. As I've said before, I'm more interested",
+						"in the stories and the history behind these artifacts than the actual items",
+						"themselves.");
 					scholar.TurnTo(player);
 					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 					FinishQuest();
@@ -171,25 +132,52 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && text.ToLower() == ArtifactID.ToLower())
+			if (Step == 1 && text.ToLower() == ArtifactID.ToLower())
 			{
-				/* Commenting out to give a template for future development
-				String reply = String.Format("Vara was a very skilled healer and she put her skills {0} {1} {2}",
-					"into the Healer's Embrace cloak. It would help me to unlock them if I was to read",
-					"her Medical Log. Please give me Vara's Medical Log now so that I may awaken the",
-					"magic within the Cloak for you.");
+                String reply = "Oh, the mysterious Eerie Darkness Stone. Do you have the scrolls on it? I've found a few that allude to its true nature, but haven't found anything with any detail.";
 				scholar.TurnTo(player);
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;
-				return true;*/
+				return true;
 			}
 
 			return false;
 		}
 
-		public override void Notify(DOLEvent e, object sender, EventArgs args)
+		/// <summary>
+		/// Description for the current step.
+		/// </summary>
+		public override string Description
 		{
-			// Need to do anything here?
+			get
+			{
+				switch (Step)
+				{
+					case 1:
+						return "Defeat Rougart.";
+					case 2:
+						return "Turn in the completed book.";
+					default:
+						return base.Description;
+				}
+			}
+		}
+
+		/// <summary>
+		/// The name of the quest (not necessarily the same as
+		/// the name of the reward).
+		/// </summary>
+		public override string Name
+		{
+            get { return "Eerie Darkness Stone"; }
+		}
+
+		/// <summary>
+		/// The reward for this quest.
+		/// </summary>
+		public override String ArtifactID
+		{
+            get { return "Eerie Darkness Stone"; }
 		}
 	}
 }

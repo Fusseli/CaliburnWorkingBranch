@@ -24,49 +24,21 @@ using DOL.GS.Quests;
 using DOL.Database;
 using DOL.GS.PacketHandler;
 using System.Collections;
+using log4net;
+using System.Reflection;
 
 namespace DOL.GS.Quests.Atlantis.Artifacts
 {
 	/// <summary>
-	/// Quest for the A Flask artifact.
+	/// Quest for the Golden Spear artifact.
 	/// </summary>
 	/// <author>Aredhel</author>
-	class GoldenSpear : ArtifactQuest
+	public class GoldenSpear : ArtifactQuest
 	{
-		private static int m_requiredLevel = 45;
-
 		/// <summary>
-		/// The name of the quest (not necessarily the same as
-		/// the name of the reward).
+		/// Defines a logger for this class.
 		/// </summary>
-		public override String Name
-		{
-			get { return "Golden Spear"; }
-		}
-
-		/// <summary>
-		/// The reward for this quest.
-		/// </summary>
-		private const String m_artifactID = "Golden Spear";
-		public override String ArtifactID
-		{
-			get { return m_artifactID; }
-		}
-
-		/// <summary>
-		/// Description for the current step.
-		/// </summary>
-		public override string Description
-		{
-			get
-			{
-				switch (Step)
-				{
-					default:
-						return base.Description;
-				}
-			}
-		}
+		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		public GoldenSpear()
 			: base() { }
@@ -79,30 +51,32 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		/// <param name="questingPlayer"></param>
 		/// <param name="dbQuest"></param>
-		public GoldenSpear(GamePlayer questingPlayer, DbQuest dbQuest)
+        public GoldenSpear(GamePlayer questingPlayer, DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
+
+		private static String m_artifactID = "The Golden Spear";
 
 		/// <summary>
 		/// Quest initialisation.
 		/// </summary>
 		public static void Init()
 		{
-			ArtifactQuest.Init(m_artifactID, typeof(GoldenSpear));
+            ArtifactQuest.Init(m_artifactID, typeof(GoldenSpear));
 		}
 
-		/// <summary>
-		/// Check if player is eligible for this quest.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool CheckQuestQualification(GamePlayer player)
-		{
-			if (!base.CheckQuestQualification(player))
-				return false;
+        /// <summary>
+        /// Check if player is eligible for this quest.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool CheckQuestQualification(GamePlayer player)
+        {
+            if (!base.CheckQuestQualification(player))
+                return false;
 
-			// TODO: Check if this is the correct level for the quest.
-			return (player.Level >= m_requiredLevel);
-		}
+            // TODO: Check if this is the correct level for the quest.
+            return (player.Level >= 45);
+        }
 
 		/// <summary>
 		/// Handle an item given to the scholar.
@@ -121,31 +95,17 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
+			if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
 			{
-				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
-					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
-
-				if (versions.Count > 0 && RemoveItem(player, item))
+				scholar.TurnTo(player);
+				if (RemoveItem(player, item))
 				{
-					DbItemTemplate template = null;
-					foreach (DbItemTemplate versionTemplate in versions.Values)
-					{
-						template = versionTemplate;
-						break;
-					}
-					
-					GiveItem(scholar, player, ArtifactID, template);
-					String reply = String.Format("Here is the {0}, {1} {2} {3} {4}, {5}!",
-						"restored to its original power. It is a fine item and I wish I could keep",
-						"it, but it is for you and you alone. Do not destroy it because you will never",
-						"have access to its full power again. Take care of it and it shall aid you in",
-						"the trials",
-						ArtifactID,
-						player.Name);
-					scholar.TurnTo(player);
+					String reply = String.Format("Ahh. These notes are well-preserved. {0} {1} {2}",
+						"Here, the Golden Spear is unlike any other artifact. I can unlock the spear,",
+						"as a [one handed] or [two handed] version. You can only choose one,",
+						"and can not return for another. Choose wisely.");
 					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
-					FinishQuest();
+					Step = 3;
 					return true;
 				}
 			}
@@ -170,25 +130,89 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && text.ToLower() == ArtifactID.ToLower())
+			if (Step == 1 && text.ToLower() == ArtifactID.ToLower())
 			{
-				/* Commenting out to give a template for future development
-				String reply = String.Format("Vara was a very skilled healer and she put her skills {0} {1} {2}",
-					"into the Healer's Embrace cloak. It would help me to unlock them if I was to read",
-					"her Medical Log. Please give me Vara's Medical Log now so that I may awaken the",
-					"magic within the Cloak for you.");
+				String reply = String.Format("The scholars have often remarked about the {0} {1} {2} {3} {4}",
+					"craftsmanship that went into the Golden Spear. I'm impressed. I don't think we can make",
+					"anything to compare with it. Hmm. Well, I'm here to study the lifestyles of Atlanteans",
+					"through their written words, not their crafts. Hand me the History of the Golden Spear",
+					"please. If you don't have it, I suggest you hunt the creatures of Stygia til you",
+					"find it.");
 				scholar.TurnTo(player);
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;
-				return true;*/
+				return true;
+			}
+			else if (Step == 3)
+			{
+				switch (text.ToLower())
+				{
+					case "one handed":
+					case "two handed":
+						{
+							String versionID = String.Format(";;{0}", text.ToLower());
+							Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
+								(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
+							DbItemTemplate template = versions[versionID];
+							if (template == null)
+							{
+								log.Warn(String.Format("Artifact version {0} not found", versionID));
+								return false;
+							}
+							if (GiveItem(scholar, player, ArtifactID, template))
+							{
+								String reply = String.Format("You have made your choice. Here is your {0}",
+									"spear. Do not lose it. It is irreplaceable.");
+								scholar.TurnTo(player);
+								scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
+								FinishQuest();
+								return true;
+							}
+							return false;
+						}
+				}
+				return false;
 			}
 
 			return false;
 		}
 
-		public override void Notify(DOLEvent e, object sender, EventArgs args)
+		/// <summary>
+		/// Description for the current step.
+		/// </summary>
+		public override string Description
 		{
-			// Need to do anything here?
+			get
+			{
+				switch (Step)
+				{
+					case 1:
+						return "Defeat the guardian janns and get the spear.";
+					case 2:
+						return "Turn in the completed book.";
+					case 3: // TODO: Get correct journal entry.
+						return "Choose between a [one handed] or [two handed] version of the Golden Spear.";
+					default:
+						return base.Description;
+				}
+			}
+		}
+
+		/// <summary>
+		/// The name of the quest (not necessarily the same as
+		/// the name of the reward).
+		/// </summary>
+		public override string Name
+		{
+			get { return "The Golden Spear"; }
+		}
+
+		/// <summary>
+		/// The artifact ID.
+		/// </summary>
+		public override String ArtifactID
+		{
+			get { return m_artifactID; }
 		}
 	}
 }

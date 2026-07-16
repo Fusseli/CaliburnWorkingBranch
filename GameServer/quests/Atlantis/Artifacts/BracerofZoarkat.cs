@@ -31,7 +31,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 	/// Quest for the Bracer of Zo'arkat artifact.
 	/// </summary>
 	/// <author>Aredhel</author>
-	class BraceletofZoarkat : ArtifactQuest
+	class BracerofZoarkat : ArtifactQuest
 	{
 		/// <summary>
 		/// The name of the quest (not necessarily the same as
@@ -39,13 +39,13 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		public override string Name
 		{
-			get { return "Bracelet of Zo'arkat"; }
+			get { return "Bracer of Zo'arkat"; }
 		}
 
 		/// <summary>
 		/// The reward for this quest.
 		/// </summary>
-		private static String m_artifactID = "Bracelet of Zo'arkat";
+		private static String m_artifactID = "Bracer of Zo'arkat";
 		public override String ArtifactID
 		{
 			get { return m_artifactID; }
@@ -70,10 +70,10 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			}
 		}
 
-		public BraceletofZoarkat()
+		public BracerofZoarkat()
 			: base() { }
 
-		public BraceletofZoarkat(GamePlayer questingPlayer)
+		public BracerofZoarkat(GamePlayer questingPlayer)
 			: base(questingPlayer) { }
 
 		/// <summary>
@@ -81,7 +81,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		/// <param name="questingPlayer"></param>
 		/// <param name="dbQuest"></param>
-        public BraceletofZoarkat(GamePlayer questingPlayer,	DbQuest dbQuest)
+        public BracerofZoarkat(GamePlayer questingPlayer,	DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
 
 		/// <summary>
@@ -89,7 +89,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		public static void Init()
 		{
-            ArtifactQuest.Init(m_artifactID, typeof(BraceletofZoarkat));
+            ArtifactQuest.Init(m_artifactID, typeof(BracerofZoarkat));
 		}
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 
 			if (Step == 1 && text.ToLower() == ArtifactID.ToLower())
 			{
-                String reply = "Oh, the mysterious Bracelet of Zo'arkat. Do you have the scrolls on it? I've found a few that allude to its true nature, but haven't found anything with any detail.";
+                String reply = "Oh, the mysterious Bracer of Zo'arkat. Do you have the scrolls on it? I've found a few that allude to its true nature, but haven't found anything with any detail.";
 				scholar.TurnTo(player);
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;

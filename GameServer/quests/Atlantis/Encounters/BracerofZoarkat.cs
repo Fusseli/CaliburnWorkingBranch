@@ -29,12 +29,12 @@ namespace DOL.GS.Quests.Atlantis.Encounters
     /// Encounter for the Bracelet of Zo'arkat artifact.
 	/// </summary>
 	/// <author>Aredhel</author>
-	public class BraceletofZoarkat : ArtifactEncounter
+	public class BracerofZoarkat : ArtifactEncounter
 	{
-		public BraceletofZoarkat(GamePlayer questingPlayer)
+		public BracerofZoarkat(GamePlayer questingPlayer)
 			: base(questingPlayer) { }
 
-        public BraceletofZoarkat(GamePlayer questingPlayer, DbQuest dbQuest)
+        public BracerofZoarkat(GamePlayer questingPlayer, DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
 
 		/// <summary>

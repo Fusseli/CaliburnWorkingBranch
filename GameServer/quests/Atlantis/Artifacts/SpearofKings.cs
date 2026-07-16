@@ -24,49 +24,21 @@ using DOL.GS.Quests;
 using DOL.Database;
 using DOL.GS.PacketHandler;
 using System.Collections;
+using log4net;
+using System.Reflection;
 
 namespace DOL.GS.Quests.Atlantis.Artifacts
 {
 	/// <summary>
-	/// Quest for the A Flask artifact.
+	/// Quest for the Spear of Kings artifact.
 	/// </summary>
 	/// <author>Aredhel</author>
-	class SpearofKings : ArtifactQuest
+	public class SpearofKings : ArtifactQuest
 	{
-		private static int m_requiredLevel = 45;
-
 		/// <summary>
-		/// The name of the quest (not necessarily the same as
-		/// the name of the reward).
+		/// Defines a logger for this class.
 		/// </summary>
-		public override String Name
-		{
-			get { return "Spear of Kings"; }
-		}
-
-		/// <summary>
-		/// The reward for this quest.
-		/// </summary>
-		private const String m_artifactID = "Spear of Kings";
-		public override String ArtifactID
-		{
-			get { return m_artifactID; }
-		}
-
-		/// <summary>
-		/// Description for the current step.
-		/// </summary>
-		public override string Description
-		{
-			get
-			{
-				switch (Step)
-				{
-					default:
-						return base.Description;
-				}
-			}
-		}
+		private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
 		public SpearofKings()
 			: base() { }
@@ -79,30 +51,32 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 		/// </summary>
 		/// <param name="questingPlayer"></param>
 		/// <param name="dbQuest"></param>
-		public SpearofKings(GamePlayer questingPlayer, DbQuest dbQuest)
+        public SpearofKings(GamePlayer questingPlayer, DbQuest dbQuest)
 			: base(questingPlayer, dbQuest) { }
+
+        private static String m_artifactID = "Spear of Kings";
 
 		/// <summary>
 		/// Quest initialisation.
 		/// </summary>
 		public static void Init()
 		{
-			ArtifactQuest.Init(m_artifactID, typeof(SpearofKings));
+            ArtifactQuest.Init(m_artifactID, typeof(SpearofKings));
 		}
 
-		/// <summary>
-		/// Check if player is eligible for this quest.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool CheckQuestQualification(GamePlayer player)
-		{
-			if (!base.CheckQuestQualification(player))
-				return false;
+        /// <summary>
+        /// Check if player is eligible for this quest.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool CheckQuestQualification(GamePlayer player)
+        {
+            if (!base.CheckQuestQualification(player))
+                return false;
 
-			// TODO: Check if this is the correct level for the quest.
-			return (player.Level >= m_requiredLevel);
-		}
+            // TODO: Check if this is the correct level for the quest.
+            return (player.Level >= 45);
+        }
 
 		/// <summary>
 		/// Handle an item given to the scholar.
@@ -121,31 +95,76 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
+			if (Step == 2 && ArtifactMgr.GetArtifactID(item.Name) == ArtifactID)
 			{
-				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
-					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
-
-				if (versions.Count > 0 && RemoveItem(player, item))
+				scholar.TurnTo(player);
+				if (RemoveItem(player, item))
 				{
-					DbItemTemplate template = null;
-					foreach (DbItemTemplate versionTemplate in versions.Values)
+					String reply = String.Format("Great! Now, I can make you a ");
+
+					switch (player.CharacterClass.ID)
 					{
-						template = versionTemplate;
-						break;
+						case (int)eCharacterClass.Armsman:
+							reply += "[1h slash], [2h slash], [1h thrust], [2h thrust], [slash polearm] or a [thrust polearm] weapon, which would you like?";
+							break;
+                        case (int)eCharacterClass.Mercenary:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Paladin:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Reaver:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Bard:
+                            reply += "[1h blades], [2h blades], [1h piercing] or a [2h piercing] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Blademaster:
+                            reply += "[1h blades], [2h blades], [1h piercing] or a [2h piercing] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Champion:
+                            reply += "[1h blades], [2h blades], [1h piercing] or a [2h piercing] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Hero:
+                            reply += "[1h blades], [2h blades], [1h piercing] or a [2h piercing] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Warden:
+                            reply += "[1h blades], [2h blades], [1h piercing] or a [2h piercing] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Vampiir:
+                            reply += "[1h piercing] weapon.";
+                            break;
+                        case (int)eCharacterClass.Valewalker:
+                            reply += "[2h scythe] weapon.";
+                            break;
+                        case (int)eCharacterClass.Berserker:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Savage:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Skald:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Thane:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Warrior:
+                            reply += "[1h slash], [2h slash], [1h thrust] or a [2h thrust] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Hunter:
+                            reply += "[1h slash], [2h slash], [1h thrust], [2h thrust] or a [2h spear] weapon, which would you like?";
+                            break;
+                        case (int)eCharacterClass.Valkyrie:
+                            reply += "[1h slash], [2h slash] or a [2h spear] weapon, which would you like?";
+                            break;
+						default:
+							reply += "nothing for your class.";
+							break;
 					}
-					
-					GiveItem(scholar, player, ArtifactID, template);
-					String reply = String.Format("Here is the {0}, {1} {2} {3} {4}, {5}!",
-						"restored to its original power. It is a fine item and I wish I could keep",
-						"it, but it is for you and you alone. Do not destroy it because you will never",
-						"have access to its full power again. Take care of it and it shall aid you in",
-						"the trials",
-						ArtifactID,
-						player.Name);
-					scholar.TurnTo(player);
+
 					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
-					FinishQuest();
+					Step = 3;
 					return true;
 				}
 			}
@@ -170,25 +189,98 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 			if (player == null || scholar == null)
 				return false;
 
-			if (Step > -1 && text.ToLower() == ArtifactID.ToLower())
+			if (Step == 1 && text.ToLower() == ArtifactID.ToLower())
 			{
-				/* Commenting out to give a template for future development
-				String reply = String.Format("Vara was a very skilled healer and she put her skills {0} {1} {2}",
-					"into the Healer's Embrace cloak. It would help me to unlock them if I was to read",
-					"her Medical Log. Please give me Vara's Medical Log now so that I may awaken the",
-					"magic within the Cloak for you.");
+                String reply = String.Format("Ah, Spear of Kings! Many smiths would love a spear {0} {1} {2} {3}",
+					"such as that! Well, for ",
+					player.GetName(1, false),
+					"like you, I am not sure what purpose it will serve! I hope you have better luck than",
+					"its previous owner! Do you have any scrolls with it?");
 				scholar.TurnTo(player);
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;
-				return true;*/
+				return true;
+			}
+			else if (Step == 3)
+			{
+				switch (text.ToLower())
+				{
+					case "1h slash":
+					case "2h slash":
+					case "1h thrust":
+                    case "2h thrust":
+                    case "slash polearm":
+                    case "thrust polearm":
+                    case "1h blades":
+                    case "2h blades":
+                    case "1h piercing":
+                    case "2h piercing":
+                    case "2h scythe":
+                    case "2h spear":
+						{
+							String versionID = String.Format(";{0};", text.ToLower());
+							Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
+								(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
+							if (!versions.ContainsKey(versionID))
+							{
+								log.Warn(String.Format("Artifact version {0} not found", versionID));
+								return false;
+							}
+							DbItemTemplate template = versions[versionID];
+							if (GiveItem(scholar, player, ArtifactID, template))
+							{
+                                String reply = String.Format("May Spear of Kings serve you well. Do not lose {0}",
+									"this, for I can only unlock the artifact's powers once.");
+								scholar.TurnTo(player);
+								scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
+								FinishQuest();
+								return true;
+							}
+							return false;
+						}
+				}
+				return false;
 			}
 
 			return false;
 		}
 
-		public override void Notify(DOLEvent e, object sender, EventArgs args)
+		/// <summary>
+		/// Description for the current step.
+		/// </summary>
+		public override string Description
 		{
-			// Need to do anything here?
+			get
+			{
+				switch (Step)
+				{
+					case 1:
+						return "Kill Olmagion.";
+					case 2:
+						return "Turn in the completed book.";
+					case 3:
+						return "Do you want a [1h slash], [2h slash], [1h thrust], [2h thrust], [slash polearm], [thrust polearm], [1h blades], [2h blades], [1h piercing], [2h piercing], [2h scythe] or a [2h spear] version?";
+					default:
+						return base.Description;
+				}
+			}
+		}
+
+		/// <summary>
+		/// The name of the quest (not necessarily the same as
+		/// the name of the reward).
+		/// </summary>
+		public override string Name
+		{
+            get { return "Spear of Kings"; }
+		}
+
+		/// <summary>
+		/// The artifact ID.
+		/// </summary>
+		public override String ArtifactID
+		{
+			get { return m_artifactID; }
 		}
 	}
 }
