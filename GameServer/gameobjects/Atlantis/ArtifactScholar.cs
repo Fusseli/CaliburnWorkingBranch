@@ -50,7 +50,7 @@ namespace DOL.GS
 			{
 				lock (QuestListToGive.SyncRoot)
 				{
-                    foreach (AbstractQuest quest in player.DataQuestList)
+                    foreach (AbstractQuest quest in player.QuestList.Keys)
 					{
 						if (quest is ArtifactTurnInQuest)
 						{
@@ -98,7 +98,7 @@ namespace DOL.GS
 
 					// ...or continuing a quest?
 
-					foreach (AbstractQuest quest in player.DataQuestList)
+					foreach (AbstractQuest quest in player.QuestList.Keys)
 					{
 						if (quest is ArtifactTurnInQuest && HasQuest(quest.GetType()) != null)
 							if ((quest as ArtifactTurnInQuest).WhisperReceive(player, this, text))
@@ -121,7 +121,7 @@ namespace DOL.GS
 				lock (QuestListToGive.SyncRoot)
 				{
 					// See if they player has the quest first
-					foreach (AbstractQuest quest in player.DataQuestList)
+					foreach (AbstractQuest quest in player.QuestList.Keys)
 					{
 						if (quest is ArtifactTurnInQuest && HasQuest(quest.GetType()) != null)
 							if ((quest as ArtifactTurnInQuest).Interact(player, this))

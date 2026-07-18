@@ -1383,7 +1383,7 @@ namespace DOL.GS
 			void HandleStyles()
 			{
 				if (template.Styles != null)
-					Styles = template.Styles;
+					Styles = new List<Style>(template.Styles);
 			}
 
 			void HandleAbilities()
