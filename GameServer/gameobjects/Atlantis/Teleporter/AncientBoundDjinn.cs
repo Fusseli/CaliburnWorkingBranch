@@ -32,6 +32,8 @@ namespace DOL.GS
     /// <author>Aredhel</author>
     public abstract class AncientBoundDjinn : GameTeleporter
     {
+        private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
         private const int NpcTemplateId = 3000;      
         private const int ZOffset = 63;
 
@@ -47,6 +49,7 @@ namespace DOL.GS
 
             LoadTemplate(npcTemplate);
 
+            Level = 70;
             CurrentRegion = djinnStone.CurrentRegion;
             Heading = djinnStone.Heading;
             Realm = eRealm.None;
@@ -99,41 +102,92 @@ namespace DOL.GS
         {
             get
             {
+                // Null-Check for CurrentZone
+                if (CurrentZone == null)
+                {
+                    log.Warn($"CurrentZone is null for Djinn at {X},{Y},{Z} in Region {CurrentRegionID}. Using default model.");
+                    return 0x4aa; // Fallback: Standard Oceanus Hesperos Model
+                }
+
                 switch (CurrentZone.ID)
                 {
                     // Oceanus Hesperos.
-
                     case 73:            // Albion.
                     case 30:            // Midgard.
                     case 130:           // Hibernia.
                         return 0x4aa;
 
                     // Stygian Delta.
-
                     case 81:
                     case 38:
                     case 138:
                         return 0x4ac;
 
-                    // Oceanus Notos.
+                    // Land of Atum.
+                    case 82:
+                    case 39:
+                    case 139:
+                        return 0x4ac;
 
+                    // Oceanus Notos.
                     case 76:
                     case 33:
                     case 133:
                         return 0x4ae;
 
-                    // Oceanus Anatole:
+                    // Arbor Glen.
+                    case 87:
+                    case 44:
+                    case 144:
+                        return 0x4ae;
 
+                    // Oceanus Anatole:
                     case 77:
                     case 34:
                     case 134:
                         return 0x4aa;
-                    
+
+                    // Ashen Isles:
+                    case 85:
+                    case 42:
+                    case 142:
+                        return 0x4af;
+
+                    // Sobekite Eternal:
+                    case 79:
+                    case 36:
+                    case 136:
+                        return 0x4ad;
+
                     // Temple of Twilight:
                     case 80:
                     case 37:
                     case 137:
                         return 0x4ad;
+
+                    // Great Pyramid:
+                    case 88:
+                    case 45:
+                    case 145:
+                        return 0x4ac;
+
+                    // Halls of Ma'ati:
+                    case 83:
+                    case 40:
+                    case 140:
+                        return 0x4ac;
+
+                    // Deep Volcanos:
+                    case 89:
+                    case 46:
+                    case 146:
+                        return 0x4af;
+
+                    // Aerus City:
+                    case 90:
+                    case 47:
+                    case 147:
+                        return 0x4ab;
 
                     default:
                         return 0x4aa;
@@ -227,32 +281,78 @@ namespace DOL.GS
         }
 
 
-		protected override bool GetTeleportLocation(GamePlayer player, string text)
-		{
-			// special cases
-			if (text.ToLower() == "battlegrounds" || text.ToLower() == "personal")
-			{
-				return base.GetTeleportLocation(player, text);
-			}
+        protected override bool GetTeleportLocation(GamePlayer player, string text)
+        {
+            string lowerText = text.ToLower();
 
-			// Find the teleport location in the database.  For Djinns use the player realm to match Interact list given.
-			DbTeleport port = WorldMgr.GetTeleportLocation(player.Realm, String.Format("{0}:{1}", Type, text));
+            // SPECIAL: Personal House Fallback
+            if (lowerText == "personal")
+            {
+                House house = HouseMgr.GetHouseByPlayer(player);
 
-			if (port != null)
-			{
-				if (port.RegionID == 0 && port.X == 0 && port.Y == 0 && port.Z == 0)
-				{
-					OnSubSelectionPicked(player, port);
-				}
-				else
-				{
-					OnDestinationPicked(player, port);
-				}
-				return false;
-			}
+                if (house == null)
+                {
+                    // No Existing Personal House → Fallback to Housing-Entrance (per Realm)
+                    switch (player.Realm)
+                    {
+                        case eRealm.Albion:
+                            text = "Caerwent";
+                            break;
+                        case eRealm.Midgard:
+                            text = "Erikstaad";
+                            break;
+                        case eRealm.Hibernia:
+                            text = "Meath";
+                            break;
+                        default:
+                            text = "entrance";
+                            break;
+                    }
+                    // Fall-through for normal DB-Search
+                }
+                else
+                {
+                    // Existing Personal House -> Teleport to Personal House
+                    IGameLocation location = house.OutdoorJumpPoint;
+                    DbTeleport teleport = new DbTeleport
+                    {
+                        TeleportID = "personal",
+                        Realm = (int)player.Realm,
+                        RegionID = location.RegionID,
+                        X = location.X,
+                        Y = location.Y,
+                        Z = location.Z,
+                        Heading = location.Heading
+                    };
+                    OnDestinationPicked(player, teleport);
+                    return true;
+                }
+            }
 
-			return true;	// Needs further processing.
-		}
+            // Specials for other Housing-Teleports -> sent to GameTeleporter Base
+            if (lowerText == "guild" || lowerText == "hearth" || lowerText == "battlegrounds")
+            {
+                return base.GetTeleportLocation(player, text);
+            }
+
+            // Normal Djinn-Teleports (Realm-specific search)
+            DbTeleport port = WorldMgr.GetTeleportLocation(player.Realm, String.Format("{0}:{1}", Type, text));
+
+            if (port != null)
+            {
+                if (port.RegionID == 0 && port.X == 0 && port.Y == 0 && port.Z == 0)
+                {
+                    OnSubSelectionPicked(player, port);
+                }
+                else
+                {
+                    OnDestinationPicked(player, port);
+                }
+                return false;
+            }
+
+            return true;  // Needs further processing.
+        }
 
 
         /// <summary>

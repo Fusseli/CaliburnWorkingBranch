@@ -11,16 +11,33 @@ namespace DOL.GS
     /// <author>Aredhel</author>
     public class PermanentDjinn : AncientBoundDjinn
     {
+        private EmoteTimer m_timer;
+
         public PermanentDjinn(DjinnStone djinnStone) : base(djinnStone)
         {
-            this.Model = VisibleModel;
-            this.AddToWorld();
-
-            m_timer = new EmoteTimer(this);
-            m_timer.Start();
+            // Model & AddToWorld() handelt in AddToWorld()
         }
 
-        private EmoteTimer m_timer;
+        /// <summary>
+        /// Add the djinn to the world and set the correct model
+        /// </summary>
+        public override bool AddToWorld()
+        {
+            if (!base.AddToWorld())
+                return false;
+
+            // CurrentZone is now set, model can be assigned now.
+            Model = VisibleModel;
+
+            // Timer starten (nur einmal!)
+            if (m_timer == null)
+            {
+                m_timer = new EmoteTimer(this);
+                m_timer.Start();
+            }
+
+            return true;
+        }
 
         /// <summary>
         /// Processes events coming from the timer.
@@ -42,8 +59,8 @@ namespace DOL.GS
         /// </summary>
         private void DoRandomEmote()
         {
-            String[] emotes = 
-            { 
+            String[] emotes =
+            {
                 "The {0} seems to be making an extremely concerted effort not to start laughing hysterically.",
                 "The {0} chuckles a bit to itself and mutters, 'Masters... hah...'",
                 "The {0} giggles quietly and whispers to itself, 'That's right, go on, just a little further...'",

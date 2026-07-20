@@ -35,10 +35,18 @@ namespace DOL.GS
         /// <returns></returns>
         public override bool AddToWorld()
         {
-            if (Djinn == null)
-                Djinn = new PermanentDjinn(this);
+            // First add the stone (sets CurrentZone)
+            if (!base.AddToWorld())
+                return false;
 
-            return base.AddToWorld();
+            // Then create the djinn and add it to the world
+            if (Djinn == null)
+            {
+                Djinn = new PermanentDjinn(this);
+                Djinn.AddToWorld();
+            }
+
+            return true;
         }
     }
 }

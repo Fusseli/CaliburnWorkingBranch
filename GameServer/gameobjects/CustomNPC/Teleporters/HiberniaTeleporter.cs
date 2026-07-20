@@ -17,9 +17,10 @@
  *
  */
 
-using System;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using log4net.Core;
+using System;
 
 namespace DOL.GS
 {
@@ -29,25 +30,60 @@ namespace DOL.GS
 	/// <author>Aredhel</author>
 	public class HiberniaTeleporter : GameTeleporter
 	{
-		/// <summary>
-		/// Player right-clicked the teleporter.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool Interact(GamePlayer player)
-		{
-			if (!base.Interact(player))
-				return false;
+        /// <summary>
+        /// Add equipment to the teleporter.
+        /// </summary>
+        /// <returns></returns>
+        public override bool AddToWorld()
+        {
+            GameNpcInventoryTemplate template = new GameNpcInventoryTemplate();
+            template.AddNPCEquipment(eInventorySlot.TorsoArmor, 1008, 0);
+            template.AddNPCEquipment(eInventorySlot.HandsArmor, 396, 0);
+            template.AddNPCEquipment(eInventorySlot.FeetArmor, 402, 0);
+            template.AddNPCEquipment(eInventorySlot.TwoHandWeapon, 468);
+            Inventory = template.CloseTemplate();
 
-			SayTo(player, "Greetings, " + player.Name +
-			              " I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
-			              "[Druim Ligen] in Connacht or \n[Druim Cain] in Bri Leith\n" +
+            SwitchWeapon(eActiveWeaponSlot.TwoHanded);
+            VisibleActiveWeaponSlots = 34;
+            return base.AddToWorld();
+        }
+
+        /// <summary>
+        /// Display the teleport indicator around this teleporters feet
+        /// </summary>
+        public override bool ShowTeleporterIndicator
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Player right-clicked the teleporter.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool Interact(GamePlayer player)
+		{
+            if (!base.Interact(player) || GameRelic.IsPlayerCarryingRelic(player)) return false;
+
+            TurnTo(player, 10000);
+
+            SayTo(player, "Greetings, " + player.Name +
+			              ", I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
+						  "[Cruachan Gorge] in the Frontiers\n" +
+                          "[Druim Ligen] in Connacht or\n" +
+						  "[Druim Cain] in Bri Leith\n" +
 			              "[Shannon Estuary] watchtower\n" +
 			              "[Domnann] Grove in the [Shrouded Isles]\n" +
+						  "[Oceanus] haven in the lost lands of Atlantis\n" +
+						  "[Shar Labyrinth] or [Veil Rift] in the Catacombs\n" +
 			              "[Tir na Nog] our glorious capital\n" +
-			              "[Entrance] to the areas of [housing]\n\n" +
-			              "Or one of the many [towns] throughout Hibernia");
-			return true;
+			              "[Entrance] to the areas of [Housing]\n" +
+                          "Appropriate [Battlegrounds] for your season\n\n" +
+                          "Or one of the many [towns] throughout Hibernia");
+            return true;
 		}
 
 		/// <summary>
@@ -59,7 +95,15 @@ namespace DOL.GS
 		{
 			switch (subSelection.TeleportID.ToLower())
 			{
-				case "shrouded isles":
+                case "cruachan gorge":
+                    {
+                        String reply = String.Format("Very well, you would fight for the glory of Hibernia. {0} {1}",
+                                                     "Shall I send you to the relic camps [Crair Treflan] or [Magh Tuireadh],",
+                                                     "or would you rather depart from the border keeps [Ligen] or [Cain]?");
+                        SayTo(player, reply);
+                        return;
+                    }
+                case "shrouded isles":
 					{
 						String reply = String.Format("The isles of Hy Brasil are an excellent choice. {0} {1}",
 						                             "Would you prefer the grove of [Domnann] or perhaps one of the outlying towns",
@@ -68,23 +112,27 @@ namespace DOL.GS
 						return;
 					}
 				case "housing":
-				{
-					SayTo(player,
-						"I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
-					return;
-				}
-				
+					{
+						SayTo(player,
+                        "I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
+						return;
+					}
+
 				case "towns":
 				{
 					SayTo(player,
 						"I can send you to:\n" +
-						"[Mag Mell]\n" +
-						"[Tir na mBeo]\n" +
-						"[Ardagh]\n" +
-						"[Howth]\n" +
-						"[Connla]\n" +
-						"[Innis Carthaig]");
-					return;
+                        "[Fintain] (Levels 1-9)\n" +
+                        "[Mag Mell] (Levels 10-14)\n" +
+                        "[Tir na mBeo] (Levels 15-19)\n" +
+                        "[Ardagh] (Levels 20-24)\n" +
+                        "[Howth] (Levels 25-29)\n" +
+                        "[Connla] (Levels 30-34)\n" +
+                        "[Innis Carthaig] (Levels 35+)\n" +
+						"[Druim Cain] (Levels 40+)\n" +
+                        "[Cursed Forest] (Levels 45+)\n" +
+                        "[Sheeroe Hills] (Levels 45+)");
+                    return;
 				}
 			}
 			base.OnSubSelectionPicked(player, subSelection);
@@ -106,8 +154,24 @@ namespace DOL.GS
 					eChatLoc.CL_SystemWindow);
 				return;
 			}
-			
-			Say("I'm now teleporting you to " + destination.TeleportID + ".");
+
+            // Check for tutorial zone restrictions (Fintain)
+            if (destination.TeleportID.Equals("Fintain", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ServerProperties.Properties.DISABLE_TUTORIAL)
+                {
+                    SayTo(player, "Sorry, this place is not available for now!");
+                    return;
+                }
+
+                if (player.Level > 15)
+                {
+                    SayTo(player, "Sorry, you are far too experienced to enjoy this place!");
+                    return;
+                }
+            }
+
+            Say("I'm now teleporting you to " + destination.TeleportID + ".");
 			OnTeleportSpell(player, destination);
 		}
 	}

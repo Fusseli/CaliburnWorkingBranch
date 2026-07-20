@@ -17,9 +17,10 @@
  *
  */
 
-using System;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using log4net.Core;
+using System;
 
 namespace DOL.GS
 {
@@ -29,26 +30,61 @@ namespace DOL.GS
 	/// <author>Aredhel</author>
 	public class MidgardTeleporter : GameTeleporter
 	{
-		/// <summary>
-		/// Player right-clicked the teleporter.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool Interact(GamePlayer player)
+        /// <summary>
+        /// Add equipment to the teleporter.
+        /// </summary>
+        /// <returns></returns>
+        public override bool AddToWorld()
+        {
+            GameNpcInventoryTemplate template = new GameNpcInventoryTemplate();
+            template.AddNPCEquipment(eInventorySlot.TorsoArmor, 983, 26);
+            template.AddNPCEquipment(eInventorySlot.HandsArmor, 986, 26);
+            template.AddNPCEquipment(eInventorySlot.LegsArmor, 984, 26);
+            template.AddNPCEquipment(eInventorySlot.FeetArmor, 987, 26);
+            template.AddNPCEquipment(eInventorySlot.Cloak, 57, 26);
+            template.AddNPCEquipment(eInventorySlot.TwoHandWeapon, 1170);
+            Inventory = template.CloseTemplate();
+
+            SwitchWeapon(eActiveWeaponSlot.TwoHanded);
+            VisibleActiveWeaponSlots = 34;
+            return base.AddToWorld();
+        }
+
+        /// <summary>
+        /// Display the teleport indicator around this teleporters feet
+        /// </summary>
+        public override bool ShowTeleporterIndicator
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Player right-clicked the teleporter.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool Interact(GamePlayer player)
 		{
 			if (!base.Interact(player) || GameRelic.IsPlayerCarryingRelic(player)) return false;
 
 			TurnTo(player, 10000);
-			
+
 			SayTo(player, "Greetings, " + player.Name +
-			              " I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
-			              "[Svasud Faste] in Mularn or \n[Vindsaul Faste] in West Svealand\n" +
+			              ", I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
+                          "[Uppland] in the Frontiers\n" +
+                          "[Svasud Faste] in Mularn or \n" +
+						  "[Vindsaul Faste] in West Svealand\n" +
 			              "Beaches of [Gotar] near Nailiten\n" +
 			              "[Aegirhamn] in the [Shrouded Isles]\n" +
-			              "Our glorious city of [Jordheim]\n" +
-			              "[Entrance] to the areas of [housing]\n\n" +
-			              "Or one of the many [towns] throughout Midgard");
-			
+                          "[Oceanus] haven in the lost lands of Atlantis\n" +
+                          "[Kobold Undercity] or [Burial Grounds] in the Catacombs\n" +
+                          "Our glorious city of [Jordheim]\n" +
+                          "[Entrance] to the areas of [Housing]\n" +
+                          "Appropriate [Battlegrounds] for your season\n\n" +
+                          "Or one of the many [towns] throughout Midgard");
 			return true;
 		}
 
@@ -61,7 +97,16 @@ namespace DOL.GS
 		{
 			switch (subSelection.TeleportID.ToLower())
 			{
-				case "shrouded isles":
+                case "uppland":
+                    {
+                        String reply = String.Format("Very well, you would fight for the glory of Midgard. {0} {1}",
+                                                     "Shall I send you to the relic camps [Godrborg] or [Rensamark],",
+                                                     "or would you rather depart from the border keeps [Svasud] or [Vindsaul]?");
+                        SayTo(player, reply);
+                        return;
+                    }
+
+                case "shrouded isles":
 					{
 						String reply = String.Format("The isles of Aegir are an excellent choice. {0} {1}",
 						                             "Would you prefer the city of [Aegirhamn] or perhaps one of the outlying towns",
@@ -72,21 +117,26 @@ namespace DOL.GS
 				case "housing":
 					{
 						SayTo(player,
-							"I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
+						"I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
 						return;
 					}
-				
+
 				case "towns":
 				{
 					SayTo(player,
 						"I can send you to:\n" +
-						"[Mularn]\n" +
-						"[Fort Veldon]\n" +
-						"[Audliten]\n" +
-						"[Huginfell]\n" +
-						"[Fort Atla]\n" +
-						"[West Skona]");
-					return;
+                        "[Hafheim] (Levels 1-9)\n" +
+                        "[Mularn] (Levels 10-14)\n" +
+                        "[Fort Veldon] (Levels 15-19)\n" +
+                        "[Audliten] (Levels 20-24)\n" +
+                        "[Huginfell] (Levels 25-29)\n" +
+                        "[Fort Atla] (Levels 30-34)\n" +
+                        "[West Skona] (Levels 35+)\n" +
+                        "[Gna Faste] (Levels 35+)\n" +
+                        "[Vindsaul Faste] (Levels 40+)\n" +
+                        "[Raumarik] (Levels 45+)\n" +
+                        "[Malmohus] (Levels 45+)");
+                        return;
 				}
 			}
 			base.OnSubSelectionPicked(player, subSelection);
@@ -108,8 +158,24 @@ namespace DOL.GS
 					eChatLoc.CL_SystemWindow);
 				return;
 			}
-			
-			Say("I'm now teleporting you to " + destination.TeleportID + ".");
+
+            // Check for tutorial zone restrictions (Hafheim)
+            if (destination.TeleportID.Equals("Hafheim", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ServerProperties.Properties.DISABLE_TUTORIAL)
+                {
+                    SayTo(player, "Sorry, this place is not available for now!");
+                    return;
+                }
+
+                if (player.Level > 15)
+                {
+                    SayTo(player, "Sorry, you are far too experienced to enjoy this place!");
+                    return;
+                }
+            }
+
+            Say("I'm now teleporting you to " + destination.TeleportID + ".");
 			OnTeleportSpell(player, destination);
 		}
 	}

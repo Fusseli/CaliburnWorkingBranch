@@ -17,9 +17,10 @@
  *
  */
 
-using System;
 using DOL.Database;
 using DOL.GS.PacketHandler;
+using log4net.Core;
+using System;
 
 namespace DOL.GS
 {
@@ -49,26 +50,41 @@ namespace DOL.GS
 			return base.AddToWorld();
 		}
 
-		/// <summary>
-		/// Player right-clicked the teleporter.
-		/// </summary>
-		/// <param name="player"></param>
-		/// <returns></returns>
-		public override bool Interact(GamePlayer player)
+        /// <summary>
+        /// Display the teleport indicator around this teleporters feet
+        /// </summary>
+        public override bool ShowTeleporterIndicator
+        {
+            get
+            {
+                return true;
+            }
+        }
+
+        /// <summary>
+        /// Player right-clicked the teleporter.
+        /// </summary>
+        /// <param name="player"></param>
+        /// <returns></returns>
+        public override bool Interact(GamePlayer player)
 		{
 			if (!base.Interact(player) || GameRelic.IsPlayerCarryingRelic(player)) return false;
 
 			TurnTo(player, 10000);
-			
+
 			SayTo(player, "Greetings, " + player.Name +
-			              " I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
-			              "[Castle Sauvage] in Camelot Hills or \n[Snowdonia Fortress] in Black Mtns. North\n" +
+			              ", I am able to channel energy to transport you to distant lands. I can send you to the following locations:\n\n" +
+                          "[Forest Sauvage] in the Frontiers\n" +
+                          "[Castle Sauvage] in Camelot Hills or \n" +
+						  "[Snowdonia Fortress] in Black Mtns. North\n" +
 			              "[Avalon Marsh] wharf\n" +
 			              "[Gothwaite Harbor] in the [Shrouded Isles]\n" +
-			              "[Camelot] our glorious capital\n" +
-			              "[Entrance] to the areas of [housing]\n\n" +
-			              "Or one of the many [towns] throughout Albion");
-			
+                          "[Oceanus] haven in the lost lands of Atlantis\n" +
+                          "[The Inconnu Crypt] or [Roman Aqueducts] in the Catacombs\n" +
+                          "[Camelot] our glorious capital\n" +
+                          "[Entrance] to the areas of [Housing]\n" +
+                          "Appropriate [Battlegrounds] for your season\n\n" +
+                          "Or one of the many [towns] throughout Albion");
 			return true;
 		}
 
@@ -81,32 +97,48 @@ namespace DOL.GS
 		{
 			switch (subSelection.TeleportID.ToLower())
 			{
-				case "shrouded isles":
+                case "forest sauvage":
+                    {
+                        String reply = String.Format("Very well, you would fight for the glory of Albion. {0} {1}",
+                                                     "Shall I send you to the relic camps [Catterick Hamlet] or [Dinas Emrys],",
+                                                     "or would you rather depart from the border keeps [Sauvage] or [Snowdonia]?");
+                        SayTo(player, reply);
+                        return;
+                    }
+
+                case "shrouded isles":
 					{
 						String reply = String.Format("The isles of Avalon are an excellent choice. {0} {1}",
-							"Would you prefer [Gothwaite] or perhaps one of the outlying towns",
-							"like [Wearyall Village], Fort [Gwyntell], or [Caer Diogel]?");
+													"Would you prefer [Gothwaite] or perhaps one of the outlying towns",
+													"like [Wearyall Village], Fort [Gwyntell], or [Caer Diogel]?");
 						SayTo(player, reply);
-						break;
+						return;
 					}
-				
+
 				case "housing":
 					{
 						SayTo(player,
-							"I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
+						"I can send you to your [personal] or [guild] house. If you do not have a personal house, I can teleport you to the housing [entrance] or your housing [hearth] bindstone.");
 						return;
 					}
-				
+
 				case "towns":
 				{
-					SayTo(player, "I can send you to:\n" +
-					              "[Cotswold Village]\n" +
-					              "[Prydwen Keep]\n" +
-					              "[Caer Ulfwych]\n" +
-					              "[Campacorentin Station]\n" +
-					              "[Adribard's Retreat]\n" +
-					              "[Yarley's Farm]");
-					return;
+					SayTo(player,
+						"I can send you to:\n" +
+                        "[Holtham] - (Levels 1-9)\n" +
+                        "[Cotswold Village] - (Levels 10-14)\n" +
+                        "[Prydwen Keep] - (Levels 15-19)\n" +
+                        "[Caer Ulfwych] - (Levels 20-24)\n" +
+                        "[Campacorentin Station] - (Levels 25-29)\n" +
+                        "[Adribard's Retreat] - (Levels 30-34)\n" +
+                        "[Cornwall Station] - (Levels 35+)\n" +
+                        "[Yarley's Farm] - (Levels 35+)\n" +
+                        "[Swanton Keep] - (Levels 35+)\n" +
+                        "[Snowdonia Fortress] - (Levels 40+)\n" +
+                        "[Lyonesse] - (Levels 45+)\n" +
+                        "[Dartmoor] - (Levels 45+)");
+                    return;
 				}
 			}
 			base.OnSubSelectionPicked(player, subSelection);
@@ -128,8 +160,24 @@ namespace DOL.GS
 					eChatLoc.CL_SystemWindow);
 				return;
 			}
-			
-			Say("I'm now teleporting you to " + destination.TeleportID + ".");
+
+            // Check for tutorial zone restrictions (Holtham)
+            if (destination.TeleportID.Equals("Holtham", StringComparison.OrdinalIgnoreCase))
+            {
+                if (ServerProperties.Properties.DISABLE_TUTORIAL)
+                {
+                    SayTo(player, "Sorry, this place is not available for now!");
+                    return;
+                }
+
+                if (player.Level > 15)
+                {
+                    SayTo(player, "Sorry, you are far too experienced to enjoy this place!");
+                    return;
+                }
+            }
+
+            Say("I'm now teleporting you to " + destination.TeleportID + ".");
 			OnTeleportSpell(player, destination);
 		}
 	}
