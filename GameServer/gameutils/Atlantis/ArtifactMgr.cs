@@ -336,10 +336,7 @@ namespace DOL.GS
 
 			// Suffice to calculate total XP once for all artifacts.
 
-			long xpAmount = xpArgs.ExpBase +
-				xpArgs.ExpCampBonus +
-				xpArgs.ExpGroupBonus +
-				xpArgs.ExpOutpostBonus;
+			long xpAmount = (long)(xpArgs.ExpBase / ServerProperties.Properties.XP_RATE);
 
 			// Only currently equipped artifacts can gain experience.
 
