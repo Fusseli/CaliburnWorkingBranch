@@ -363,10 +363,13 @@ namespace DOL.GS
             if (Level >= 80) { rewardbp = 400; }
 
             IGamePlayer player = killer as IGamePlayer;
-            player.Out.SendMessage("You Get " + rewardbp + " bountypoints!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
-            player.BountyPoints += rewardbp;
-            player.Out.SendMessage("You Get " + rewardrp + " realm points!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
-            player.RealmPoints += rewardrp;
+            if (player != null)
+            {
+                player.Out.SendMessage("You Get " + rewardbp + " bountypoints!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                player.BountyPoints += rewardbp;
+                player.Out.SendMessage("You Get " + rewardrp + " realm points!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                player.RealmPoints += rewardrp;
+            }
 
             return loot;
         }
