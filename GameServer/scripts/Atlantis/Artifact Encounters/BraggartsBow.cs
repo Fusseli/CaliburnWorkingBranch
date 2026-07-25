@@ -84,6 +84,12 @@ namespace DOL.GS.Atlantis
             base.StartRespawn();
         }
 
+        public override void Die(GameObject killer)
+        {
+            EncounterMgr.GrantEncounterCredit(killer, true, true, "Braggart's Bow");
+            base.Die(killer);
+        }
+
         public void SpawnEncounter()
         {
             for (int i = 0; i < 10; i++)

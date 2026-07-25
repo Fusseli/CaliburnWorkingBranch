@@ -1151,7 +1151,8 @@ namespace DOL.GS.Atlantis
                 }
                 //purros exploded, let's despawn him, first take away the die handler so he dosn't die twice.
                 TimerOn = false;
-                pbody.Parent.Parent.PurrosList.Remove(pbody);
+                if (pbody.Parent.Parent.PurrosList.Contains(pbody))
+                    pbody.Parent.Parent.PurrosList.Remove(pbody);
                 pbody.Health = 0;
                 pbody.Delete();
             }

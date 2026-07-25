@@ -39,7 +39,13 @@ namespace DOL.GS
 
                 if (completed >= total)
                 {
-                    if (player.MLLevel == 0)
+                    long mlxpRequired = player.GetMLExperienceForLevel(player.MLLevel + 1);
+                    if (player.MLExperience < mlxpRequired)
+                    {
+                        int percent = (int)(player.MLExperience * 100 / mlxpRequired);
+                        SayTo(player, eChatLoc.CL_PopupWindow, $"You have completed all trials for Master Level {currentML}, but you need more experience. Current ML experience: {percent}%. Return when you have gained enough.");
+                    }
+                    else if (player.MLLevel == 0)
                     {
                         string pathA, pathB;
                         GetMLPathChoices(player, out pathA, out pathB);
@@ -76,6 +82,12 @@ namespace DOL.GS
                 byte currentML = (byte)(player.MLLevel + 1);
                 if (player.GetCountMLStepsCompleted(currentML) >= player.GetStepCountForML(currentML))
                 {
+                    long mlxpRequired = player.GetMLExperienceForLevel(currentML);
+                    if (player.MLExperience < mlxpRequired)
+                    {
+                        SayTo(player, eChatLoc.CL_PopupWindow, "You have not yet gained enough Master Level experience. Continue to prove yourself in battle and return.");
+                        return false;
+                    }
                     if (player.MLLevel < 10)
                         AdvanceML(player, currentML);
                 }

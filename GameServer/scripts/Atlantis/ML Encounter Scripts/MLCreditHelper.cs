@@ -93,49 +93,35 @@ namespace DOL.GS.Atlantis
             {
                 player = (GamePlayer)Grantedobject;
             }
-            if (player.IsAlive == true)
+            if (!player.IsAlive)
+                return;
+
+            // Always grant credit to the killer if eligible
+            if (player.MLGranted && player.MLLevel == (ml - 1))
+                GrantStep(player, ml, step);
+
+            // Additionally grant to group members
+            if (group && player.Group != null)
             {
-                if (group == false && battlegroup == false)
+                foreach (GamePlayer p in player.Group.GetPlayersInTheGroup())
                 {
-                    if (player.MLGranted == true && player.MLLevel == (ml - 1))
-                    {
-                        log.Warn("Master Level - " + ml + "." + step + " - " + player.Name + " - Granted");
-                        player.SetFinishedMLStep(ml, step);
-                        player.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-                        player.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-                        player.Out.SendMasterLevelWindow(ml);
-                        player.Out.SendPlaySound(eSoundType.Divers, 11);
-                        player.SaveIntoDatabase();
-                        if (player.GetCountMLStepsCompleted(ml) >= player.GetStepCountForML(ml))
-                            player.Out.SendMessage("Return to the Arbiter for your promotion!", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-                    }
-                }
-                else if (group == true && battlegroup == false)
-                {
-                    if (player.Group != null)
-                    {
-                        log.Warn("Master Level - " + ml + "." + step + " - " + player.Name + "Group Granting...");
-                        foreach (GamePlayer p in player.Group.GetPlayersInTheGroup())
-                        {
-                            if (p != null)
-                            {
-                                if (p.MLGranted == true && p.MLLevel == (ml - 1) && player.IsAlive && p.IsWithinRadius(player, WorldMgr.MAX_EXPFORKILL_DISTANCE))
-                                {
-                                    log.Warn("Master Level - " + ml + "." + step + " - " + p.Name + " - Granted");
-                                    p.SetFinishedMLStep(ml, step);
-                                    p.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-                                    p.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-                                    p.Out.SendMasterLevelWindow(ml);
-                                    p.Out.SendPlaySound(eSoundType.Divers, 11);
-                                    p.SaveIntoDatabase();
-                                    if (p.GetCountMLStepsCompleted(ml) >= p.GetStepCountForML(ml))
-                                        p.Out.SendMessage("Return to the Arbiter for your promotion!", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
-                                }
-                            }
-                        }
-                    }
+                    if (p != null && p != player && p.MLGranted && p.MLLevel == (ml - 1) && p.IsAlive && p.IsWithinRadius(player, WorldMgr.MAX_EXPFORKILL_DISTANCE))
+                        GrantStep(p, ml, step);
                 }
             }
+        }
+
+        private static void GrantStep(GamePlayer player, byte ml, byte step)
+        {
+            log.Warn("Master Level - " + ml + "." + step + " - " + player.Name + " - Granted");
+            player.SetFinishedMLStep(ml, step);
+            player.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
+            player.Out.SendMessage("Congratulations, Master Level " + ml + "." + step + " completed !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+            player.Out.SendMasterLevelWindow(ml);
+            player.Out.SendPlaySound(eSoundType.Divers, 11);
+            player.SaveIntoDatabase();
+            if (player.GetCountMLStepsCompleted(ml) >= player.GetStepCountForML(ml))
+                player.Out.SendMessage("Return to the Arbiter for your promotion!", eChatType.CT_ScreenCenter, eChatLoc.CL_SystemWindow);
         }
     }
 }

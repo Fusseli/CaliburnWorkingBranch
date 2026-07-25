@@ -110,6 +110,7 @@ public class CoopWithRvr : AbstractServerRules
 
     private AbstractServerRules SelectRuleSet(GameObject obj)
     {
+        if (obj == null) return pveServerRules;
         Zone currentZone = obj.CurrentZone;
 
         if (obj.CurrentRegion.IsRvR || currentZone != null && currentZone.IsRvR)

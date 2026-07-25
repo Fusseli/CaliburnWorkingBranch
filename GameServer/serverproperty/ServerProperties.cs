@@ -811,6 +811,12 @@ namespace DOL.GS.ServerProperties
 		public static double CL_XP_RATE;
 
 		/// <summary>
+		/// The Master Level XP Rate
+		/// </summary>
+		[ServerProperty("rates", "mlxp_rate", "The Master Level Experience Points Rate Modifier - Base MLXP per kill = raw base XP * mlxp_rate. Higher = faster MLXP gain. Default 0.05.", 0.05)]
+		public static double MLXP_RATE;
+
+		/// <summary>
 		/// RvR Zones XP Rate
 		/// </summary>
 		[ServerProperty("rates", "rvr_zones_xp_rate", "The RvR zones Experience Points Rate Modifier", 1.0)]

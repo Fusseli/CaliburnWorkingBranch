@@ -5119,6 +5119,7 @@ namespace DOL.GS
 
             long RealmLoyaltyBonus = 0;
             long baseXp = 0;
+            long mlxpBase = 0;
             //xp rate modifier
             if (allowMultiply)
             {
@@ -5128,6 +5129,7 @@ namespace DOL.GS
                 expTotal -= expOutpostBonus;
 
                 baseXp = expTotal;
+                mlxpBase = expTotal;
                 //[StephenxPimentel] - Zone Bonus XP Support
                 if (ServerProperties.Properties.ENABLE_ZONE_BONUSES)
                 {
@@ -5272,6 +5274,8 @@ namespace DOL.GS
 
             if (notify)
                 Notify(GameLivingEvent.GainedExperience, this, new GainedExperienceEventArgs(expTotal, expCampBonus, expGroupBonus, expOutpostBonus, sendMessage, allowMultiply, xpSource));
+
+            GainMLExperience(mlxpBase);
 
             Out.SendUpdatePoints();
         }
@@ -14597,17 +14601,17 @@ namespace DOL.GS
         /// </summary>
         private static readonly long[] MLXPLevel =
         {
-            0, //xp tp level 0
-            32000, //xp to level 1
-            32000, // xp to level 2
-            32000, // xp to level 3
-            32000, // xp to level 4
-            32000, // xp to level 5
-            32000, // xp to level 6
-            32000, // xp to level 7
-            32000, // xp to level 8
-            32000, // xp to level 9
-            32000, // xp to level 10
+            0, //xp to level 0
+            100000000, //xp to level 1 (100M = 10 bubbles of 10M in the UI)
+            100000000, //xp to level 2
+            100000000, //xp to level 3
+            100000000, //xp to level 4
+            100000000, //xp to level 5
+            100000000, //xp to level 6
+            100000000, //xp to level 7
+            100000000, //xp to level 8
+            100000000, //xp to level 9
+            100000000, //xp to level 10
         };
 
         /// <summary>
@@ -14794,6 +14798,38 @@ namespace DOL.GS
             if (level <= 0)
                 return MLXPLevel[0];
             return MLXPLevel[level];
+        }
+
+        public void GainMLExperience(long baseXP)
+        {
+            if (!MLGranted || MLLevel >= 10 || baseXP <= 0)
+                return;
+
+            int conLevel = TempProperties.GetProperty<int>("mlxp_con", 0);
+            TempProperties.RemoveProperty("mlxp_con");
+
+            double[] conMultipliers = { 0.0, 0.05, 0.10, 0.25, 0.50, 1.00, 2.00 };
+            int idx = Math.Max(0, Math.Min(6, conLevel + 3));
+            double conMult = conMultipliers[idx];
+
+            if (conMult <= 0)
+                return;
+
+            long mlxpGain = (long)(baseXP * ServerProperties.Properties.MLXP_RATE * conMult);
+            if (mlxpGain <= 0)
+                return;
+
+            long required = GetMLExperienceForLevel(MLLevel + 1);
+            long oldMLXP = MLExperience;
+            MLExperience = Math.Min(oldMLXP + mlxpGain, required);
+
+            long gained = MLExperience - oldMLXP;
+            if (gained > 0)
+            {
+                Out.SendMessage("You gain " + gained.ToString("N0") + " Master Level experience!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                Out.SendMasterLevelWindow((byte)MLLevel);
+                SaveIntoDatabase();
+            }
         }
 
         /// <summary>

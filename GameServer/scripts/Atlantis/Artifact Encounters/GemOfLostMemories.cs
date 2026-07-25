@@ -413,7 +413,7 @@ namespace DOL.GS.Atlantis
                 {
                     if (Parent.Brother.Children1.IsAlive == false && Parent.Brother.Children2.IsAlive == false)
                     {
-                        log.Warn("Artifact - GOLM - " + killer.Name + " - Group Grant");
+                        EncounterMgr.GrantEncounterCredit(killer, true, true, "Gem of Lost Memories");
                     }
                 }
             }

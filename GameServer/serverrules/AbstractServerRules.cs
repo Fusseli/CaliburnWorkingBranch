@@ -1259,6 +1259,7 @@ namespace DOL.GS.ServerRules
 			long totalReward = baseXpReward + campBonus + groupBonus + outpostBonus;
 
 			ShowXpStatsToPlayer();
+			living.TempProperties.SetProperty("mlxp_con", living.GetConLevel(killedNPC));
 			living.GainExperience(eXPSource.NPC, totalReward, campBonus, groupBonus, outpostBonus, true, true, true); // XP Rate is handled in GainExperience
 
 			void RewardRealmPoints()

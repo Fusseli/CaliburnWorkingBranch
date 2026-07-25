@@ -243,7 +243,6 @@ namespace DOL.GS.Atlantis
             AgnonNpc.CurrentSpeed = 0;
             AgnonNpc.MaxSpeedBase = 191;
             AgnonNpc.RespawnInterval = 10 * 60 * 1000;
-            AgnonNpc.Flags |= eFlags.PEACE;
             AgnonNpc.AutoSetStats();
             AgnonNpc.Parent = this;
             AgnonNpc.AddToWorld();
@@ -266,7 +265,6 @@ namespace DOL.GS.Atlantis
             AgnonNpc.CurrentSpeed = 0;
             AgnonNpc.MaxSpeedBase = 191;
             AgnonNpc.RespawnInterval = 10 * 60 * 1000;
-            AgnonNpc.Flags |= eFlags.PEACE;
             AgnonNpc.AutoSetStats();
             AgnonNpc.Parent = this;
             AgnonNpc.AddToWorld();
@@ -289,7 +287,6 @@ namespace DOL.GS.Atlantis
             XalarianNpc.CurrentSpeed = 0;
             XalarianNpc.MaxSpeedBase = 191;
             XalarianNpc.RespawnInterval = 10 * 60 * 1000;
-            XalarianNpc.Flags |= eFlags.PEACE;
             XalarianNpc.AutoSetStats();
             XalarianNpc.Parent = this;
             XalarianNpc.AddToWorld();
@@ -312,7 +309,6 @@ namespace DOL.GS.Atlantis
             JilenaNpc.CurrentSpeed = 0;
             JilenaNpc.MaxSpeedBase = 191;
             JilenaNpc.RespawnInterval = 10 * 60 * 1000;
-            JilenaNpc.Flags |= eFlags.PEACE;
             JilenaNpc.AutoSetStats();
             JilenaNpc.Parent = this;
             JilenaNpc.AddToWorld();
@@ -335,7 +331,6 @@ namespace DOL.GS.Atlantis
             MalisonNpc.CurrentSpeed = 0;
             MalisonNpc.MaxSpeedBase = 191;
             MalisonNpc.RespawnInterval = 10 * 60 * 1000;
-            MalisonNpc.Flags |= eFlags.PEACE;
             MalisonNpc.AutoSetStats();
             MalisonNpc.Parent = this;
             MalisonNpc.AddToWorld();
@@ -358,7 +353,6 @@ namespace DOL.GS.Atlantis
             RegentNpc.CurrentSpeed = 0;
             RegentNpc.MaxSpeedBase = 191;
             RegentNpc.RespawnInterval = 10 * 60 * 1000;
-            RegentNpc.Flags |= eFlags.PEACE;
             RegentNpc.AutoSetStats();
             RegentNpc.Parent = this;
             RegentNpc.AddToWorld();
@@ -385,10 +379,10 @@ namespace DOL.GS.Atlantis
             Guard.AutoSetStats();
             Guard.RespawnInterval = 10 * 60 * 1000;
             Guard.BodyType = 0;
-            Guard.Flags = eFlags.PEACE;
+            Guard.Flags |= eFlags.PEACE;
             StandardMobBrain brain = new StandardMobBrain();
-            brain.AggroLevel = 50;
-            brain.AggroRange = 1000;
+            brain.AggroLevel = 0;
+            brain.AggroRange = 0;
             Guard.SetOwnBrain(brain);
             KrojerSentinelList.Add(Guard);
             Guard.AddToWorld();

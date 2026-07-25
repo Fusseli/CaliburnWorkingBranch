@@ -265,6 +265,7 @@ namespace DOL.GS.Atlantis
                         p.Out.SendMessage(ThePlayer.Name + " found the Aten's Shield !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
                     }
                 }
+                EncounterMgr.GrantEncounterCredit(ThePlayer, true, true, "Aten's Shield");
             }
             else
             {

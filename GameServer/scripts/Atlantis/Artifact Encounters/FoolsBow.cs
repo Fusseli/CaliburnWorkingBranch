@@ -370,5 +370,10 @@ namespace DOL.GS.Atlantis
         {
             base.StartRespawn();
         }
+        public override void Die(GameObject killer)
+        {
+            EncounterMgr.GrantEncounterCredit(killer, true, true, "Fool's Bow");
+            base.Die(killer);
+        }
     }
 }
