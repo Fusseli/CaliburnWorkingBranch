@@ -49,6 +49,15 @@ namespace DOL.GS.Atlantis
         public int BaseBlockPdv = 10000;
         public int BlockPdv = 10000;
 
+        //Morphed guard list
+        public List<MorphedGuard> MorphedGuardList = new List<MorphedGuard>();
+
+        //Barrier re-raise timer
+        private ECSGameTimer m_barrierTimer;
+
+        //Barrier visual timer
+        private ECSGameTimer m_visualTimer;
+
         //Override
         public override void SaveIntoDatabase()
         {
@@ -61,25 +70,50 @@ namespace DOL.GS.Atlantis
         }
         public override void TakeDamage(GameObject source, eDamageType damageType, int damageAmount, int criticalAmount)
         {
-            if ((BlockPdv > 0) && (damageType == eDamageType.Body || damageType == eDamageType.Cold || damageType == eDamageType.Crush || damageType == eDamageType.Energy || damageType == eDamageType.Heat || damageType == eDamageType.Matter || damageType == eDamageType.Spirit))
+            if (BlockPdv > 0)
             {
-                if (source is GamePlayer)
+                bool isMelee = damageType == eDamageType.Slash || damageType == eDamageType.Thrust || damageType == eDamageType.Crush || damageType == eDamageType.Natural;
+                string attackerName = source != null ? source.Name : "Someone";
+
+                if (isMelee)
                 {
-                    GamePlayer player = source as GamePlayer;
-                    BlockPdv = BlockPdv - (damageAmount + criticalAmount);
-                    foreach (GamePlayer onlookers in this.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                    int totalDamage = damageAmount + criticalAmount;
+                    BlockPdv -= totalDamage;
+                    if (BlockPdv < 0) BlockPdv = 0;
+
+                    GamePlayer attackerPlayer = source as GamePlayer;
+                    if (attackerPlayer != null)
                     {
-                        onlookers.Out.SendMessage("The magical barrier absorb " + (damageAmount + criticalAmount) + " of " + player.Name + "'s Damage !", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
-                        onlookers.Out.SendSpellEffectAnimation(this, this, 11523, 0, false, 1);
-                        if (BlockPdv < 1)
-                        {
-                            foreach (GamePlayer p in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-                            {
-                                p.Out.SendMessage("The magical barrier fallen !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-                            }
-                        }
+                        attackerPlayer.Out.SendMessage("Your blow damages the magical barrier for " + totalDamage + " damage! (" + BlockPdv + " barrier HP remaining)", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
                     }
-                    return;
+                }
+                foreach (GamePlayer player in GetPlayersInRadius(1500))
+                {
+                    if (isMelee)
+                    {
+                        if (player != source as GamePlayer)
+                            player.Out.SendMessage(attackerName + " strikes the barrier for " + (damageAmount + criticalAmount) + " damage!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                    }
+                    else
+                    {
+                        player.Out.SendMessage("The magical barrier absorbs " + attackerName + "'s attack!", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
+                    }
+                    player.Out.SendSpellEffectAnimation(this, this, 11523, 0, false, 1);
+                }
+                if (BlockPdv < 1)
+                {
+                    foreach (GamePlayer p in GetPlayersInRadius(1500))
+                    {
+                        p.Out.SendMessage("The magical barrier falls!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                    }
+                    this.MaxSpeedBase = 191;
+                    if (m_visualTimer != null)
+                    {
+                        m_visualTimer.Stop();
+                        m_visualTimer = null;
+                    }
+                    if (m_barrierTimer == null)
+                        m_barrierTimer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RaiseBarrier), 45 * 1000);
                 }
                 return;
             }
@@ -95,6 +129,112 @@ namespace DOL.GS.Atlantis
             //Credit
             MLCreditHelper.CreditML((byte)1, (byte)4, killer, true, false, (byte)MinimumLevel);
 
+            //Clean up timers and guards
+            if (m_barrierTimer != null)
+            {
+                m_barrierTimer.Stop();
+                m_barrierTimer = null;
+            }
+            if (m_visualTimer != null)
+            {
+                m_visualTimer.Stop();
+                m_visualTimer = null;
+            }
+            RemoveGuards();
+
+        }
+        public override bool AddToWorld()
+        {
+            MaxSpeedBase = 0;
+            SpawnGuards();
+            StartBarrierVisual();
+            return base.AddToWorld();
+        }
+        public void StartBarrierVisual()
+        {
+            if (m_visualTimer != null)
+            {
+                m_visualTimer.Stop();
+                m_visualTimer = null;
+            }
+            m_visualTimer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(BarrierVisualTick), 1 * 1000);
+        }
+        public int BarrierVisualTick(ECSGameTimer timer)
+        {
+            if (!IsAlive || BlockPdv < 1)
+            {
+                m_visualTimer = null;
+                return 0;
+            }
+            foreach (GamePlayer player in GetPlayersInRadius(1500))
+            {
+                player.Out.SendSpellEffectAnimation(this, this, 11523, 0, false, 1);
+            }
+            m_visualTimer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(BarrierVisualTick), 3 * 1000);
+            return 0;
+        }
+        public void SpawnGuards()
+        {
+            int[,] guardPositions = {
+                { -250, -250 },
+                { 250, -250 },
+                { -250, 250 },
+                { 250, 250 },
+                { -350, 0 },
+                { 350, 0 }
+            };
+            for (int i = 0; i < guardPositions.GetLength(0); i++)
+            {
+                SpawnGuard(guardPositions[i, 0], guardPositions[i, 1]);
+            }
+        }
+        public void SpawnGuard(int offsetX, int offsetY)
+        {
+            MorphedGuard guard = new MorphedGuard();
+            guard.Name = "morphed creature";
+            guard.Model = 408;
+            guard.Realm = 0;
+            guard.CurrentRegionID = this.CurrentRegionID;
+            guard.Size = 50;
+            guard.Level = (byte)Util.Random(45, 50);
+            guard.X = this.X + offsetX;
+            guard.Y = this.Y + offsetY;
+            guard.Z = this.Z;
+            guard.Heading = this.Heading;
+            guard.RoamingRange = 300;
+            guard.CurrentSpeed = 0;
+            guard.MaxSpeedBase = 170;
+            guard.AutoSetStats();
+            guard.RespawnInterval = 5 * 60 * 1000;
+            guard.BodyType = 0;
+            MorphedGuardBrain brain = new MorphedGuardBrain();
+            brain.AggroLevel = 50;
+            brain.AggroRange = 400;
+            guard.SetOwnBrain(brain);
+            guard.Flags |= eFlags.SWIMMING;
+            guard.AddToWorld();
+            MorphedGuardList.Add(guard);
+        }
+        public void RemoveGuards()
+        {
+            foreach (MorphedGuard guard in MorphedGuardList)
+            {
+                guard.RemoveFromWorld();
+            }
+            MorphedGuardList.Clear();
+        }
+
+        public int RaiseBarrier(ECSGameTimer timer)
+        {
+            m_barrierTimer = null;
+            BlockPdv = BaseBlockPdv;
+            MaxSpeedBase = 0;
+            StartBarrierVisual();
+            foreach (GamePlayer p in GetPlayersInRadius(1500))
+            {
+                p.Out.SendMessage("Fadrin raises his barrier again!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+            }
+            return 0;
         }
 
         //Spawn Fadrin
@@ -121,6 +261,7 @@ namespace DOL.GS.Atlantis
             brain.AggroLevel = 100;
             brain.AggroRange = 10;
             FadrinNpc.SetOwnBrain(brain);
+            FadrinNpc.Flags |= eFlags.SWIMMING;
             FadrinNpc.AddToWorld();
         }
 
@@ -238,6 +379,29 @@ namespace DOL.GS.Atlantis
             log.Warn("Master Level - 1.4 - Event Initialized !");
         }
 
+    }
+
+    //Morphed creature guard
+    class MorphedGuard : GameNPC
+    {
+        public override void SaveIntoDatabase()
+        {
+        }
+        public override void StartRespawn()
+        {
+            base.StartRespawn();
+        }
+    }
+
+    class MorphedGuardBrain : StandardMobBrain
+    {
+        public MorphedGuardBrain()
+            : base()
+        {
+            AggroLevel = 50;
+            AggroRange = 400;
+            ThinkInterval = 3000;
+        }
     }
 
 }

@@ -1008,7 +1008,7 @@ namespace DOL.GS.Atlantis
         {
 
             //Loot
-            MLCreditHelper.GiveItem(killer, this, "ToaManager_Rassa's_Mirror", 0, 1);
+            MLCreditHelper.GiveItem(killer, this, "ToaManager_Rassa's_Mirror", 1, 1);
 
             //base Die
             base.Die(killer);

@@ -13,6 +13,7 @@ using DOL.GS.Effects;
 using DOL.Events;
 using log4net;
 using System.Reflection;
+using DOL.Database;
 
 //Using Mgr
 
@@ -56,6 +57,10 @@ namespace DOL.GS.Atlantis
         //Encounter State
         public bool InProgress = false;
         public GamePlayer Challenger;
+
+        //Kill tracking for ring reward
+        public HashSet<string> ChampionsKilled = new HashSet<string>();
+        public LadyFarahnaz LadyFarahnazNPC;
 
         //KrojerSentinel
         public int[,] KrojerSentinelArray = {
@@ -202,6 +207,36 @@ namespace DOL.GS.Atlantis
             return true;
         }
 
+        public void RegisterChampionKill(string championName)
+        {
+            ChampionsKilled.Add(championName);
+            if (ChampionsKilled.Count >= 6 && LadyFarahnazNPC == null)
+            {
+                SpawnLadyFarahnaz();
+            }
+        }
+        public void SpawnLadyFarahnaz()
+        {
+            LadyFarahnaz npc = new LadyFarahnaz();
+            npc.Name = "Lady Farahnaz";
+            npc.Model = 0;
+            npc.Realm = 0;
+            npc.CurrentRegionID = this.CurrentRegionID;
+            npc.Size = 50;
+            npc.Level = 50;
+            npc.X = this.X + 100;
+            npc.Y = this.Y - 100;
+            npc.Z = this.Z;
+            npc.Heading = this.Heading;
+            npc.RoamingRange = 0;
+            npc.CurrentSpeed = 0;
+            npc.MaxSpeedBase = 0;
+            npc.Flags |= eFlags.PEACE;
+            npc.Flags |= eFlags.SWIMMING;
+            npc.AddToWorld();
+            LadyFarahnazNPC = npc;
+        }
+
         //Spawns Krojer and Challengers
         public static void SpawnKrojer(int region)
         {
@@ -223,6 +258,7 @@ namespace DOL.GS.Atlantis
             KrojerNpc.RespawnInterval = 10 * 60 * 1000;
             KrojerNpc.Flags |= eFlags.PEACE;
             KrojerNpc.AutoSetStats();
+            KrojerNpc.Flags |= eFlags.SWIMMING;
             KrojerNpc.AddToWorld();
         }
         public void SpawnAgnon()
@@ -234,7 +270,7 @@ namespace DOL.GS.Atlantis
             AgnonNpc.Realm = 0;
             AgnonNpc.CurrentRegionID = this.CurrentRegionID;
             AgnonNpc.Size = 50;
-            AgnonNpc.Level = 45;
+            AgnonNpc.Level = (byte)Math.Min(50, Math.Max(40, (int)Challenger.Level));
             AgnonNpc.X = 444019;
             AgnonNpc.Y = 560383;
             AgnonNpc.Z = 3845;
@@ -245,6 +281,7 @@ namespace DOL.GS.Atlantis
             AgnonNpc.RespawnInterval = 10 * 60 * 1000;
             AgnonNpc.AutoSetStats();
             AgnonNpc.Parent = this;
+            AgnonNpc.Flags |= eFlags.SWIMMING;
             AgnonNpc.AddToWorld();
         }
         public void SpawnSethrendar()
@@ -256,7 +293,7 @@ namespace DOL.GS.Atlantis
             AgnonNpc.Realm = 0;
             AgnonNpc.CurrentRegionID = this.CurrentRegionID;
             AgnonNpc.Size = 50;
-            AgnonNpc.Level = 45;
+            AgnonNpc.Level = (byte)Math.Min(50, Math.Max(40, (int)Challenger.Level));
             AgnonNpc.X = 443941;
             AgnonNpc.Y = 560406;
             AgnonNpc.Z = 3833;
@@ -267,6 +304,7 @@ namespace DOL.GS.Atlantis
             AgnonNpc.RespawnInterval = 10 * 60 * 1000;
             AgnonNpc.AutoSetStats();
             AgnonNpc.Parent = this;
+            AgnonNpc.Flags |= eFlags.SWIMMING;
             AgnonNpc.AddToWorld();
         }
         public void SpawnXalarian()
@@ -278,7 +316,7 @@ namespace DOL.GS.Atlantis
             XalarianNpc.Realm = 0;
             XalarianNpc.CurrentRegionID = this.CurrentRegionID;
             XalarianNpc.Size = 50;
-            XalarianNpc.Level = 45;
+            XalarianNpc.Level = (byte)Math.Min((int)50, Math.Max((int)40, (int)Challenger.Level));
             XalarianNpc.X = 443982;
             XalarianNpc.Y = 560455;
             XalarianNpc.Z = 3845;
@@ -289,6 +327,7 @@ namespace DOL.GS.Atlantis
             XalarianNpc.RespawnInterval = 10 * 60 * 1000;
             XalarianNpc.AutoSetStats();
             XalarianNpc.Parent = this;
+            XalarianNpc.Flags |= eFlags.SWIMMING;
             XalarianNpc.AddToWorld();
         }
         public void SpawnJilena()
@@ -300,7 +339,7 @@ namespace DOL.GS.Atlantis
             JilenaNpc.Realm = 0;
             JilenaNpc.CurrentRegionID = this.CurrentRegionID;
             JilenaNpc.Size = 50;
-            JilenaNpc.Level = 45;
+            JilenaNpc.Level = (byte)Math.Min((int)50, Math.Max((int)40, (int)Challenger.Level));
             JilenaNpc.X = 443953;
             JilenaNpc.Y = 560514;
             JilenaNpc.Z = 3845;
@@ -311,6 +350,7 @@ namespace DOL.GS.Atlantis
             JilenaNpc.RespawnInterval = 10 * 60 * 1000;
             JilenaNpc.AutoSetStats();
             JilenaNpc.Parent = this;
+            JilenaNpc.Flags |= eFlags.SWIMMING;
             JilenaNpc.AddToWorld();
         }
         public void SpawnMalison()
@@ -322,7 +362,7 @@ namespace DOL.GS.Atlantis
             MalisonNpc.Realm = 0;
             MalisonNpc.CurrentRegionID = this.CurrentRegionID;
             MalisonNpc.Size = 50;
-            MalisonNpc.Level = 45;
+            MalisonNpc.Level = (byte)Math.Min((int)50, Math.Max((int)40, (int)Challenger.Level));
             MalisonNpc.X = 443888;
             MalisonNpc.Y = 560579;
             MalisonNpc.Z = 3845;
@@ -333,6 +373,7 @@ namespace DOL.GS.Atlantis
             MalisonNpc.RespawnInterval = 10 * 60 * 1000;
             MalisonNpc.AutoSetStats();
             MalisonNpc.Parent = this;
+            MalisonNpc.Flags |= eFlags.SWIMMING;
             MalisonNpc.AddToWorld();
         }
         public void SpawnRegent()
@@ -344,7 +385,7 @@ namespace DOL.GS.Atlantis
             RegentNpc.Realm = 0;
             RegentNpc.CurrentRegionID = this.CurrentRegionID;
             RegentNpc.Size = 50;
-            RegentNpc.Level = 45;
+            RegentNpc.Level = (byte)Math.Min((int)50, Math.Max((int)40, (int)Challenger.Level));
             RegentNpc.X = 443882;
             RegentNpc.Y = 560628;
             RegentNpc.Z = 3845;
@@ -355,6 +396,7 @@ namespace DOL.GS.Atlantis
             RegentNpc.RespawnInterval = 10 * 60 * 1000;
             RegentNpc.AutoSetStats();
             RegentNpc.Parent = this;
+            RegentNpc.Flags |= eFlags.SWIMMING;
             RegentNpc.AddToWorld();
         }
 
@@ -385,6 +427,7 @@ namespace DOL.GS.Atlantis
             brain.AggroRange = 0;
             Guard.SetOwnBrain(brain);
             KrojerSentinelList.Add(Guard);
+            Guard.Flags |= eFlags.SWIMMING;
             Guard.AddToWorld();
         }
         public void SpawnSobekiteHulk(int X, int Y, int Z)
@@ -412,6 +455,7 @@ namespace DOL.GS.Atlantis
             brain.AggroRange = 400;
             Sobekite.SetOwnBrain(brain);
             SobekiteHulkList.Add(Sobekite);
+            Sobekite.Flags |= eFlags.SWIMMING;
             Sobekite.AddToWorld();
         }
         public void SpawnBlueFire(int X, int Y, int Z)
@@ -436,6 +480,7 @@ namespace DOL.GS.Atlantis
             BlueFire.Flags |= eFlags.CANTTARGET;
             BlueFire.Flags |= eFlags.PEACE;
             KrojerBlueFireList.Add(BlueFire);
+            BlueFire.Flags |= eFlags.SWIMMING;
             BlueFire.AddToWorld();
         }
         public void SpawnBlueFireH(int X, int Y, int Z)
@@ -460,6 +505,7 @@ namespace DOL.GS.Atlantis
             BlueFire.Flags |= eFlags.CANTTARGET;
             BlueFire.Flags |= eFlags.PEACE;
             KrojerBlueFireHList.Add(BlueFire);
+            BlueFire.Flags |= eFlags.SWIMMING;
             BlueFire.AddToWorld();
         }
 
@@ -610,6 +656,83 @@ namespace DOL.GS.Atlantis
         [ScriptLoadedEvent]
         public static void ScriptLoaded(DOLEvent e, object sender, EventArgs args)
         {
+            log.Warn("Master Level - 1.5 - Initializing Objects ...");
+            DbItemTemplate ring = GameServer.Database.FindObjectByKey<DbItemTemplate>("ToaManager_Krojer_Reward_Ring");
+            if (ring == null)
+            {
+                log.Warn("Master Level - 1.5 - Krojer Reward Ring not Found ...");
+                DbItemTemplate rewardRing = new DbItemTemplate();
+                rewardRing.PackageID = "ToaManager001";
+                rewardRing.Id_nb = "ToaManager_Krojer_Reward_Ring";
+                rewardRing.Name = "Ring of Krojer's Challenge";
+                rewardRing.Level = 30;
+                rewardRing.Durability = 50000;
+                rewardRing.MaxDurability = 50000;
+                rewardRing.Condition = 50000;
+                rewardRing.MaxCondition = 50000;
+                rewardRing.Quality = 85;
+                rewardRing.DPS_AF = 0;
+                rewardRing.SPD_ABS = 0;
+                rewardRing.Hand = 0;
+                rewardRing.Type_Damage = 0;
+                rewardRing.Object_Type = 41;
+                rewardRing.Item_Type = 30;
+                rewardRing.Color = 0;
+                rewardRing.Emblem = 0;
+                rewardRing.Effect = 0;
+                rewardRing.Weight = 1;
+                rewardRing.Model = 118;
+                rewardRing.Extension = 0;
+                rewardRing.Bonus = 0;
+                rewardRing.Bonus1 = 0;
+                rewardRing.Bonus2 = 0;
+                rewardRing.Bonus3 = 0;
+                rewardRing.Bonus4 = 0;
+                rewardRing.Bonus5 = 0;
+                rewardRing.Bonus6 = 0;
+                rewardRing.Bonus7 = 0;
+                rewardRing.Bonus8 = 0;
+                rewardRing.Bonus9 = 0;
+                rewardRing.Bonus10 = 0;
+                rewardRing.ExtraBonus = 0;
+                rewardRing.Bonus1Type = 0;
+                rewardRing.Bonus2Type = 0;
+                rewardRing.Bonus3Type = 0;
+                rewardRing.Bonus4Type = 0;
+                rewardRing.Bonus5Type = 0;
+                rewardRing.Bonus6Type = 0;
+                rewardRing.Bonus7Type = 0;
+                rewardRing.Bonus8Type = 0;
+                rewardRing.Bonus9Type = 0;
+                rewardRing.Bonus10Type = 0;
+                rewardRing.ExtraBonusType = 0;
+                rewardRing.IsPickable = false;
+                rewardRing.IsDropable = true;
+                rewardRing.CanDropAsLoot = false;
+                rewardRing.IsTradable = false;
+                rewardRing.MaxCount = 1;
+                rewardRing.PackSize = 1;
+                rewardRing.Charges = 0;
+                rewardRing.MaxCharges = 0;
+                rewardRing.Charges1 = 0;
+                rewardRing.MaxCharges1 = 0;
+                rewardRing.SpellID = 0;
+                rewardRing.SpellID1 = 0;
+                rewardRing.ProcSpellID = 0;
+                rewardRing.ProcSpellID1 = 0;
+                rewardRing.PoisonSpellID = 0;
+                rewardRing.PoisonMaxCharges = 0;
+                rewardRing.PoisonCharges = 0;
+                rewardRing.Realm = 0;
+                rewardRing.AllowedClasses = "";
+                rewardRing.CanUseEvery = 0;
+                rewardRing.Description = "";
+                rewardRing.Price = 0;
+                rewardRing.ClassType = "";
+                GameServer.Database.AddObject(rewardRing);
+                log.Warn("Master Level - 1.5 - Krojer Reward Ring added !");
+            }
+            log.Warn("Master Level - 1.5 - Objects Initialized !");
             log.Warn("Master Level - 1.5 - Initializing Event...");
             if (Albion == true)
             {
@@ -705,8 +828,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -733,8 +860,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -761,8 +892,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -789,8 +924,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -817,8 +956,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -845,8 +988,12 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            MLCreditHelper.CreditML(1, 5, killer, true, false, 40);
-            if (Parent != null) Parent.InProgress = false;
+            MLCreditHelper.CreditML(1, 5, killer, false, false, 40);
+            if (Parent != null)
+            {
+                Parent.InProgress = false;
+                Parent.RegisterChampionKill(Name);
+            }
             base.Die(killer);
         }
 
@@ -906,6 +1053,30 @@ namespace DOL.GS.Atlantis
             return 0;
         }
 
+    }
+
+    //Lady Farahnaz - ring reward NPC
+    public class LadyFarahnaz : GameNPC
+    {
+        public override void SaveIntoDatabase()
+        {
+        }
+        public override bool Interact(GamePlayer player)
+        {
+            if (base.Interact(player))
+            {
+                TurnTo(player, 1500);
+                DbItemTemplate ringTemplate = GameServer.Database.FindObjectByKey<DbItemTemplate>("ToaManager_Krojer_Reward_Ring");
+                if (ringTemplate != null)
+                {
+                    player.Inventory.AddTemplate(GameInventoryItem.Create<DbItemTemplate>(ringTemplate), 1, eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
+                    player.Out.SendMessage("Lady Farahnaz gives you a ring as a reward for defeating all six champions!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                }
+                SayTo(player, "You have proven yourself worthy. Wear this ring with pride.");
+                return true;
+            }
+            return false;
+        }
     }
 
     //Blue Fire H

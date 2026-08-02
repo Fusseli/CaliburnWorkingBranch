@@ -149,8 +149,8 @@ namespace DOL.GS.Atlantis
                         SayTo(player, "Anyone that attempts to join the battle after it has already begun will be in violation of the second rule and will be slain!  I am going to surround the isle with fire traps whose fire is so intense that it can strike down the healthiest among your kind instantly!  Anyone that tries to run across the bridge after the battle has begun shall be slain by the daleros ephoros!  Would you like a few [hints] as to what you will face?");
                         break;
                     case "hints":
-                        SayTo(player, "Well, I'll admit that I'm a rather diabolical sort.  Life would be so much duller if I wasn't!  Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zopureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zopureo still exist!  That is all I will say, it should be enough, you don't need any more [assistance] than that do you?  Are you ready to [begin]?");
-                        Say("Ianetor provides some hints for the entire group, \"Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zopureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zopureo still exist!  That is all I will say, it should be enough, you don't need any more help than that do you?");
+                        SayTo(player, "Well, I'll admit that I'm a rather diabolical sort.  Life would be so much duller if I wasn't!  Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zupureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zupureo still exist!  That is all I will say, it should be enough, you don't need any more [assistance] than that do you?  Are you ready to [begin]?");
+                        Say("Ianetor provides some hints for the entire group, \"Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zupureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zupureo still exist!  That is all I will say, it should be enough, you don't need any more help than that do you?");
                         break;
                     case "begin":
                         BeginEncounter(player);
@@ -274,7 +274,7 @@ namespace DOL.GS.Atlantis
             sunkaio.Heading = 1690;
             sunkaio.Realm = 0;
             sunkaio.CurrentSpeed = 0;
-            sunkaio.MaxSpeedBase = 191;
+            sunkaio.MaxSpeedBase = 120;
             sunkaio.GuildName = "";
             sunkaio.X = 431865;
             sunkaio.Y = 544121;
@@ -296,7 +296,7 @@ namespace DOL.GS.Atlantis
             zopureo.Model = 1349;
             zopureo.Size = 100;
             zopureo.Level = 70;
-            zopureo.Name = "Zopureo";
+            zopureo.Name = "Zupureo";
             zopureo.CurrentRegionID = (ushort)Ianetor.playerregion;
             zopureo.Heading = 1690;
             zopureo.Realm = 0;
@@ -475,22 +475,14 @@ namespace DOL.GS.Atlantis
         //CheckEncounterState
         public void CheckEncounterState(GameObject killer)
         {
-            if ((Zop.IsAlive) || (Sun.IsAlive) || (Aith.IsAlive))
-            {
-                return;
-            }
-            else
-            {
-                //Despawn
-                DeSpawnEncounter();
+            //Despawn
+            DeSpawnEncounter();
 
-                //Gem
-                MLCreditHelper.GiveItem(killer, this, "ToaManager_Nedfall_Entrapment_Gem", 1, 2);
+            //Gem
+            MLCreditHelper.GiveItem(killer, this, "ToaManager_Nedfall_Entrapment_Gem", 1, 2);
 
-                //Credit
-                MLCreditHelper.CreditML((byte)1, (byte)1, killer, true, false, (byte)Ianetor.MinimumLevel);
-
-            }
+            //Credit
+            MLCreditHelper.CreditML((byte)1, (byte)1, killer, true, false, (byte)Ianetor.MinimumLevel);
         }
 
         //-------STATIC--------
@@ -670,8 +662,8 @@ namespace DOL.GS.Atlantis
                         SayTo(player, "Anyone that attempts to join the battle after it has already begun will be in violation of the second rule and will be slain!  I am going to surround the isle with fire traps whose fire is so intense that it can strike down the healthiest among your kind instantly!  Anyone that tries to run across the bridge after the battle has begun shall be slain by the daleros ephoros!  Would you like a few [hints] as to what you will face?");
                         break;
                     case "hints":
-                        SayTo(player, "Well, I'll admit that I'm a rather diabolical sort.  Life would be so much duller if I wasn't!  Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zopureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zopureo still exist!  That is all I will say, it should be enough, you don't need any more [assistance] than that do you?  Are you ready to [begin]?");
-                        Say("Ianetor provides some hints for the entire group, \"Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zopureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zopureo still exist!  That is all I will say, it should be enough, you don't need any more help than that do you?");
+                        SayTo(player, "Well, I'll admit that I'm a rather diabolical sort.  Life would be so much duller if I wasn't!  Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zupureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zupureo still exist!  That is all I will say, it should be enough, you don't need any more [assistance] than that do you?  Are you ready to [begin]?");
+                        Say("Ianetor provides some hints for the entire group, \"Whomever Sunkaio is chasing should run!  That individual will be slain nearly instantly if it catches up to them!  But anyone else who follows it or attacks it will face far less risk.  Second, know that the best attack you can make on the Zupureo is not a direct one.  Finally, know that the Aithos burns far more intensely when its minions Sunkaio and the Zupureo still exist!  That is all I will say, it should be enough, you don't need any more help than that do you?");
                         break;
                     case "begin":
                         Parent.BeginEncounter(player);
@@ -735,8 +727,18 @@ namespace DOL.GS.Atlantis
         public override void Die(GameObject killer) //Die
         {
             Parent.BossList.Remove(this);
-            base.Die(killer); 
-            Parent.CheckEncounterState(killer);
+            base.Die(killer);
+        }
+        public override void TakeDamage(GameObject source, eDamageType damageType, int damageAmount, int criticalAmount)
+        {
+            base.TakeDamage(source, damageType, damageAmount, criticalAmount);
+            GamePlayer player = source as GamePlayer;
+            if (player != null)
+            {
+                player.Out.SendMessage("Sunkaio's fire shield burns you for 200 damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
+                player.Out.SendSpellEffectAnimation(this, player, 310, 0, false, 1);
+                player.TakeDamage(this, eDamageType.Heat, 200, 0);
+            }
         }
 
     }
@@ -746,6 +748,7 @@ namespace DOL.GS.Atlantis
     {
         //Ianetor Parent
         public Ianetor Parent;
+        public bool m_fireballSpawned;
 
         //Override
         public override void StartRespawn() //NoRespawn
@@ -756,12 +759,22 @@ namespace DOL.GS.Atlantis
         }
         public override void TakeDamage(GameObject source, eDamageType damageType, int damageAmount, int criticalAmount) //TakeDamage
         {
-            //While Sunkaio or Zopureo are live, Aithos will take half the damage you do to him.
+            //While Sunkaio or Zupureo are live, Aithos will take half the damage you do to him.
             if (Parent.BossList.Contains(Parent.Zop) || Parent.BossList.Contains(Parent.Sun))
             {
                 int dmg = (int)Math.Round((decimal)(damageAmount / 2));
                 damageAmount = dmg;
             }
+
+            // Defensive proc: damage reflect when hit (25% chance)
+            // Disabled when Sunkaio is dead
+            if (Parent.BossList.Contains(Parent.Sun) && source is GamePlayer attacker && Util.Random(3) == 3)
+            {
+                attacker.Out.SendMessage("Aithos's flames burn you as you strike him for 300 damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
+                attacker.Out.SendSpellEffectAnimation(this, attacker, 310, 0, false, 1);
+                attacker.TakeDamage(this, eDamageType.Heat, 300, 0);
+            }
+
             base.TakeDamage(source, damageType, damageAmount, criticalAmount);
         }
         public override void Die(GameObject killer) //Die
@@ -771,6 +784,52 @@ namespace DOL.GS.Atlantis
             Parent.CheckEncounterState(killer);
         }
 
+    }
+
+    //Fireball bomb pet spawned by Aithos
+    class FireballBomb : GameNPC
+    {
+        public GameAithos Parent;
+        private bool m_exploded;
+
+        public override void StartRespawn()
+        {
+        }
+        public override void SaveIntoDatabase()
+        {
+        }
+        public override bool AddToWorld()
+        {
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(Explode), 5 * 1000);
+            return base.AddToWorld();
+        }
+        public override void Die(GameObject killer)
+        {
+            if (!m_exploded)
+            {
+                m_exploded = true;
+                int damage = Parent.Parent.BossList.Contains(Parent.Parent.Zop) ? 500 : 200;
+                foreach (GamePlayer player in GetPlayersInRadius(350))
+                {
+                    if (GameServer.ServerRules.IsAllowedToAttack(this, player, true))
+                    {
+                        player.Out.SendMessage("The fireball bomb explodes for " + damage + " damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
+                        player.Out.SendSpellEffectAnimation(this, player, 310, 0, false, 1);
+                        player.TakeDamage(this, eDamageType.Heat, damage, 0);
+                    }
+                }
+            }
+            base.Die(killer);
+        }
+        public int Explode(ECSGameTimer timer)
+        {
+            if (!m_exploded && IsAlive)
+            {
+                Health = 0;
+                Delete();
+            }
+            return 0;
+        }
     }
 
     //Zopureo - Purros ( Zopureo Pet )
@@ -789,7 +848,14 @@ namespace DOL.GS.Atlantis
         } 
         public override void TakeDamage(GameObject source, eDamageType damageType, int damageAmount, int criticalAmount)
         {
-            //Zop dosn't take damage from direct attacks.
+            // Allow direct damage when below 5% health (melee finish)
+            if (HealthPercent < 5)
+            {
+                base.TakeDamage(source, damageType, damageAmount, criticalAmount);
+                return;
+            }
+
+            //Zup dosn't take damage from direct attacks above 5%.
             //If Someone is trying to damage him directly anyway, he should sick his flames.
             bool purrosicked = false;
             foreach (GameNPC purro in Parent.PurrosList)
@@ -802,7 +868,7 @@ namespace DOL.GS.Atlantis
                         if (source is GameLiving living)
                             purro.StartAttack(living);
                         purrosicked = true;
-                        //only sick one purro at a time on the attacker each time Zopureo is attacked by someone.
+                        //only sick one purro at a time on the attacker each time Zupureo is attacked by someone.
                     }
                 }
             }
@@ -811,7 +877,6 @@ namespace DOL.GS.Atlantis
         {
             Parent.BossList.Remove(this);
             base.Die(killer);
-            Parent.CheckEncounterState(killer);
         }
 
         //SpawnPurros / SpawnPurroFunc
@@ -907,6 +972,9 @@ namespace DOL.GS.Atlantis
 
     public class AithosBrain : StandardMobBrain
     {
+        private ECSGameTimer m_fireballTimer;
+        private long m_lastOffensiveProcTime;
+
         public AithosBrain()
             : base()
         {
@@ -930,7 +998,7 @@ namespace DOL.GS.Atlantis
                         //1 in 4 chance every think cycle if a player is in front of him and he is attacking to do a Direct Damage.
                         if (Util.Random(3) == 3)
                         {
-                            //If Sunkaio or Zopureo are alive, damage is higher.
+                            //If Sunkaio or Zupureo are alive, damage is higher.
                             if (aithosbody.Parent.BossList.Contains(aithosbody.Parent.Zop) || aithosbody.Parent.BossList.Contains(aithosbody.Parent.Sun))
                             {
                                 damage = 1000;
@@ -956,9 +1024,46 @@ namespace DOL.GS.Atlantis
                 }
             }
 
+            // Fireball bomb pet spawning
+            // When Zupureo is alive, spawn more powerful fireballs
+            if (aithosbody.IsAlive && aithosbody.AttackState)
+            {
+                if (m_fireballTimer == null)
+                {
+                    m_fireballTimer = new ECSGameTimer(aithosbody, new ECSGameTimer.ECSTimerCallback(SpawnFireball), 10 * 1000);
+                }
+            }
+
             base.Think();
         }
 
+        public int SpawnFireball(ECSGameTimer timer)
+        {
+            GameAithos aithosBody = Body as GameAithos;
+            if (aithosBody == null || !aithosBody.IsAlive)
+                return 0;
+
+            FireballBomb bomb = new FireballBomb();
+            bomb.Name = "fireball bomb";
+            bomb.Model = 911;
+            bomb.Size = 40;
+            bomb.Level = 60;
+            bomb.Realm = 0;
+            bomb.CurrentRegionID = aithosBody.CurrentRegionID;
+            bomb.X = aithosBody.X + Util.Random(-100, 100);
+            bomb.Y = aithosBody.Y + Util.Random(-100, 100);
+            bomb.Z = aithosBody.Z;
+            bomb.Heading = aithosBody.Heading;
+            bomb.RoamingRange = 0;
+            bomb.CurrentSpeed = 0;
+            bomb.MaxSpeedBase = 350;
+            bomb.BodyType = 0;
+            bomb.Parent = aithosBody;
+            bomb.AddToWorld();
+
+            m_fireballTimer = new ECSGameTimer(aithosBody, new ECSGameTimer.ECSTimerCallback(SpawnFireball), 10 * 1000);
+            return 0;
+        }
     }
 
     public class FireBrain : StandardMobBrain
@@ -1028,51 +1133,82 @@ namespace DOL.GS.Atlantis
 
     public class SunBrain : StandardMobBrain
     {
+        private ECSGameTimer m_pbaoeTimer;
+        private long m_lastDoTTime;
+
         public SunBrain()
             : base()
         {
             AggroLevel = 100;
             AggroRange = 150;
             ThinkInterval = 3000;
-
         }
+
         public override void Think()
         {
             GameSunkaio sunbody = Body as GameSunkaio;
-            ushort DDattackrange = 200;
-            //attack the player if he's too close, encouraging him to kite me.
-            foreach (GamePlayer player in sunbody.GetPlayersInRadius(DDattackrange)) //each player that is in attack distance of the mob
+
+            if (sunbody.AttackState && sunbody.IsAlive)
             {
-
-                if (sunbody.IsObjectInFront(player, 180) && sunbody.AttackState)
+                // PBAOE every 15 seconds
+                if (m_pbaoeTimer == null)
                 {
-                    if (GameServer.ServerRules.IsAllowedToAttack(sunbody, player, true))
-                    {
-                        //This should probably be redone as a spell
-                        //1 in 4 chance every think cycle if a player is in front of him and he is attacking to do a Direct Damage.
-                        if (Util.Random(3) == 3)
-                        {
-                            player.Out.SendMessage("Sunkaio sears your flesh for 400 damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
-                            player.Out.SendSpellEffectAnimation(sunbody, player, 310, 0, false, 1);
-                            player.TakeDamage(sunbody, eDamageType.Heat, 400, 0);
-                            GamePlayer target = player;
-                            foreach (GamePlayer onlookers in target.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-                            {
-                                if (onlookers != target) //dont send it to the person it happened to, only the other onlookers.
-                                {
-                                    onlookers.Out.SendSpellEffectAnimation(sunbody, target, 310, 0, false, 1);
-                                    onlookers.Out.SendMessage("Sunkaio sears the flesh of " + target.Name + "!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-
-                                }
-                            }
-                        }
-
-                    }
+                    m_pbaoeTimer = new ECSGameTimer(sunbody, new ECSGameTimer.ECSTimerCallback(PBAOE), 15 * 1000);
                 }
 
+                // Fire DoT at target from time to time
+                if (sunbody.TargetObject is GamePlayer target && GameServer.ServerRules.IsAllowedToAttack(sunbody, target, true))
+                {
+                    long now = GameLoop.GameLoopTime;
+                    if (now - m_lastDoTTime > 8 * 1000)
+                    {
+                        m_lastDoTTime = now;
+                        target.Out.SendMessage("Sunkaio sears your flesh for 400 damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
+                        target.Out.SendSpellEffectAnimation(sunbody, target, 310, 0, false, 1);
+                        target.TakeDamage(sunbody, eDamageType.Heat, 400, 0);
+                        GamePlayer onlooker;
+                        foreach (GamePlayer onlookers in target.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                        {
+                            onlooker = onlookers;
+                            if (onlooker != target)
+                            {
+                                onlooker.Out.SendSpellEffectAnimation(sunbody, target, 310, 0, false, 1);
+                                onlooker.Out.SendMessage("Sunkaio sears the flesh of " + target.Name + "!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                            }
+                        }
+                    }
+                }
             }
 
             base.Think();
+        }
+
+        public int PBAOE(ECSGameTimer timer)
+        {
+            GameSunkaio sunbody = Body as GameSunkaio;
+            if (sunbody == null || !sunbody.IsAlive)
+                return 0;
+
+            foreach (GamePlayer player in sunbody.GetPlayersInRadius(350))
+            {
+                if (GameServer.ServerRules.IsAllowedToAttack(sunbody, player, true))
+                {
+                    player.Out.SendMessage("Sunkaio unleashes a burst of fire around him for 600 damage!", eChatType.CT_Damaged, eChatLoc.CL_ChatWindow);
+                    player.Out.SendSpellEffectAnimation(sunbody, player, 310, 0, false, 1);
+                    player.TakeDamage(sunbody, eDamageType.Heat, 600, 0);
+                    foreach (GamePlayer onlookers in player.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                    {
+                        if (onlookers != player)
+                        {
+                            onlookers.Out.SendSpellEffectAnimation(sunbody, player, 310, 0, false, 1);
+                            onlookers.Out.SendMessage("Sunkaio's fire blast burns " + player.Name + "!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                        }
+                    }
+                }
+            }
+
+            m_pbaoeTimer = new ECSGameTimer(sunbody, new ECSGameTimer.ECSTimerCallback(PBAOE), 15 * 1000);
+            return 0;
         }
     }
 

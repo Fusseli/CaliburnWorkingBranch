@@ -208,7 +208,7 @@ namespace DOL.GS.Atlantis
         {
 
             //Loot
-            MLCreditHelper.GiveItem(killer, this, "ToaManager_Kirkleis'_Ring", 0, 3);
+            MLCreditHelper.GiveItem(killer, this, "ToaManager_Kirkleis'_Ring", 1, 1);
 
             //Die
             base.Die(killer);
@@ -290,7 +290,7 @@ namespace DOL.GS.Atlantis
                     foreach (GamePlayer p2 in player.GetPlayersInRadius(150))
                     {
                         DbInventoryItem FindLootRadius = p2.Inventory.GetFirstItemByID("ToaManager_Negative_Absolution_Belt", eInventorySlot.FirstBackpack, eInventorySlot.LastBackpack);
-                        if (FindLoot != null)
+                        if (FindLootRadius != null)
                         {
                             BeltInPlayerRadius = true;
                         }
@@ -310,7 +310,7 @@ namespace DOL.GS.Atlantis
                         playerAoe.Out.SendMessage("Kirkleis Fire's burns you for " + AOEDamage + " damages!", eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
                         playerAoe.Out.SendSpellEffectAnimation(this, playerAoe, 310, 0, false, 1);
                         playerAoe.TakeDamage(this, eDamageType.Heat, AOEDamage, 0);
-                        foreach (GamePlayer onlookers in playerAoe.GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                        foreach (GamePlayer onlookers in playerAoe.GetPlayersInRadius(1500))
                         {
                             if (onlookers != playerAoe)
                             {

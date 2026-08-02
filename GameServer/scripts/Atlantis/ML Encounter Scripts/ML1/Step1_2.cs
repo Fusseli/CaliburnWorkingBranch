@@ -43,8 +43,9 @@ namespace DOL.GS.Atlantis
         public static bool Midgard = false;
         public static bool Hibernia = true;
 
-        //Borjad-Borjan
-        public BorjanBorjad ActualBorjadBorjan = new BorjanBorjad();
+        //Borjad and Borjan brothers
+        public BorjanBorjad BorjadBrother;
+        public BorjanBorjad BorjanBrother;
 
         //Overrides
         public override void SaveIntoDatabase()
@@ -61,7 +62,7 @@ namespace DOL.GS.Atlantis
                 
                 if (player.MLLevel == 0 && player.Level >= MinimumLevel)
                 {
-                    if (ActualBorjadBorjan.IsAttacking == true)
+                    if ((BorjadBrother != null && BorjadBrother.IsAttacking) || (BorjanBrother != null && BorjanBrother.IsAttacking))
                     {
                         SayTo(player, "I am busy, go out !");
                     }
@@ -97,7 +98,9 @@ namespace DOL.GS.Atlantis
                             string Msg = "Two brothers of our kind named Borjad and Borjan, have been robbing from our merchants."
                             +"Sometimes even killing them for the wares they may possess on their person."
                             +"As they will know us on sight and what we seek, we would like to hire someone to deal with this problem.";
-                            if (ActualBorjadBorjan.IsAlive == true && ActualBorjadBorjan.IsAttacking == false)
+                            bool anyAlive = (BorjadBrother != null && BorjadBrother.IsAlive && !BorjadBrother.IsAttacking)
+                                || (BorjanBrother != null && BorjanBrother.IsAlive && !BorjanBrother.IsAttacking);
+                            if (anyAlive)
                             {
                                 Msg = Msg + "Would you be welling to [accept] this task?";
                             }
@@ -111,41 +114,43 @@ namespace DOL.GS.Atlantis
                     {
                         #region accept
 
-                        if (ActualBorjadBorjan.IsAlive == true)
+                        string Msg = "Thank you for helping us. We only require that you rid us of this nuisance."
+                        +"By disposing of even one of these men you would be doing us a great service."
+                        +"Ant belongings you find on these thieves you may keep for yourself as payment.";
+                        t.Out.SendMessage(Msg, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
+
+                        string Msg2 = "Rumors surrounding Borjad and Borjan are plentiful."
+                        +"I am unsure of where they may be,but when they last left us, they headed to ";
+
+                        if (BorjadBrother != null && BorjadBrother.IsAlive)
                         {
-                            string Msg = "Thank you for helping us. We only require that you rid us of this nuisance."
-                            +"By disposing of even one of these men you would be doing us a great service."
-                            +"Ant belongings you find on these thieves you may keep for yourself as payment.";
-                            t.Out.SendMessage(Msg, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
-
-                            string Msg2 = "Rumors surrounding Borjad and Borjan are plentiful."
-                            +"I am unsure of where they may be,but when they last left us, they headed to ";
-
-                            if (ActualBorjadBorjan.X == 354659)
-                            {
-                                //Sud et Ouest de Mésothalassa sur un gros rocher
-                                Msg2 = Msg2 + "Southwest of Mésothalassa .";
-                                t.Out.SendMessage(Msg2, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
-                            }
-                            else if (ActualBorjadBorjan.X == 353554)
-                            {
-                                //Nord dans le santuaire de Kitara
-                                Msg2 = Msg2 + "north , around Kitara .";
-                                t.Out.SendMessage(Msg2, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
-                            }
-                            else if (ActualBorjadBorjan.X == 382238)
-                            {
-                                //Est dans le territoire Naxos sur un gros rocher
-                                Msg2 = Msg2 + "East on Naxos territory .";
-                                t.Out.SendMessage(Msg2, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
-                            }
-                            else if (ActualBorjadBorjan.X == 333822)
-                            {
-                                //Ouest dans le territoire Skyros, sur un rocher
-                                Msg2 = Msg2 + "West , on Skyros territory .";
-                                t.Out.SendMessage(Msg2, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
-                            }
+                            string locName = "";
+                            if (BorjadBrother.X == 354659)
+                                locName = "Southwest of Mésothalassa";
+                            else if (BorjadBrother.X == 353554)
+                                locName = "north, around Kitara";
+                            else if (BorjadBrother.X == 382238)
+                                locName = "East on Naxos territory";
+                            else if (BorjadBrother.X == 333822)
+                                locName = "West, on Skyros territory";
+                            if (locName != "")
+                                Msg2 = "Borjad was last seen " + locName + ". ";
                         }
+                        if (BorjanBrother != null && BorjanBrother.IsAlive)
+                        {
+                            string locName = "";
+                            if (BorjanBrother.X == 355159)
+                                locName = "Southwest of Mésothalassa";
+                            else if (BorjanBrother.X == 354054)
+                                locName = "north, around Kitara";
+                            else if (BorjanBrother.X == 382738)
+                                locName = "East on Naxos territory";
+                            else if (BorjanBrother.X == 334322)
+                                locName = "West, on Skyros territory";
+                            if (locName != "")
+                                Msg2 = Msg2 + "Borjan was last seen " + locName + ".";
+                        }
+                        t.Out.SendMessage(Msg2, eChatType.CT_Say, eChatLoc.CL_PopupWindow);
 
                         #endregion accept
                     }
@@ -156,89 +161,76 @@ namespace DOL.GS.Atlantis
         }
         public override bool AddToWorld()
         {
-            //Spawn Borjan-Borjad
+            //Spawn both brothers
             SpawnBorjanBorjad();
 
             return base.AddToWorld();
         }
 
-        //Spawn Borjan-Borjad
+        //Spawn both brothers with separate locations
         public void SpawnBorjanBorjad()
         {
-            int RandLottery; 
-            RandLottery = Util.Random(1, 2);
-            if (RandLottery == 1)
+            // Spawn Borjad
+            BorjadBrother = SpawnBrother("Borjad", 0);
+            // Spawn Borjan with offset to avoid stacking
+            BorjanBrother = SpawnBrother("Borjan", 500);
+        }
+
+        private BorjanBorjad SpawnBrother(string name, int offset)
+        {
+            BorjanBorjad brother = new BorjanBorjad();
+            int loc = Util.Random(0, 3);
+            switch (loc)
             {
-                ActualBorjadBorjan.Name = "Borjan";
+                case 0:
+                    brother.X = 354659 + offset;
+                    brother.Y = 568220 + offset;
+                    brother.Z = 6718;
+                    brother.Heading = 2793;
+                    break;
+                case 1:
+                    brother.X = 353554 + offset;
+                    brother.Y = 530965 + offset;
+                    brother.Z = 5008;
+                    brother.Heading = 3142;
+                    break;
+                case 2:
+                    brother.X = 382238 + offset;
+                    brother.Y = 547833 + offset;
+                    brother.Z = 5410;
+                    brother.Heading = 4011;
+                    break;
+                case 3:
+                    brother.X = 333822 + offset;
+                    brother.Y = 544224 + offset;
+                    brother.Z = 5188;
+                    brother.Heading = 3450;
+                    break;
             }
-            else if (RandLottery == 2)
-            {
-                ActualBorjadBorjan.Name = "Borjad";
-            }
-            RandLottery = Util.Random(1, 4);
-            if (RandLottery == 1)
-            {
-                //Sud et Ouest de Mésothalassa sur un gros rocher
-                ActualBorjadBorjan.X = 354659;
-                ActualBorjadBorjan.Y = 568220;
-                ActualBorjadBorjan.Z = 6718;
-                ActualBorjadBorjan.Heading = 2793;
-            }
-            if (RandLottery == 2)
-            {
-                //Nord dans le santuaire de Kitara
-                ActualBorjadBorjan.X = 353554;
-                ActualBorjadBorjan.Y = 530965;
-                ActualBorjadBorjan.Z = 5008;
-                ActualBorjadBorjan.Heading = 3142;
-            }
-            if (RandLottery == 3)
-            {
-                //Est dans le territoire Naxos sur un gros rocher
-                ActualBorjadBorjan.X = 382238;
-                ActualBorjadBorjan.Y = 547833;
-                ActualBorjadBorjan.Z = 5410;
-                ActualBorjadBorjan.Heading = 4011;
-            }
-            if (RandLottery == 4)
-            {
-                //Ouest dans le territoire Skyros, sur un rocher
-                ActualBorjadBorjan.X = 333822;
-                ActualBorjadBorjan.Y = 544224;
-                ActualBorjadBorjan.Z = 5188;
-                ActualBorjadBorjan.Heading = 3450;
-            }
-            ActualBorjadBorjan.Model = 33745;
-            ActualBorjadBorjan.Size = 50;
-            ActualBorjadBorjan.Level = 50;
-            ActualBorjadBorjan.CurrentRegionID = this.CurrentRegionID;
-            ActualBorjadBorjan.Realm = 0;
-            ActualBorjadBorjan.CurrentSpeed = 0;
-            ActualBorjadBorjan.MaxSpeedBase = 170;
-            ActualBorjadBorjan.GuildName = "";
-            ActualBorjadBorjan.RoamingRange = 0;
-            ActualBorjadBorjan.RespawnInterval = 5 * 60 * 1000;
-            ActualBorjadBorjan.BodyType = 0;
+            brother.Name = name;
+            brother.Model = 33745;
+            brother.Size = 50;
+            brother.Level = 50;
+            brother.CurrentRegionID = this.CurrentRegionID;
+            brother.Realm = 0;
+            brother.CurrentSpeed = 0;
+            brother.MaxSpeedBase = 170;
+            brother.GuildName = "";
+            brother.RoamingRange = 800;
+            brother.RespawnInterval = 5 * 60 * 1000;
+            brother.BodyType = 0;
 
             StandardMobBrain brain = new StandardMobBrain();
             brain.AggroLevel = 100;
             brain.AggroRange = 400;
-            ActualBorjadBorjan.SetOwnBrain(brain);
-            ActualBorjadBorjan.AutoSetStats();
-            if (debug == true) ActualBorjadBorjan.debug = true;
-            ActualBorjadBorjan.AddToWorld();
-            if (this.CurrentRegionID == albregion)
-            {
-                log.Warn("Master Level - 1.2 -¨BorjadBorjan ALB Added.");
-            }
-            else if (this.CurrentRegionID == hibregion)
-            {
-                log.Warn("Master Level - 1.2 -¨BorjadBorjan HIB Added.");
-            }
-            else if (this.CurrentRegionID == midregion)
-            {
-                log.Warn("Master Level - 1.2 -¨BorjadBorjan MID Added.");
-            }
+            brother.SetOwnBrain(brain);
+            brother.AutoSetStats();
+            brother.Flags |= eFlags.SWIMMING;
+            if (debug) brother.debug = true;
+            brother.AddToWorld();
+
+            log.Warn("Master Level - 1.2 - " + name + " " + (this.CurrentRegionID == albregion ? "ALB" : this.CurrentRegionID == hibregion ? "HIB" : "MID") + " Added.");
+            return brother;
         }
 
         //------------STATIC-------------
@@ -283,6 +275,7 @@ namespace DOL.GS.Atlantis
             Lornas.CurrentSpeed = 0;
             Lornas.MaxSpeedBase = 170;
             Lornas.AutoSetStats();
+            Lornas.Flags |= eFlags.SWIMMING;
             Lornas.AddToWorld();
         }
 
@@ -302,51 +295,8 @@ namespace DOL.GS.Atlantis
         }
         public override void StartRespawn()
         {
-            int RandLottery;
-            RandLottery = Util.Random(1, 2);
-            if (RandLottery == 1)
-            {
-                this.Name = "Borjan";
-            }
-            else if (RandLottery == 2)
-            {
-                this.Name = "Borjad";
-            }
-            RandLottery = Util.Random(1, 4);
-            if (RandLottery == 1)
-            {
-                //Sud et Ouest de Mésothalassa sur un gros rocher
-                this.SpawnPoint.X = 354659;
-                this.SpawnPoint.Y = 568220;
-                this.SpawnPoint.Z = 6718;
-                this.Heading = 2793;
-            }
-            if (RandLottery == 2)
-            {
-                //Nord dans le santuaire de Kitara
-                this.SpawnPoint.X = 353554;
-                this.SpawnPoint.Y = 530965;
-                this.SpawnPoint.Z = 5008;
-                this.Heading = 3142;
-            }
-            if (RandLottery == 3)
-            {
-                //Est dans le territoire Naxos sur un gros rocher
-                this.SpawnPoint.X = 382238;
-                this.SpawnPoint.Y = 547833;
-                this.SpawnPoint.Z = 5410;
-                this.Heading = 4011;
-            }
-            if (RandLottery == 4)
-            {
-                //Ouest dans le territoire Skyros, sur un rocher
-                this.SpawnPoint.X = 333822;
-                this.SpawnPoint.Y = 544224;
-                this.SpawnPoint.Z = 5188;
-                this.Heading = 3450;
-            }
             this.RespawnInterval = Util.Random(Lornas.MinRespawn, Lornas.MaxRespawn) * 60 * 1000;
-            if (debug == true) log.Warn("Master Level - 1.2 - BorjanBorjad Change Loc.");
+            if (debug) log.Warn("Master Level - 1.2 - " + Name + " will respawn.");
             base.StartRespawn();
         }
         public override bool AddToWorld()

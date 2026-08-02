@@ -235,7 +235,7 @@ namespace DOL.GS.Atlantis
             Guard.Realm = 0;
             Guard.CurrentRegionID = this.CurrentRegionID;
             Guard.Size = 53;
-            Guard.Level = (byte)Util.Random(40, 50);
+            Guard.Level = (byte)Util.Random(40, 49);
             Guard.X = X;
             Guard.Y = Y;
             Guard.Z = Z;
@@ -264,6 +264,7 @@ namespace DOL.GS.Atlantis
             template.CloseTemplate();
             Guard.Inventory = template;
             Guard.SwitchWeapon(eActiveWeaponSlot.TwoHanded);
+            Guard.Flags |= eFlags.SWIMMING;
             Guard.AddToWorld();
         }
         public void SpawnHealerGuard(int X, int Y, int Z, ushort H) //Spawn Healer Guard
@@ -282,7 +283,7 @@ namespace DOL.GS.Atlantis
             Guard.Realm = 0;
             Guard.CurrentRegionID = this.CurrentRegionID;
             Guard.Size = 53;
-            Guard.Level = (byte)Util.Random(40, 50);
+            Guard.Level = (byte)Util.Random(40, 49);
             Guard.X = X;
             Guard.Y = Y;
             Guard.Z = Z;
@@ -321,6 +322,7 @@ namespace DOL.GS.Atlantis
             template.CloseTemplate();
             Guard.Inventory = template;
             Guard.SwitchWeapon(eActiveWeaponSlot.Standard);
+            Guard.Flags |= eFlags.SWIMMING;
             Guard.AddToWorld();
         }
         public void SpawnUsualGuard(int X, int Y, int Z, ushort H) //Spawn Usual Guard
@@ -339,7 +341,7 @@ namespace DOL.GS.Atlantis
             Guard.Realm = 0;
             Guard.CurrentRegionID = this.CurrentRegionID;
             Guard.Size = 53;
-            Guard.Level = (byte)Util.Random(40, 50);
+            Guard.Level = (byte)Util.Random(40, 49);
             Guard.X = X;
             Guard.Y = Y;
             Guard.Z = Z;
@@ -392,6 +394,7 @@ namespace DOL.GS.Atlantis
             }
             template.CloseTemplate();
             Guard.Inventory = template;
+            Guard.Flags |= eFlags.SWIMMING;
             Guard.AddToWorld();
         }
 
@@ -449,6 +452,7 @@ namespace DOL.GS.Atlantis
             brain.AggroLevel = 50;
             brain.AggroRange = 500;
             Arxem.SetOwnBrain(brain);
+            Arxem.Flags |= eFlags.SWIMMING;
             Arxem.AddToWorld();
 
         }
@@ -477,6 +481,7 @@ namespace DOL.GS.Atlantis
             brain.AggroLevel = 50;
             brain.AggroRange = 500;
             Oxomis.SetOwnBrain(brain);
+            Oxomis.Flags |= eFlags.SWIMMING;
             Oxomis.AddToWorld();
         }
 

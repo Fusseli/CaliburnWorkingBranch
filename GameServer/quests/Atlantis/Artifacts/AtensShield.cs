@@ -64,6 +64,8 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 						return "Find the right chest.";
 					case 2:
 						return "Turn in the notes about Remus and the Aten Shield.";
+					case 3:
+						return "Choose the shield size you want.";
 					default:
 						return base.Description;
 				}
@@ -130,23 +132,40 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 
 				if (versions.Count > 0 && RemoveItem(player, item))
 				{
-					DbItemTemplate template = null;
-					foreach (DbItemTemplate versionTemplate in versions.Values)
+					if (versions.Count == 1)
 					{
-						template = versionTemplate;
-						break;
+						DbItemTemplate template = null;
+						foreach (DbItemTemplate versionTemplate in versions.Values)
+						{
+							template = versionTemplate;
+							break;
+						}
+
+						GiveItem(scholar, player, ArtifactID, template);
+						String reply = String.Format("Ahh. This is a tale about some great {0} {1} {2} {3}.",
+							"crazy champion named Remus. There's not much known about him, or his father,",
+							"except what is in this tale. I've read pieces of it, but never did we find all",
+							"the letters. It's a great find. Thank you,",
+							player.Name);
+						scholar.TurnTo(player);
+						scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
+						FinishQuest();
+						return true;
 					}
-					
-					GiveItem(scholar, player, ArtifactID, template);
-					String reply = String.Format("Ahh. This is a tale about some great {0} {1} {2} {3}.",
-						"crazy champion named Remus. There's not much known about him, or his father,",
-						"except what is in this tale. I've read pieces of it, but never did we find all",
-						"the letters. It's a great find. Thank you,",
-						player.Name);
-					scholar.TurnTo(player);
-					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
-					FinishQuest();
-					return true;
+					else
+					{
+						String options = "Which shield size would you like?";
+						foreach (String key in versions.Keys)
+						{
+							String size = key.Replace(";", "");
+							if (!String.IsNullOrEmpty(size))
+								options += " [" + size + "]";
+						}
+						scholar.TurnTo(player);
+						scholar.SayTo(player, eChatLoc.CL_PopupWindow, options);
+						Step = 3;
+						return true;
+					}
 				}
 			}
 
@@ -182,6 +201,26 @@ namespace DOL.GS.Quests.Atlantis.Artifacts
 				scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
 				Step = 2;
 				return true;
+			}
+
+			if (Step == 3)
+			{
+				String versionKey = text.ToLower() + ";;";
+				Dictionary<String, DbItemTemplate> versions = ArtifactMgr.GetArtifactVersions(ArtifactID,
+					(eCharacterClass)player.CharacterClass.ID, (eRealm)player.Realm);
+				if (versions.ContainsKey(versionKey))
+				{
+					GiveItem(scholar, player, ArtifactID, versions[versionKey]);
+					String reply = String.Format("Ahh. This is a tale about some great {0} {1} {2} {3}.",
+						"crazy champion named Remus. There's not much known about him, or his father,",
+						"except what is in this tale. I've read pieces of it, but never did we find all",
+						"the letters. It's a great find. Thank you,",
+						player.Name);
+					scholar.TurnTo(player);
+					scholar.SayTo(player, eChatLoc.CL_PopupWindow, reply);
+					FinishQuest();
+					return true;
+				}
 			}
 
 			return false;

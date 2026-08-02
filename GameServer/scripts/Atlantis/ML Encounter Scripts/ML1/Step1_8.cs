@@ -206,7 +206,7 @@ namespace DOL.GS.Atlantis
             //Send Information
             foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
             {
-                player.Out.SendMessage("Azure shark loot a Rubis !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                player.Out.SendMessage("A hammerhead shark snatches the ruby!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
             }
 
             //Log
@@ -387,7 +387,22 @@ namespace DOL.GS.Atlantis
         }
         public override bool AddToWorld()
         {
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
             return base.AddToWorld();
+        }
+        public int RubyGlowTick(ECSGameTimer timer)
+        {
+            if (!IsAlive)
+                return 0;
+            if (Rubis)
+            {
+                foreach (GamePlayer player in GetPlayersInRadius(1500))
+                {
+                    player.Out.SendSpellEffectAnimation(this, this, 310, 0, false, 1);
+                }
+            }
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
+            return 0;
         }
         public override void Die(GameObject killer)
         {
@@ -397,7 +412,7 @@ namespace DOL.GS.Atlantis
                 Parent.EndEncounter();
 
                 //Loot
-                MLCreditHelper.GiveItem(killer, this, "ToaManager_Many_Facetted_Ruby", 0, 3);
+                MLCreditHelper.GiveItem(killer, this, "ToaManager_Many_Facetted_Ruby", 1, 3);
                 if (Player != null)
                     Player.Out.SendMessage("You Loot Rubis!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
 
