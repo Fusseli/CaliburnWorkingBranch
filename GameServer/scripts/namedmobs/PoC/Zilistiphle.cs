@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Linq;
 using DOL.AI.Brain;
 using DOL.GS;
+using DOL.GS.PacketHandler;
 using DOL.GS.Spells;
 
 namespace DOL.GS.CustomBosses
@@ -17,9 +18,9 @@ namespace DOL.GS.CustomBosses
     public static class ZilistiphleConfig
     {
         // Stronger final boss spells
-        public static readonly int EnergyDD_ID = 9550;   // energy nuke
-        public static readonly int BodyDoT_ID = 9570;   // strong body DoT
-        public static readonly int Debuff_ID = 9560;   // str/con debuff
+        public static readonly int EnergyDD_ID = 50000;   // energy nuke
+        public static readonly int BodyDoT_ID = 14358;   // strong body DoT
+        public static readonly int Debuff_ID = 4387;   // str/con debuff
 
         // Aura shield visual
         public static readonly int AuraSpellID = 4309;   // Greater Powerguard
@@ -34,6 +35,7 @@ namespace DOL.GS.CustomBosses
     {
         private ZilistiphleBrain _brain;
         private bool _invulnerable = false;
+        private bool _phase2Entered = false;
 
         public override bool AddToWorld()
         {
@@ -58,7 +60,12 @@ namespace DOL.GS.CustomBosses
         public override void TakeDamage(GameObject source, eDamageType damageType, int damageAmount, int criticalAmount)
         {
             if (_invulnerable)
+            {
+                if (source is GamePlayer player)
+                    player.Out.SendMessage("Zilistiphle's barrier absorbs your attack!", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+
                 return;
+            }
 
             base.TakeDamage(source, damageType, damageAmount, criticalAmount);
 
@@ -70,10 +77,22 @@ namespace DOL.GS.CustomBosses
 
         internal void EnterPhaseTwo()
         {
+            // Phase 2 can only happen once per fight, otherwise the boss would
+            // flip in and out of invulnerability whenever his health drops below 40%.
+            if (_phase2Entered)
+                return;
+
+            _phase2Entered = true;
             _invulnerable = true;
             Flags |= GameNPC.eFlags.GHOST;
             AttackState = false;
             StopAttack();
+
+            // Stop re-aggroing during the phase (like Fadrin's barrier), so he
+            // can't fight back while the guardians are up.
+            _brain.AggroLevel = 0;
+            _brain.AggroRange = 0;
+
             Say("You are not yet worthy! Face my guardians first!");
             _brain.OnEnterPhaseTwo();
         }
@@ -82,13 +101,34 @@ namespace DOL.GS.CustomBosses
         {
             _invulnerable = false;
             Flags &= ~GameNPC.eFlags.GHOST;
+            _brain.AggroLevel = 100;
+            _brain.AggroRange = 1400;
             Say("You have proven yourselves... now face me once more!");
         }
 
         public override void Die(GameObject killer)
         {
+            // Send still-pulled guardians back to their spawn points so they
+            // can be fought (or killed) there later.
+            _brain?.ReturnGuardiansHome();
+
             Say("This... is not the end...");
             base.Die(killer);
+        }
+
+        /// <summary>
+        /// Full encounter reset after a wipe/flee: the boss is back to full
+        /// strength and can enter Phase 2 again on the next attempt.
+        /// </summary>
+        internal void ResetEncounter()
+        {
+            _phase2Entered = false;
+            _invulnerable = false;
+            Flags &= ~GameNPC.eFlags.GHOST;
+            AttackState = false;
+            StopAttack();
+            Health = MaxHealth;
+            Say("Zilistiphle regains his full strength as his guardians return home!");
         }
 
         public override int GetResist(eDamageType damageType)
@@ -111,12 +151,17 @@ namespace DOL.GS.CustomBosses
 
     public class ZilistiphleBrain : StandardMobBrain
     {
+        private const int PLAYER_RESET_RADIUS = 2500;
+        private const long PLAYER_RESET_DELAY = 15000;
+
         private readonly Zilistiphle _owner;
         private readonly Random _rng = new Random();
         private long _nextCast = 0;
         private long _nextAuraTick = 0;
         private bool _inPhaseTwoWait = false;
+        private long _noPlayerSince = 0;
         private readonly List<GameNPC> _pulledGuardians = new List<GameNPC>();
+        private readonly Dictionary<GameNPC, (ushort Region, Point3D Pos)> _guardianHomes = new Dictionary<GameNPC, (ushort, Point3D)>();
 
         public ZilistiphleBrain(Zilistiphle owner)
         {
@@ -160,7 +205,9 @@ namespace DOL.GS.CustomBosses
         {
             if (_inPhaseTwoWait) return;
             _inPhaseTwoWait = true;
+            _noPlayerSince = 0;
             _pulledGuardians.Clear();
+            _guardianHomes.Clear();
 
             TryPullGuardian(ZilistiphleConfig.Guardian1);
             TryPullGuardian(ZilistiphleConfig.Guardian2);
@@ -198,10 +245,70 @@ namespace DOL.GS.CustomBosses
                 {
                     _inPhaseTwoWait = false;
                     _owner.ExitPhaseTwo();
+                    return;
+                }
+
+                // Wipe/flee detection: no players around the boss for a while
+                // resets the whole encounter (guardians go home, full heal).
+                if (_owner.GetPlayersInRadius(PLAYER_RESET_RADIUS).Count == 0)
+                {
+                    if (_noPlayerSince == 0)
+                        _noPlayerSince = GameLoop.GameLoopTime;
+
+                    if (GameLoop.GameLoopTime - _noPlayerSince > PLAYER_RESET_DELAY)
+                    {
+                        ResetEncounter();
+                        return;
+                    }
+                }
+                else
+                {
+                    _noPlayerSince = 0;
                 }
 
                 return;
             }
+        }
+
+        private void ResetEncounter()
+        {
+            ReturnGuardiansHome();
+            _inPhaseTwoWait = false;
+            _noPlayerSince = 0;
+            _nextAuraTick = 0;
+            AggroLevel = 100;
+            AggroRange = 1400;
+            _owner.ResetEncounter();
+        }
+
+        /// <summary>
+        /// Teleports all pulled guardians back to their original spawn points.
+        /// </summary>
+        public void ReturnGuardiansHome()
+        {
+            foreach (GameNPC guardian in _pulledGuardians)
+            {
+                if (guardian == null || !guardian.IsAlive)
+                    continue;
+
+                if (_guardianHomes.TryGetValue(guardian, out (ushort Region, Point3D Pos) home))
+                {
+                    try
+                    {
+                        guardian.MoveTo(home.Region, home.Pos.X, home.Pos.Y, home.Pos.Z, guardian.Heading);
+                    }
+                    catch
+                    {
+                        guardian.CurrentRegionID = home.Region;
+                        guardian.X = home.Pos.X;
+                        guardian.Y = home.Pos.Y;
+                        guardian.Z = home.Pos.Z;
+                    }
+                }
+            }
+
+            _pulledGuardians.Clear();
+            _guardianHomes.Clear();
         }
 
         private void TryPullGuardian(string guardianName)
@@ -246,6 +353,11 @@ namespace DOL.GS.CustomBosses
         private void MoveNPCToOwner(GameNPC npc)
         {
             if (npc == null) return;
+
+            // Remember where the guardian came from so he can be sent back
+            // home when the encounter resets.
+            if (!_guardianHomes.ContainsKey(npc))
+                _guardianHomes[npc] = ((ushort)npc.CurrentRegionID, new Point3D(npc.X, npc.Y, npc.Z));
 
             int tx = _owner.X + Util.Random(-50, 50);
             int ty = _owner.Y + Util.Random(-50, 50);

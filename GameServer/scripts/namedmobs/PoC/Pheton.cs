@@ -12,30 +12,31 @@ namespace DOL.GS.CustomBosses
     public static class PhetonConfig
     {
         // Pheton main spells
-        public static readonly int ColdDD_ID = 40022;   // Cold DD
-        public static readonly int Stun_ID = 61049;   // Stun
-        public static readonly int Heal_ID = 32193;   // Heal
-        public static readonly int Debuff_ID = 4385;    // Str/Con Debuff
+        public static readonly int ColdDD_ID = 161;   // Cold DD
+        public static readonly int Stun_ID = 3379;   // Stun
+        public static readonly int Heal_ID = 3067;   // Heal
+        public static readonly int Debuff_ID = 4387;    // Str/Con Debuff
 
         // Pool of spells for adds (random pick per add)
         public static readonly int[] AddSpellPool =
         {
-            32119, // Fire DD
-            32125, // Cold DD
-            32155, // Heal
-            4385,  // Debuff
-            61049  // Stun
+            360,   // Fire DD
+            31114, // Cold DD
+            4906,  // Heal
+            894,   // Debuff
+            3326   // Stun
         };
     }
 
     public class Pheton : GameNPC
     {
-        private HashSet<int> spawnedAt = new HashSet<int>();
+        private int _nextWaveAt = 90;
 
         public override bool AddToWorld()
         {
             if (!base.AddToWorld()) return false;
 
+            _nextWaveAt = 90; // Reset so a respawned boss spawns his waves again
             Level = 85;
             Name = "Pheton";
             Model = 642;
@@ -53,14 +54,15 @@ namespace DOL.GS.CustomBosses
         {
             base.TakeDamage(source, damageType, damageAmount, criticalAmount);
 
-            // Spawn adds progressively every 10%
-            int threshold = (HealthPercent / 10) * 10;
-            if (!spawnedAt.Contains(threshold) && threshold > 0)
+            // Spawn adds progressively at every 10% step: 1 add at 90%, 2 at 80%,
+            // ... 9 at 10%. If one hit skips several steps, all crossed waves fire.
+            while (_nextWaveAt > 0 && HealthPercent <= _nextWaveAt)
             {
-                spawnedAt.Add(threshold);
-                int numAdds = (100 - threshold) / 10; // progressive scaling
+                int numAdds = (100 - _nextWaveAt) / 10;
                 for (int i = 0; i < numAdds; i++)
                     SpawnAdd();
+
+                _nextWaveAt -= 10;
             }
         }
 
@@ -153,13 +155,13 @@ namespace DOL.GS.CustomBosses
 
         public override bool CheckSpells(eCheckSpellType type)
         {
-            if (Body.TargetObject == null || !(Body.TargetObject is GameLiving target))
+            if (Body.TargetObject == null)
                 return false;
 
             // Cold DD (scaled)
             if (nextCold < Environment.TickCount)
             {
-                var spell = ScaleDamage(PhetonConfig.ColdDD_ID, Body.Level * 6);
+                var spell = BossSpellHelper.GetSpell(PhetonConfig.ColdDD_ID, Body.Level, damage: Body.Level * 6);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -171,7 +173,7 @@ namespace DOL.GS.CustomBosses
             // Stun (every 20s)
             if (nextStun < Environment.TickCount && Util.Chance(20))
             {
-                var spell = SkillBase.GetSpellByID(PhetonConfig.Stun_ID);
+                var spell = BossSpellHelper.GetSpell(PhetonConfig.Stun_ID, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -183,7 +185,7 @@ namespace DOL.GS.CustomBosses
             // Heal (scaled, every 30s)
             if (nextHeal < Environment.TickCount && Body.HealthPercent < 80)
             {
-                var spell = ScaleHeal(PhetonConfig.Heal_ID, m_owner.MaxHealth / 5);
+                var spell = BossSpellHelper.GetSpell(PhetonConfig.Heal_ID, Body.Level, value: m_owner.MaxHealth / 5);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -195,7 +197,7 @@ namespace DOL.GS.CustomBosses
             // Debuff (every 15s)
             if (nextDebuff < Environment.TickCount)
             {
-                var spell = SkillBase.GetSpellByID(PhetonConfig.Debuff_ID);
+                var spell = BossSpellHelper.GetSpell(PhetonConfig.Debuff_ID, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -205,63 +207,6 @@ namespace DOL.GS.CustomBosses
             }
 
             return false;
-        }
-
-        private Spell ScaleDamage(int spellId, int dmg)
-        {
-            var dbSpell = GameServer.Database.FindObjectByKey<DbSpell>(spellId);
-            if (dbSpell == null) return null;
-
-            var clone = new DbSpell
-            {
-                AllowAdd = dbSpell.AllowAdd,
-                CastTime = dbSpell.CastTime,
-                ClientEffect = dbSpell.ClientEffect,
-                DamageType = dbSpell.DamageType,
-                Description = dbSpell.Description,
-                Duration = dbSpell.Duration,
-                Icon = dbSpell.Icon,
-                Name = dbSpell.Name,
-                Range = dbSpell.Range,
-                Radius = dbSpell.Radius,
-                RecastDelay = dbSpell.RecastDelay,
-                Target = dbSpell.Target,
-                Type = dbSpell.Type,
-                Uninterruptible = dbSpell.Uninterruptible,
-                TooltipId = dbSpell.TooltipId,
-                SpellID = dbSpell.SpellID,
-                Damage = dmg
-            };
-
-            return new Spell(clone, 50);
-        }
-
-        private Spell ScaleHeal(int spellId, int value)
-        {
-            var dbSpell = GameServer.Database.FindObjectByKey<DbSpell>(spellId);
-            if (dbSpell == null) return null;
-
-            var clone = new DbSpell
-            {
-                AllowAdd = dbSpell.AllowAdd,
-                CastTime = dbSpell.CastTime,
-                ClientEffect = dbSpell.ClientEffect,
-                Description = dbSpell.Description,
-                Duration = dbSpell.Duration,
-                Icon = dbSpell.Icon,
-                Name = dbSpell.Name,
-                Range = dbSpell.Range,
-                Radius = dbSpell.Radius,
-                RecastDelay = dbSpell.RecastDelay,
-                Target = dbSpell.Target,
-                Type = dbSpell.Type,
-                Uninterruptible = dbSpell.Uninterruptible,
-                TooltipId = dbSpell.TooltipId,
-                SpellID = dbSpell.SpellID,
-                Value = value
-            };
-
-            return new Spell(clone, 50);
         }
     }
 

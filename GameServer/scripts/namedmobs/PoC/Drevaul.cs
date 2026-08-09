@@ -12,10 +12,10 @@ namespace DOL.GS.CustomBosses
 {
     public static class DrevaulConfig
     {
-        public static readonly int DD_ID = 40022;         // Cold DD
-        public static readonly int Debuff_ID = 4385;      // Str/Con Debuff
-        public static readonly int DoT_ID = 32109;        // Cold DoT-like
-        public static readonly int SpecialBurstDD_ID = 32125; // Strong Cold DD
+        public static readonly int DD_ID = 161;         // Cold DD
+        public static readonly int Debuff_ID = 4387;      // Str/Con Debuff
+        public static readonly int DoT_ID = 14358;        // Cold DoT-like
+        public static readonly int SpecialBurstDD_ID = 31114; // Strong Cold DD
     }
 
     public class Drevaul : GameNPC
@@ -50,7 +50,7 @@ namespace DOL.GS.CustomBosses
                 if (HealthPercent <= t && !burstUsedAt.Contains(t))
                 {
                     burstUsedAt.Add(t);
-                    var spell = SkillBase.GetSpellByID(DrevaulConfig.SpecialBurstDD_ID);
+                    var spell = BossSpellHelper.GetSpell(DrevaulConfig.SpecialBurstDD_ID, Level);
                     if (spell != null)
                     {
                         CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -89,11 +89,12 @@ namespace DOL.GS.CustomBosses
             m_owner = owner;
             AggroLevel = 100;
             AggroRange = 1200;
+            nextManaDrain = Environment.TickCount + 10000;
         }
 
         public override bool CheckSpells(eCheckSpellType type)
         {
-            if (Body.TargetObject == null || !(Body.TargetObject is GameLiving target))
+            if (Body.TargetObject == null)
                 return false;
 
             if (nextCast < Environment.TickCount)
@@ -104,7 +105,7 @@ namespace DOL.GS.CustomBosses
                 if (choice == 1) spellId = DrevaulConfig.Debuff_ID;
                 else if (choice == 2) spellId = DrevaulConfig.DoT_ID;
 
-                var spell = SkillBase.GetSpellByID(spellId);
+                var spell = BossSpellHelper.GetSpell(spellId, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -121,30 +122,31 @@ namespace DOL.GS.CustomBosses
             base.Think();
 
             // Anti-mezz: if Drevaul is mezzed, heal to full
-            foreach (var effect in Body.EffectList)
+            if (Body.IsMezzed && Body.Health < Body.MaxHealth)
             {
-                if (effect is GameSpellEffect gse && gse.SpellHandler != null)
-                {
-                    if (gse.SpellHandler.Spell.SpellType == eSpellType.Mez)
-                    {
-                        Body.Health = Body.MaxHealth;
-                        Body.Say("Drevaul shrugs off the mez and fully restores his strength!");
-                        break;
-                    }
-                }
+                Body.Health = Body.MaxHealth;
+                Body.Say("Drevaul shrugs off the mez and fully restores his strength!");
             }
 
             // Mana drain aura every 10s
             if (nextManaDrain < Environment.TickCount)
             {
+                int drained = 0;
+
                 foreach (GamePlayer player in Body.GetPlayersInRadius(1500))
                 {
-                    if (player != null && player.IsCasting && player.TargetObject == Body.TargetObject)
+                    // Any caster in range gets drained, no matter what he targets
+                    if (player != null && player.IsCasting)
                     {
                         player.Mana = 0;
                         Body.SayTo(player, "Drevaul drains all your magical energy!");
+                        drained++;
                     }
                 }
+
+                if (drained > 0)
+                    Body.Say($"Drevaul drains the magical energy of {drained} caster{(drained > 1 ? "s" : "")}!");
+
                 nextManaDrain = Environment.TickCount + 10000;
             }
         }

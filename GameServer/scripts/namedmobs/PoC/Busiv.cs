@@ -13,18 +13,19 @@ namespace DOL.GS.CustomBosses
     public static class BusivConfig
     {
         // Offensive spells
-        public static readonly int DD_ID = 9300;       // Smite DD
-        public static readonly int Debuff_ID = 9345;   // Dex/Qui Debuff
-        public static readonly int DoT_ID = 9360;      // Body DoT
+        public static readonly int DD_ID = 1678;       // Smite DD
+        public static readonly int Debuff_ID = 2627;   // Dex/Qui Debuff
+        public static readonly int DoT_ID = 4431;      // Body DoT
 
         // Healer add spells
-        public static readonly int Heal_ID = 8772;     // Single-target heal
-        public static readonly int GroupHeal_ID = 8776; // Group heal
+        public static readonly int Heal_ID = 3067;     // Single-target heal
+        public static readonly int GroupHeal_ID = 4964; // Group heal
     }
 
     public class Busiv : GameNPC
     {
         private HashSet<int> addsSpawnedAt = new HashSet<int>();
+        private readonly List<Soigneur> _soigneurs = new List<Soigneur>();
 
         public override bool AddToWorld()
         {
@@ -53,7 +54,7 @@ namespace DOL.GS.CustomBosses
                 if (HealthPercent <= t && !addsSpawnedAt.Contains(t))
                 {
                     addsSpawnedAt.Add(t);
-                    int numAdds = thresholds.Length - Array.IndexOf(thresholds, t); // 1 add at 75%, 2 at 50%, 3 at 25%
+                    int numAdds = Array.IndexOf(thresholds, t) + 1; // 1 add at 75%, 2 at 50%, 3 at 25%
                     for (int i = 0; i < numAdds; i++)
                     {
                         SpawnHealerAdd();
@@ -81,6 +82,22 @@ namespace DOL.GS.CustomBosses
 
             add.SetOwnBrain(new SoigneurBrain(this));
             add.AddToWorld();
+            _soigneurs.Add(add);
+        }
+
+        public override void Die(GameObject killer)
+        {
+            foreach (var add in _soigneurs)
+            {
+                if (add == null)
+                    continue;
+
+                add.RemoveFromWorld();
+                add.Delete();
+            }
+            _soigneurs.Clear();
+
+            base.Die(killer);
         }
 
         public override int GetResist(eDamageType damageType)
@@ -116,7 +133,7 @@ namespace DOL.GS.CustomBosses
 
         public override bool CheckSpells(eCheckSpellType type)
         {
-            if (Body.TargetObject == null || !(Body.TargetObject is GameLiving target))
+            if (Body.TargetObject == null)
                 return false;
 
             if (nextCast < Environment.TickCount)
@@ -126,7 +143,7 @@ namespace DOL.GS.CustomBosses
                 if (choice == 1) spellId = BusivConfig.Debuff_ID;
                 else if (choice == 2) spellId = BusivConfig.DoT_ID;
 
-                var spell = SkillBase.GetSpellByID(spellId);
+                var spell = BossSpellHelper.GetSpell(spellId, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -143,17 +160,10 @@ namespace DOL.GS.CustomBosses
             base.Think();
 
             // Anti-mezz or stun: heal to full
-            foreach (var effect in Body.EffectList)
+            if ((Body.IsMezzed || Body.IsStunned) && Body.Health < Body.MaxHealth)
             {
-                if (effect is GameSpellEffect gse && gse.SpellHandler != null)
-                {
-                    if (gse.SpellHandler.Spell.SpellType == eSpellType.Mez || gse.SpellHandler.Spell.SpellType == eSpellType.Stun)
-                    {
-                        Body.Health = Body.MaxHealth;
-                        Body.Say("Busiv resists control magic and restores himself!");
-                        break;
-                    }
-                }
+                Body.Health = Body.MaxHealth;
+                Body.Say("Busiv resists control magic and restores himself!");
             }
         }
     }
@@ -177,8 +187,9 @@ namespace DOL.GS.CustomBosses
         public SoigneurBrain(Busiv master)
         {
             m_master = master;
-            AggroLevel = 0; // Healers don’t attack
+            AggroLevel = 0; // Healers don't attack
             AggroRange = 0;
+            nextHeal = Environment.TickCount + Util.Random(6000, 9000);
         }
 
         public override void Think()
@@ -190,7 +201,7 @@ namespace DOL.GS.CustomBosses
                 if (m_master != null && m_master.IsAlive && m_master.HealthPercent < 100)
                 {
                     int spellId = rng.Next(2) == 0 ? BusivConfig.Heal_ID : BusivConfig.GroupHeal_ID;
-                    var spell = SkillBase.GetSpellByID(spellId);
+                    var spell = BossSpellHelper.GetSpell(spellId, Body.Level);
                     if (spell != null)
                     {
                         Body.TargetObject = m_master;
