@@ -22,6 +22,13 @@ namespace DOL.GS.Scripts
         private int _timerIntervalMin = 10000;
         private int _timerIntervalMax = 30000;
 
+        private const int _batchIntervalMin = 300;
+        private const int _batchIntervalMax = 700;
+        private int _pendingBatchCount;
+        private bool _batchIsGroup;
+        private Group _pendingBatchGroup;
+        private readonly List<MimicNPC> _pendingBatchMembers = new List<MimicNPC>();
+
         private List<MimicNPC> _mimics;
 
         public int LevelMin => base.Strength;
@@ -39,10 +46,11 @@ namespace DOL.GS.Scripts
 
         private int TimerCallback(ECSGameTimer timer)
         {
-            int interval = Util.Random(_timerIntervalMin, _timerIntervalMax);
-
             if (_mimics.Count >= SpawnMax)
-                return interval;
+            {
+                WakeUpPendingBatch();
+                return Util.Random(_timerIntervalMin, _timerIntervalMax);
+            }
 
             var playersInRegion = ClientService.GetPlayersOfRegion(CurrentRegion)
                 .Where(a => a.Client != null && a.Client.Account?.PrivLevel == (uint)ePrivLevel.Player)
@@ -50,6 +58,8 @@ namespace DOL.GS.Scripts
 
             if (!HasIgnorePlayerCheck && playersInRegion.Count == 0)
             {
+                ResetBatch();
+
                 if (deleteAllOnNextTick)
                 {
                     foreach (var mimic in _mimics.ToList())
@@ -68,49 +78,76 @@ namespace DOL.GS.Scripts
                 return 1000 * 60 * 5;
             }
 
+            // Spawn one member per tick so the heavy mimic creation is spread
+            // out instead of hitting the server with a whole group at once.
+            if (_pendingBatchCount > 0)
+                return SpawnNextBatchMember();
+
             // ✅ CLEAN group size logic
-            int grpCount = Util.Random(MinGroupSize, MaxGroupSize);
-            grpCount = Math.Max(1, grpCount);
+            int grpCount = Math.Max(1, Util.Random(MinGroupSize, MaxGroupSize));
 
-            List<MimicNPC> groupMembers = new List<MimicNPC>();
+            _pendingBatchCount = grpCount;
+            _batchIsGroup = grpCount > 1;
 
-            for (int i = 0; i < grpCount; i++)
+            return SpawnNextBatchMember();
+        }
+
+        private int SpawnNextBatchMember()
+        {
+            _pendingBatchCount--;
+
+            MimicNPC mimic = SpawnSingleMimic();
+
+            if (mimic != null)
             {
-                MimicNPC mimic = SpawnSingleMimic();
-
-                if (mimic != null)
-                    groupMembers.Add(mimic);
-            }
-
-            // ✅ FIXED: Group is LOCAL per spawn cycle
-            if (groupMembers.Count > 0)
-            {
-                if (groupMembers.Count > 1)
+                if (_batchIsGroup)
                 {
-                    Group group = new Group(groupMembers[0]);
-
-                    foreach (var member in groupMembers)
+                    if (_pendingBatchGroup == null)
                     {
-                        group.AddMember(member);
-
-                        // ✅ NEW: FSM activation
-                        if (member.Brain is MimicBrain brain)
-                        {
-                            brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
-                        }
+                        _pendingBatchGroup = new Group(mimic);
+                        _pendingBatchGroup.AddMember(mimic);
+                    }
+                    else
+                    {
+                        _pendingBatchGroup.AddMember(mimic);
                     }
                 }
-                else
+
+                _pendingBatchMembers.Add(mimic);
+
+                // Hold the member idle until the whole group has spawned, then
+                // everybody wakes up together so the group never runs off
+                // before the buff/healer class has joined.
+                if (_pendingBatchCount > 0 && mimic.Brain is MimicBrain waitingBrain)
                 {
-                    // Single mimic still wakes up
-                    if (groupMembers[0].Brain is MimicBrain brain)
-                    {
-                        brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
-                    }
+                    waitingBrain.FSM.SetCurrentState(eFSMStateType.IDLE);
                 }
             }
 
-            return interval;
+            if (_pendingBatchCount > 0)
+                return Util.Random(_batchIntervalMin, _batchIntervalMax);
+
+            WakeUpPendingBatch();
+
+            return Util.Random(_timerIntervalMin, _timerIntervalMax);
+        }
+
+        private void WakeUpPendingBatch()
+        {
+            foreach (MimicNPC mimic in _pendingBatchMembers)
+            {
+                if (mimic?.Brain is MimicBrain brain)
+                    brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
+            }
+
+            ResetBatch();
+        }
+
+        private void ResetBatch()
+        {
+            _pendingBatchCount = 0;
+            _pendingBatchGroup = null;
+            _pendingBatchMembers.Clear();
         }
 
         // ✅ NEW: Centralized spawn logic
@@ -127,9 +164,14 @@ namespace DOL.GS.Scripts
 
             eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
 
+            // Guard against inverted stats (min > max), which would make
+            // Util.Random throw and stall the whole batch.
+            int levelMin = Math.Min(LevelMin, LevelMax);
+            int levelMax = Math.Max(LevelMin, LevelMax);
+
             MimicNPC mimicNPC = MimicManager.GetMimic(
                 mimicClass,
-                (byte)Util.Random(LevelMin, LevelMax),
+                (byte)Util.Random(levelMin, levelMax),
                 preventCombat: PreventCombat
             );
 
@@ -176,6 +218,7 @@ namespace DOL.GS.Scripts
             }
 
             _mimics.Clear();
+            ResetBatch();
         }
 
         public override bool AddToWorld()
@@ -215,6 +258,7 @@ namespace DOL.GS.Scripts
             _mimics = new List<MimicNPC>();
             _dormantInterval = 5000;
             SpawnAndStop = false;
+            ResetBatch();
 
             _timer?.Stop();
             _timer = null;
@@ -330,6 +374,7 @@ namespace DOL.GS.Scripts
                             mimic.Delete();
                         }
                         _mimics.Clear();
+                        ResetBatch();
 
                         _timer = null;
 
@@ -362,6 +407,21 @@ namespace DOL.GS.Scripts
 
         public void Stop()
         {
+            // A partial batch is still in the IDLE hold-state, waiting for the
+            // rest of its group. Deleting it keeps the world free of half-formed
+            // groups that would otherwise just stand around after a stop.
+            foreach (MimicNPC mimic in _pendingBatchMembers)
+            {
+                if (mimic == null)
+                    continue;
+
+                mimic.RemoveFromWorld();
+                mimic.Delete();
+                Remove(mimic);
+            }
+
+            ResetBatch();
+
             if (_timer != null && _timer.IsAlive)
                 _timer.Stop();
         }

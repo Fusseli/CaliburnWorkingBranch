@@ -217,6 +217,16 @@ namespace DOL.GS.Commands
         } // end undead commander
 
         #region Marching Orders
+        private const int cMARCH_DISTANCE = 1000;
+
+        private Point3D GetForwardPoint(GameNPC npc, int distance)
+        {
+            return new Point3D(
+                npc.X + (int)(Math.Sin(0.00153398078856 * npc.Heading) * distance),
+                npc.Y - (int)(Math.Cos(0.00153398078856 * npc.Heading) * distance),
+                npc.Z);
+        }
+
         public void LeftFace(GameNPC toon)
         {
             int FaceHeading = Convert.ToInt32(toon.Heading + 1024);
@@ -276,7 +286,7 @@ namespace DOL.GS.Commands
                 {
                     try
                     {
-                        mob[i].WalkTo(null, 100);
+                        mob[i].WalkTo(GetForwardPoint(mob[i], cMARCH_DISTANCE), 100);
                     }
                     catch
                     {
@@ -284,7 +294,7 @@ namespace DOL.GS.Commands
                     }
                 }
                 LeftFace(commanderMob);
-                commanderMob.WalkTo(null, 100);
+                commanderMob.WalkTo(GetForwardPoint(commanderMob, cMARCH_DISTANCE), 100);
             }
         }
         
@@ -360,9 +370,9 @@ namespace DOL.GS.Commands
                 commanderMob.Yell("Charge!");
                 for (int i = 0; i < cMOBS; i++)
                 {
-                    mob[i].WalkTo(null, mob[i].MaxSpeed);
+                    mob[i].WalkTo(GetForwardPoint(mob[i], cMARCH_DISTANCE), mob[i].MaxSpeed);
                 }
-                commanderMob.WalkTo(null, commanderMob.MaxSpeed);
+                commanderMob.WalkTo(GetForwardPoint(commanderMob, cMARCH_DISTANCE), commanderMob.MaxSpeed);
             }
         }
 
