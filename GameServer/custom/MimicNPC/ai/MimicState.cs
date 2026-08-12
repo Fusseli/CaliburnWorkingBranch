@@ -51,7 +51,9 @@ namespace DOL.AI.Brain
                 _brain.AggroLevel = 100;
                 _brain.AggroRange = 3600;
 
-                _brain.PvPMode = _brain.Body.CurrentRegion.IsRvR || _brain.Body.CurrentZone.IsRvR;
+                // Renegade mimics are hostile in every zone (Coop included);
+                // normal mimics keep the zone-driven PvP mode so they can group cross-realm.
+                _brain.PvPMode = _brain.Body.Realm == eRealm.Renegade || _brain.Body.CurrentRegion.IsRvR || _brain.Body.CurrentZone.IsRvR;
 
                 _brain.Roam = true;
                 _brain.Defend = false;
@@ -459,7 +461,7 @@ namespace DOL.AI.Brain
             _brain.ClearAggroList();
             _brain.Body.ReturnToSpawnPoint(_brain.Body.MaxSpeed);
             _brain.IsPulling = false;
-            _brain.PvPMode = false;
+            _brain.PvPMode = _brain.Body.Realm == eRealm.Renegade;
 
             base.Enter();
         }

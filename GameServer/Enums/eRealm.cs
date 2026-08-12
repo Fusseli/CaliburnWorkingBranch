@@ -49,6 +49,10 @@ namespace DOL.GS
 		/// </summary>
 		Hibernia = 3,
 		/// <summary>
+		/// Renegade Realm (fourth realm, hostile to all others)
+		/// </summary>
+		Renegade = 4,
+		/// <summary>
 		/// Last player realm number, for use in all arrays
 		/// </summary>
 		_LastPlayerRealm = 3,

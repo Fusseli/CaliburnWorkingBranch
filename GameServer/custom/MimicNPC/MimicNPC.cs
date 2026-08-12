@@ -45,10 +45,27 @@ namespace DOL.GS.Scripts
             get { return _mimicSpawner; }
             set { _mimicSpawner = value; }
         }
-        public MimicSpawnerPersistent MimicSpawnerPersistent
+        public IMimicSpawnerPersistent MimicSpawnerPersistent
         {
             get; set;
 
+        }
+
+        public string RenegadeRealName { get; set; }
+
+        public override string GetName(int article, bool firstLetterUppercase)
+        {
+            // Chat/combat text shows the mimic's actual generated player name,
+            // same as regular mimics show their random name (e.g. "Arthur died").
+            if (Realm == eRealm.Renegade)
+            {
+                if (!string.IsNullOrEmpty(RenegadeRealName))
+                    return RenegadeRealName;
+
+                return base.GetName(article, firstLetterUppercase);
+            }
+
+            return base.GetName(article, firstLetterUppercase);
         }
 
         public IPacketLib Out { get { return _dummyLib; } }

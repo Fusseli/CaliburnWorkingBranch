@@ -1,6 +1,7 @@
 using DOL.GS;
 using DOL.GS.Keeps;
 using DOL.GS.PacketHandler;
+using DOL.GS.Scripts;
 
 namespace DOL.AI.Brain
 {
@@ -96,6 +97,20 @@ namespace DOL.AI.Brain
 		{
 			foreach (GameNPC npc in Body.GetNPCsInRadius((ushort)AggroRange))
 			{
+				// Realm 0 (renegade) keep guards proactively attack
+				// realm 1/2/3 mimic bots, but leave realm 4 Renegade mimics alone.
+				if (npc is MimicNPC mimicTarget && _keepGuardBody.Realm == eRealm.None)
+				{
+					if (mimicTarget.Realm == eRealm.None || mimicTarget.Realm == eRealm.Renegade)
+						continue;
+
+					if (!CanAggroTarget(npc))
+						continue;
+
+					AddToAggroList(npc, 1);
+					return;
+				}
+
 				// Non-pet NPCs are ignored
 				if (npc is GameKeepGuard || npc.Brain == null || npc.Brain is not IControlledBrain)
 					continue;
@@ -125,7 +140,15 @@ namespace DOL.AI.Brain
 			else if (target is GamePlayer)
 				checkPlayer = target as GamePlayer;
 
-			if (checkPlayer == null || !GameServer.KeepManager.IsEnemy(_keepGuardBody, checkPlayer, true))
+			if (checkPlayer == null)
+			{
+				if (target is MimicNPC mimicTarget && mimicTarget.Realm != eRealm.None && mimicTarget.Realm != eRealm.Renegade)
+					return true;
+
+				return false;
+			}
+
+			if (!GameServer.KeepManager.IsEnemy(_keepGuardBody, checkPlayer, true))
 				return false;
 
 			return true;

@@ -377,7 +377,16 @@ namespace DOL.GS.ServerRules
 		public override void ResetKeep(GuardLord lord, GameObject killer)
 		{
 			base.ResetKeep(lord, killer);
-			lord.Component.Keep.Reset((eRealm)killer.Realm);
+
+			eRealm keepRealm = (eRealm)killer.Realm;
+
+			if (keepRealm == eRealm.Renegade)
+				keepRealm = eRealm.None;
+
+			lord.Component.Keep.Reset(keepRealm);
+
+			if (keepRealm == eRealm.None)
+				return;
 			
 			if (ConquestService.ConquestManager.ActiveObjective != null && ConquestService.ConquestManager.ActiveObjective.Keep == lord.Component.Keep)
 			{

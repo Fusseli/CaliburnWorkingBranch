@@ -357,6 +357,22 @@ namespace DOL.GS.Scripts
         }
 
         private static List<MimicSpawnerPersistent> _mimicSpawnersPersistent;
+
+
+        public static List<RenegadeSpawnerPersistent> RenegadeSpawnersPersistent
+        {
+            get
+            {
+                return _renegadeSpawnersPersistent ?? (_renegadeSpawnersPersistent = new List<RenegadeSpawnerPersistent>());
+            }
+        }
+
+        private static List<RenegadeSpawnerPersistent> _renegadeSpawnersPersistent;
+    }
+
+    public interface IMimicSpawnerPersistent
+    {
+        void Remove(MimicNPC mimic);
     }
 
     #endregion Spawning
@@ -526,6 +542,20 @@ namespace DOL.GS.Scripts
             return casterClasses[Util.Random(casterClasses.Count - 1)];
         }
 
+        public static eMimicClass GetRandomRenegadeClass()
+        {
+            Array mimicClasses = Enum.GetValues(typeof(eMimicClass));
+            List<eMimicClass> allClasses = new List<eMimicClass>();
+
+            foreach (eMimicClass mc in mimicClasses)
+            {
+                if (mc != eMimicClass.None)
+                    allClasses.Add(mc);
+            }
+
+            return allClasses[Util.Random(allClasses.Count - 1)];
+        }
+
         public static eRealm GetRealmFromClass(eMimicClass mimicClass)
         {
             eRealm realm;
@@ -546,6 +576,11 @@ namespace DOL.GS.Scripts
     public static class MimicEquipment
     {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
+
+        private static int GetEquipmentRealm(IGamePlayer player)
+        {
+            return player.Realm == eRealm.Renegade ? Util.Random(1, 3) : (int)player.Realm;
+        }
 
         public static void SetWeaponROG(GameLiving living, eRealm realm, eCharacterClass charClass, byte level, eObjectType objectType, eInventorySlot slot, eDamageType damageType)
         {
@@ -607,10 +642,12 @@ namespace DOL.GS.Scripts
 
             IList<DbItemTemplate> itemList;
 
+            int eqRealm = GetEquipmentRealm(player);
+
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)weapType).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1)))));
             if (itemList.Count != 0)
             {
@@ -658,11 +695,12 @@ namespace DOL.GS.Scripts
             int max = Math.Min(51, player.Level + 3);
 
             IList<DbItemTemplate> itemList;
+            int eqRealm = GetEquipmentRealm(player);
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)weapType).And(
                                                                        DB.Column("Item_Type").IsEqualTo(13).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1))))));
 
             if (itemList.Count != 0)
@@ -686,10 +724,12 @@ namespace DOL.GS.Scripts
 
             IList<DbItemTemplate> itemList;
 
+            int eqRealm = GetEquipmentRealm(player);
+
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)eObjectType.Shield).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("Type_Damage").IsEqualTo(shieldSize).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1))))));
 
@@ -711,10 +751,12 @@ namespace DOL.GS.Scripts
 
             IList<DbItemTemplate> itemList;
 
+            int eqRealm = GetEquipmentRealm(player);
+
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)armorType).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1)))));
 
             if (itemList.Count != 0)
@@ -751,11 +793,12 @@ namespace DOL.GS.Scripts
             int max = Math.Min(51, player.Level + 3);
 
             IList<DbItemTemplate> itemList;
+            int eqRealm = GetEquipmentRealm(player);
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)weapType).And(
                                                                        DB.Column("DPS_AF").IsEqualTo((int)instrumentType).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1))))));
 
             if (itemList.Count != 0)
@@ -783,10 +826,12 @@ namespace DOL.GS.Scripts
             List<DbItemTemplate> neckList = new List<DbItemTemplate>();
             List<DbItemTemplate> waistList = new List<DbItemTemplate>();
 
+            int eqRealm = GetEquipmentRealm(player);
+
             itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
                                                                        DB.Column("Level").IsLessOrEqualTo(max).And(
                                                                        DB.Column("Object_Type").IsEqualTo((int)eObjectType.Magical).And(
-                                                                       DB.Column("Realm").IsEqualTo((int)player.Realm)).And(
+                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
                                                                        DB.Column("IsPickable").IsEqualTo(1)))));
             if (itemList.Count != 0)
             {

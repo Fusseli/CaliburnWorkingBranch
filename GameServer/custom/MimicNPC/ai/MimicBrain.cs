@@ -1359,6 +1359,10 @@ namespace DOL.AI.Brain
             if (realTarget is IGamePlayer && realTarget.Realm != Body.Realm)
                 return true;
 
+            // Renegade mimics leave renegade (realm 0) keep guards alone
+            if (Body.Realm == eRealm.Renegade && realTarget is GameKeepGuard && realTarget.Realm == eRealm.None)
+                return false;
+
             if (realTarget is GameKeepGuard && realTarget.Realm != Body.Realm)
                 return true;
 

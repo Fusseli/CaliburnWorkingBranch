@@ -1,4 +1,4 @@
-﻿using DOL.AI;
+using DOL.AI;
 using DOL.AI.Brain;
 using DOL.GS.PacketHandler;
 using System;
@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace DOL.GS.Scripts
 {
-    public class MimicSpawnerPersistent : GameNPC, IMimicSpawnerPersistent
+    public class RenegadeSpawnerPersistent : GameNPC, IMimicSpawnerPersistent
     {
         public bool IsRunning => _timer != null && _timer.IsAlive;
         public List<MimicNPC> Mimics => _mimics;
@@ -40,7 +40,6 @@ namespace DOL.GS.Scripts
 
         bool deleteAllOnNextTick = false;
 
-        // ✅ NEW: PreventCombat support
         public bool PreventCombat =>
             !string.IsNullOrEmpty(PackageID) && PackageID.Contains("PREVENT_COMBAT");
 
@@ -83,7 +82,7 @@ namespace DOL.GS.Scripts
             if (_pendingBatchCount > 0)
                 return SpawnNextBatchMember();
 
-            // ✅ CLEAN group size logic
+            // CLEAN group size logic
             int grpCount = Math.Max(1, Util.Random(MinGroupSize, MaxGroupSize));
 
             _pendingBatchCount = grpCount;
@@ -150,7 +149,6 @@ namespace DOL.GS.Scripts
             _pendingBatchMembers.Clear();
         }
 
-        // ✅ NEW: Centralized spawn logic
         private MimicNPC SpawnSingleMimic()
         {
             int randomX = Util.Random(-100, 100);
@@ -162,7 +160,7 @@ namespace DOL.GS.Scripts
                 this.Z
             );
 
-            eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
+            eMimicClass mimicClass = MimicManager.GetRandomRenegadeClass();
 
             // Guard against inverted stats (min > max), which would make
             // Util.Random throw and stall the whole batch.
@@ -174,6 +172,17 @@ namespace DOL.GS.Scripts
                 (byte)Util.Random(levelMin, levelMax),
                 preventCombat: PreventCombat
             );
+
+            if (mimicNPC == null)
+                return null;
+
+            // Set realm identity BEFORE the NPC enters the world, so the very
+            // first create packet sent to nearby players already shows a realm 4
+            // renegade ("Renegade <Race> <Rank>") and not the class-native realm
+            // with the generated player name.
+            mimicNPC.RenegadeRealName = mimicNPC.Name;
+            mimicNPC.Realm = eRealm.Renegade;
+            mimicNPC.Name = "Renegade";
 
             if (MimicManager.AddMimicToWorld(mimicNPC, spawnPoint, this.CurrentRegionID))
             {
@@ -223,28 +232,7 @@ namespace DOL.GS.Scripts
 
         public override bool AddToWorld()
         {
-            /*
-            Name = "Mimic Spawner";
-            Model = 408;
-            Level = 75;
-            Size = 50;
-            X = _position.X;
-            Y = _position.Y;
-            Z = _position.Z;
-            CurrentRegionID = _region;
-            Heading = 0;*/
-
-            /*
-             * 
-        public int LevelMin => base.Strength;
-        public int LevelMax => base.Dexterity;
-        public int SpawnMin => base.Intelligence;
-        public int SpawnMax => base.Quickness;
-        public int MinGroupSize => base.Constitution;
-        public int MaxGroupSize => base.Charisma;
-            */
-
-            //Has just been created via /'mob create, lets set some sane defaults on our spawner
+            //Has just been created via '/mob create, lets set some sane defaults on our spawner
             if (this.LoadedFromScript)
             {
                 this.Strength = 10;
@@ -263,12 +251,12 @@ namespace DOL.GS.Scripts
             _timer?.Stop();
             _timer = null;
 
-            MimicSpawning.MimicSpawnersPersistent.Remove(this);
+            MimicSpawning.RenegadeSpawnersPersistent.Remove(this);
 
             _timer = new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(TimerCallback),
                 Util.Random(_timerIntervalMin, _timerIntervalMax));
 
-            MimicSpawning.MimicSpawnersPersistent.Add(this);
+            MimicSpawning.RenegadeSpawnersPersistent.Add(this);
 
             Flags |= eFlags.PEACE;
 
@@ -296,19 +284,9 @@ namespace DOL.GS.Scripts
             if (!base.Interact(player))
                 return false;
 
-            /*
-        
-        public int LevelMin => base.Strength;
-        public int LevelMax => base.Dexterity;
-        public int SpawnMin => base.Intelligence;
-        public int SpawnMax => base.Quickness;
-        public int MinGroupSize => base.Constitution;
-        public int MaxGroupSize => base.Charisma;*/
-
-             
             player.Out.SendMessage(
                 "---------------------------------------\n" +
-                $"Realm: {this.Realm} (Realm)\n" +
+                $"Renegade Spawner (Realm 4)\n" +
                 $"LevelMin: {base.Strength} (Strength)\n" +
                 $"LevelMax: {base.Dexterity} (Dexterity)\n" +
                 $"SpawnMin: {base.Intelligence} (Intelligence)\n" +
@@ -359,15 +337,15 @@ namespace DOL.GS.Scripts
 
                 case "Delete":
                     {
-                        if (MimicSpawning.MimicSpawnersPersistent.Contains(this))
+                        if (MimicSpawning.RenegadeSpawnersPersistent.Contains(this))
                         {
-                            MimicSpawning.MimicSpawnersPersistent.Remove(this);
+                            MimicSpawning.RenegadeSpawnersPersistent.Remove(this);
                         }
 
                         if (_timer != null && _timer.IsAlive)
                             _timer.Stop();
 
-                        // ✅ Clean up mimics before delete (important!)
+                        // Clean up mimics before delete (important!)
                         foreach (var mimic in _mimics.ToList())
                         {
                             mimic.RemoveFromWorld();
@@ -388,7 +366,8 @@ namespace DOL.GS.Scripts
                     {
                         foreach (MimicNPC mimic in _mimics)
                         {
-                            message += $"{mimic.Name} {mimic.CharacterClass.Name} {mimic.Level} Region: {mimic.CurrentRegionID}\n";
+                            string displayName = mimic.RenegadeRealName ?? mimic.Name;
+                            message += $"{displayName} {mimic.CharacterClass.Name} {mimic.Level} Region: {mimic.CurrentRegionID}\n";
                         }
                         break;
                     }

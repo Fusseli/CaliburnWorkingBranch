@@ -238,7 +238,16 @@ namespace DOL.GS.PacketHandler
 					string name;
 
 					if (npc is MimicNPC mimic && !GameServer.ServerRules.IsSameRealm(m_gameClient.Player, mimic, true))
-						name = mimic.RaceName + " " + GlobalConstants.REALM_RANK_NAMES[(int)mimic.Realm - 1, (int)mimic.Gender - 1, (mimic.RealmLevel / 10)];//mimic.RealmRankTitle(m_gameClient.Account.Language);
+					{
+						// Renegade mimics (realm 4) have no realm rank table of their own;
+						// use the rank names of the class's native realm (1-19 Alb, 21-32 Mid, else Hib).
+						int rankRealm = mimic.Realm == eRealm.Renegade
+							? (int)MimicManager.GetRealmFromClass((eMimicClass)mimic.CharacterClass.ID)
+							: (int)mimic.Realm;
+
+						string prefix = mimic.Realm == eRealm.Renegade ? "Renegade " : "";
+						name = prefix + mimic.RaceName + " " + GlobalConstants.REALM_RANK_NAMES[rankRealm - 1, (int)mimic.Gender - 1, (mimic.RealmLevel / 10)];
+					}
 					else
 						name = npc.Name;
 

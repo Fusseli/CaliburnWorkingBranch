@@ -36,6 +36,11 @@ public class CoopWithRvr : AbstractServerRules
         if (source.Group != null && source.Group.IsInTheGroup(target))
             return true;
 
+        // Realm 4 Renegade livings are hostile to every other realm in every zone;
+        // they are only "same realm" with each other.
+        if (source.Realm == eRealm.Renegade || target.Realm == eRealm.Renegade)
+            return source.Realm == target.Realm;
+
         return SelectRuleSet(source).IsSameRealm(source, target, quiet);
     }
 
@@ -46,6 +51,11 @@ public class CoopWithRvr : AbstractServerRules
 
         if (attacker.Group != null && attacker.Group.IsInTheGroup(defender))
             return false;
+
+        // Realm 4 Renegade livings may attack and be attacked in Coop/PvE zones too,
+        // using the normal realm-vs-realm rules (different realms = hostile).
+        if (attacker.Realm == eRealm.Renegade || defender.Realm == eRealm.Renegade)
+            return normalServerRules.IsAllowedToAttack(attacker, defender, quiet);
 
         return SelectRuleSet(attacker).IsAllowedToAttack(attacker, defender, quiet);
     }
@@ -137,7 +147,16 @@ public class CoopWithRvr : AbstractServerRules
 	public override void ResetKeep(GuardLord lord, GameObject killer)
 	{
 		base.ResetKeep(lord, killer);
-		lord.Component.Keep.Reset((eRealm)killer.Realm);
+
+		eRealm keepRealm = (eRealm)killer.Realm;
+
+		if (keepRealm == eRealm.Renegade)
+			keepRealm = eRealm.None;
+
+		lord.Component.Keep.Reset(keepRealm);
+
+		if (keepRealm == eRealm.None)
+			return;
 			
 		if (ConquestService.ConquestManager.ActiveObjective != null && ConquestService.ConquestManager.ActiveObjective.Keep == lord.Component.Keep)
 		{
