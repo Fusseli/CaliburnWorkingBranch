@@ -1,6 +1,6 @@
 ﻿# Managers/Player Manager
 PlayerManager.BroadcastCapture.Captured:		Die Streitmacht von {0} kontrolliert nun {1}!
-PlayerManager.BroadcastCapture.CapturedR0:		{0} wurde besetzt!
+PlayerManager.BroadcastCapture.CapturedR0:		{1} wurde von den Renegaten besetzt!
 PlayerManager.BroadcastClaim.Claimed:			Die Gilde "{0}" hat {1} in Besitz genommen!
 PlayerManager.BroadcastRaize.Razed:			{0} wurde zerstört. Die Streitmacht kam aus {1}!
 PlayerManager.BroadcastRelease.LostControl:		Die Gilde "{0}" hat {1} aufgegeben!
