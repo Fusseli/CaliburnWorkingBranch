@@ -160,7 +160,7 @@ namespace DOL.GS.Scripts
                 this.Z
             );
 
-            eMimicClass mimicClass = MimicManager.GetRandomRenegadeClass();
+            eMimicClass mimicClass = GetRandomClassForSpawn();
 
             // Guard against inverted stats (min > max), which would make
             // Util.Random throw and stall the whole batch.
@@ -196,6 +196,11 @@ namespace DOL.GS.Scripts
             }
 
             return null;
+        }
+
+        protected virtual eMimicClass GetRandomClassForSpawn()
+        {
+            return MimicManager.GetRandomRenegadeClass();
         }
 
         public void Remove(MimicNPC mimic)

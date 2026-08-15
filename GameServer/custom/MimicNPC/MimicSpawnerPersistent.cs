@@ -162,7 +162,7 @@ namespace DOL.GS.Scripts
                 this.Z
             );
 
-            eMimicClass mimicClass = MimicManager.GetRandomMimicClass(this.Realm);
+            eMimicClass mimicClass = GetRandomMimicClassForSpawn();
 
             // Guard against inverted stats (min > max), which would make
             // Util.Random throw and stall the whole batch.
@@ -187,6 +187,11 @@ namespace DOL.GS.Scripts
             }
 
             return null;
+        }
+
+        protected virtual eMimicClass GetRandomMimicClassForSpawn()
+        {
+            return MimicManager.GetRandomMimicClass(this.Realm);
         }
 
         public void Remove(MimicNPC mimic)

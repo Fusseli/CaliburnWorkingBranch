@@ -556,6 +556,40 @@ namespace DOL.GS.Scripts
             return allClasses[Util.Random(allClasses.Count - 1)];
         }
 
+        public static eMimicClass GetRandomStealthClass(eRealm realm = eRealm.None)
+        {
+            List<eMimicClass> stealthClasses = new List<eMimicClass>();
+
+            switch (realm)
+            {
+                case eRealm.Albion:
+                    stealthClasses.Add(eMimicClass.Infiltrator);
+                    stealthClasses.Add(eMimicClass.Scout);
+                    break;
+
+                case eRealm.Midgard:
+                    stealthClasses.Add(eMimicClass.Hunter);
+                    stealthClasses.Add(eMimicClass.Shadowblade);
+                    break;
+
+                case eRealm.Hibernia:
+                    stealthClasses.Add(eMimicClass.Ranger);
+                    stealthClasses.Add(eMimicClass.Nightshade);
+                    break;
+
+                default:
+                    stealthClasses.Add(eMimicClass.Infiltrator);
+                    stealthClasses.Add(eMimicClass.Scout);
+                    stealthClasses.Add(eMimicClass.Hunter);
+                    stealthClasses.Add(eMimicClass.Shadowblade);
+                    stealthClasses.Add(eMimicClass.Ranger);
+                    stealthClasses.Add(eMimicClass.Nightshade);
+                    break;
+            }
+
+            return stealthClasses[Util.Random(stealthClasses.Count - 1)];
+        }
+
         public static eRealm GetRealmFromClass(eMimicClass mimicClass)
         {
             eRealm realm;
