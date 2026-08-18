@@ -26,10 +26,10 @@ namespace DOL.GS.CustomBosses
         {
             if (!base.AddToWorld()) return false;
 
-            Level = 80;
+            Level = 75;
             Name = "Drevaul";
-            Model = 645;
-            Size = 120;
+            Model = 605;
+            Size = 150;
             MaxSpeedBase = 200;
             Realm = 0;
 

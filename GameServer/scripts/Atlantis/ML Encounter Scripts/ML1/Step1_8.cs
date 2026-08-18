@@ -41,8 +41,8 @@ namespace DOL.GS.Atlantis
         public static bool Hibernia = true;
 
         //Minimum Respawn Time - Maximum Respawn Time ( in minutes )
-        public static int MinRespawn = 12;
-        public static int MaxRespawn = 15;
+        public static int MinRespawn = 3;
+        public static int MaxRespawn = 5;
 
         //HammerheadSharks Array
         public int[,] HammerheadSharksArray = {
@@ -67,6 +67,10 @@ namespace DOL.GS.Atlantis
         public List<HammerheadShark> HammerheadSharksList = new List<HammerheadShark>();
         public AzureShark AzureShark;
 
+        //Ruby state
+        public bool RubyActive = false;
+        public GameStaticItem RubyItem = null;
+
         //Override
         public override void SaveIntoDatabase()
         {
@@ -86,8 +90,9 @@ namespace DOL.GS.Atlantis
             if (this.CurrentRegionID == midregion) log.Warn("Master Level - 1.8 -¨HammerheadShark MID added.");
             if (this.CurrentRegionID == hibregion) log.Warn("Master Level - 1.8 -¨HammerheadShark HIB added.");
 
-            //StartEncounter Timer
-            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(StartEncounter), (10 * 1000));
+            //Start Ruby and Azure spawn timers
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyTick), 10 * 1000);
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(AzureSpawnTimerTick), 60 * 1000);
 
             return base.AddToWorld();
         }
@@ -134,11 +139,11 @@ namespace DOL.GS.Atlantis
             Shark.Y = Y;
             Shark.Z = Z;
             Shark.Heading = (ushort)Util.Random(200, 3000);
-            Shark.RoamingRange = 600;
+            Shark.RoamingRange = 1200;
             Shark.CurrentSpeed = 0;
             Shark.MaxSpeedBase = 191;
             Shark.AutoSetStats();
-            Shark.RespawnInterval = 0;
+            Shark.RespawnInterval = 5 * 60 * 1000;
             Shark.BodyType = 0;
             Shark.Flags = eFlags.SWIMMING;
             StandardMobBrain brain = new StandardMobBrain();
@@ -156,7 +161,7 @@ namespace DOL.GS.Atlantis
             Shark.Name = "Azure shark";
             Shark.GuildName = "";
             Shark.Model = 33739;
-            Shark.Realm = eRealm.Door;
+            Shark.Realm = eRealm.None;
             Shark.CurrentRegionID = this.CurrentRegionID;
             Shark.Size = 50;
             Shark.Level = 60;
@@ -164,15 +169,15 @@ namespace DOL.GS.Atlantis
             Shark.Y = Y;
             Shark.Z = Z;
             Shark.Heading = (ushort)Util.Random(200, 3000);
-            Shark.RoamingRange = 300;
+            Shark.RoamingRange = 500;
             Shark.CurrentSpeed = 0;
             Shark.MaxSpeedBase = 191;
             Shark.AutoSetStats();
             Shark.BodyType = 0;
             Shark.Flags = eFlags.SWIMMING;
             StandardMobBrain brain = new StandardMobBrain();
-            brain.AggroLevel = 0;
-            brain.AggroRange = 0;
+            brain.AggroLevel = 100;
+            brain.AggroRange = 600;
             Shark.SetOwnBrain(brain);
             Shark.Parent = this;
             if (debug == true) Shark.debug = true;
@@ -180,77 +185,173 @@ namespace DOL.GS.Atlantis
             Shark.AddToWorld();
         }
 
-        //Loot Rubis -- End Encounter
-        public void AzureDie()
+        //Ruby shark killed - loot and credit
+        public void HandleRubySharkDeath(GameObject killer, GameNPC victim)
         {
-            //
-            foreach (HammerheadShark mob in HammerheadSharksList)
-            {
-                if (mob.IsAlive == true)
-                {
-                    mob.Rubis = true;
-                    break;
-                }
-            }
+            EndEncounter();
 
-            //Set Rubis on a HammerHead Shark
-            foreach (HammerheadShark mob in HammerheadSharksList)
-            {
-                if (mob.IsAlive == true)
-                {
-                    mob.Rubis = true;
-                    break;
-                }
-            }
+            //Loot
+            MLCreditHelper.GiveItem(killer, victim, "ToaManager_Many_Facetted_Ruby", 1, 3);
+            GamePlayer Player = killer as GamePlayer;
+            if (Player != null)
+                Player.Out.SendMessage("You Loot Rubis!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
 
-            //Send Information
-            foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-            {
-                player.Out.SendMessage("A hammerhead shark snatches the ruby!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-            }
-
-            //Log
-            if(debug==true) log.Warn("Master Level - 1.8 - AzureDie.");
-
-            //Start EndEncounter Timer
-            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(EndEncounterTimer), (10 * 60 * 1000));
+            //Credit
+            MLCreditHelper.CreditML((byte)1, (byte)8, killer, true, false, (byte)MinimumLevel);
         }
         public void EndEncounter()
         {
             if (debug == true) log.Warn("Master Level - 1.8 - EndEncounter.");
+            RubyActive = false;
             foreach (HammerheadShark mob in HammerheadSharksList)
             {
                 mob.Rubis = false;
             }
+            if (AzureShark != null)
+                AzureShark.Rubis = false;
         }
 
-        //Timer
-        public int StartEncounter(ECSGameTimer timer)
+        //Timer: reveal the ruby on the seafloor and check pickup
+        public int RubyTick(ECSGameTimer timer)
         {
-            //Spawn Azure Shark
-           SpawnAzureShark(343062, 640899, 5905);
+            if (this.ObjectState != GameObject.eObjectState.Active)
+                return 0;
 
-            //Attack AzureShark
-            foreach (HammerheadShark mob in HammerheadSharksList)
+            bool playersNear = false;
+            foreach (GamePlayer player in GetPlayersInRadius(2000))
             {
-                mob.StartAttack(AzureShark);
-            }
-            foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
-            {
-                player.Out.SendMessage("A Azure Shark is attacked !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                if (player != null && player.IsAlive)
+                {
+                    playersNear = true;
+                    break;
+                }
             }
 
-            //Log And Reload Timer
-            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(StartEncounter), (Util.Random(MinRespawn,MaxRespawn) * 60 * 1000));
-            if (this.CurrentRegionID == albregion) log.Warn("Master Level - 1.8 - ALB Available !");
-            if (this.CurrentRegionID == midregion) log.Warn("Master Level - 1.8 - MID Available !");
-            if (this.CurrentRegionID == hibregion) log.Warn("Master Level - 1.8 - HIB Available !");
+            if (!playersNear)
+            {
+                if (RubyItem != null)
+                {
+                    RubyItem.Delete();
+                    RubyItem = null;
+                }
+                RubyActive = false;
+                new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyTick), 10 * 1000);
+                return 0;
+            }
+
+            //Reveal ruby on the seafloor
+            if (!RubyActive)
+            {
+                RubyItem = new GameStaticItem();
+                RubyItem.CurrentRegion = this.CurrentRegion;
+                RubyItem.Name = "Many facetted ruby";
+                RubyItem.Model = 110;
+                RubyItem.Realm = 0;
+                RubyItem.X = this.X;
+                RubyItem.Y = this.Y;
+                RubyItem.Z = this.Z;
+                RubyItem.AddToWorld();
+                RubyActive = true;
+                foreach (GamePlayer player in GetPlayersInRadius(2000))
+                {
+                    player.Out.SendMessage("A ruby is revealed on the seafloor!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                }
+                if (debug == true) log.Warn("Master Level - 1.8 - Ruby revealed.");
+            }
+
+            //A shark grabs the ruby
+            if (RubyItem != null)
+            {
+                HammerheadShark grabber = null;
+                foreach (HammerheadShark mob in HammerheadSharksList)
+                {
+                    if (mob.IsAlive && mob.IsWithinRadius(RubyItem, 700))
+                    {
+                        grabber = mob;
+                        break;
+                    }
+                }
+                if (grabber != null)
+                {
+                    RubyItem.Delete();
+                    RubyItem = null;
+                    grabber.Rubis = true;
+                    foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                    {
+                        player.Out.SendMessage("A hammerhead shark snatches the ruby!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                    }
+                    new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(EndEncounterTimer), (10 * 60 * 1000));
+                    if (debug == true) log.Warn("Master Level - 1.8 - A hammerhead shark grabbed the ruby.");
+                }
+                else if (AzureShark != null && AzureShark.IsAlive && AzureShark.IsWithinRadius(RubyItem, 700))
+                {
+                    RubyItem.Delete();
+                    RubyItem = null;
+                    AzureShark.Rubis = true;
+                    foreach (GamePlayer player in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                    {
+                        player.Out.SendMessage("A hammerhead shark snatches the ruby!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+                    }
+                    new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(EndEncounterTimer), (10 * 60 * 1000));
+                    if (debug == true) log.Warn("Master Level - 1.8 - The azure shark grabbed the ruby.");
+                }
+                else
+                {
+                    NudgeSharkToRuby();
+                }
+            }
+
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyTick), 10 * 1000);
+            return 0;
+        }
+
+        //Timer: spawn an azure shark from time to time
+        public int AzureSpawnTimerTick(ECSGameTimer timer)
+        {
+            if (this.ObjectState == GameObject.eObjectState.Active && (AzureShark == null || !AzureShark.IsAlive))
+            {
+                SpawnAzureShark(this.X + Util.Random(-500, 500), this.Y + Util.Random(-500, 500), this.Z + 200);
+            }
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(AzureSpawnTimerTick), (Util.Random(MinRespawn, MaxRespawn) * 60 * 1000));
             return 0;
         }
         public int EndEncounterTimer(ECSGameTimer timer)
         {
             EndEncounter();
             return 0;
+        }
+
+        //Command the nearest alive shark to swim to the ruby
+        public void NudgeSharkToRuby()
+        {
+            if (RubyItem == null)
+                return;
+            GameNPC nearest = null;
+            int nearestDist = int.MaxValue;
+            foreach (HammerheadShark mob in HammerheadSharksList)
+            {
+                if (!mob.IsAlive)
+                    continue;
+                int dist = mob.GetDistanceTo(RubyItem);
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = mob;
+                }
+            }
+            if (AzureShark != null && AzureShark.IsAlive)
+            {
+                int dist = AzureShark.GetDistanceTo(RubyItem);
+                if (dist < nearestDist)
+                {
+                    nearestDist = dist;
+                    nearest = AzureShark;
+                }
+            }
+            if (nearest != null)
+            {
+                nearest.WalkTo(new Point3D(RubyItem.X, RubyItem.Y, RubyItem.Z), (short)nearest.MaxSpeedBase);
+            }
         }
 
         //Load Event
@@ -383,6 +484,7 @@ namespace DOL.GS.Atlantis
         }
         public override void StartRespawn()
         {
+            Rubis = false;
             base.StartRespawn();
         }
         public override bool AddToWorld()
@@ -398,7 +500,7 @@ namespace DOL.GS.Atlantis
             {
                 foreach (GamePlayer player in GetPlayersInRadius(1500))
                 {
-                    player.Out.SendSpellEffectAnimation(this, this, 310, 0, false, 1);
+                    player.Out.SendSpellEffectAnimation(this, this, 10621, 0, false, 1);
                 }
             }
             new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
@@ -406,23 +508,10 @@ namespace DOL.GS.Atlantis
         }
         public override void Die(GameObject killer)
         {
-            GamePlayer Player = killer as GamePlayer;
             if (Rubis == true)
             {
-                Parent.EndEncounter();
-
-                //Loot
-                MLCreditHelper.GiveItem(killer, this, "ToaManager_Many_Facetted_Ruby", 1, 3);
-                if (Player != null)
-                    Player.Out.SendMessage("You Loot Rubis!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
-
-                //Base Die
-                base.Die(killer);
-
-                //Credit
-                MLCreditHelper.CreditML((byte)1, (byte)8, killer, true, false, (byte)HammerheadController.MinimumLevel);
-
-                return;
+                if (Parent != null)
+                    Parent.HandleRubySharkDeath(killer, this);
             }
             base.Die(killer);
         }
@@ -436,6 +525,7 @@ namespace DOL.GS.Atlantis
         private static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
         public bool debug = false;
         public HammerheadController Parent;
+        public bool Rubis = false;
 
         //Override
         public override void SaveIntoDatabase()
@@ -446,17 +536,34 @@ namespace DOL.GS.Atlantis
         }
         public override bool AddToWorld()
         {
+            //Glow timer when carrying the ruby
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
 
             //AutoDepopTimer
             new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(Depop), (2 * 60 * 1000));
 
             return base.AddToWorld();
         }
+        public int RubyGlowTick(ECSGameTimer timer)
+        {
+            if (!IsAlive)
+                return 0;
+            if (Rubis)
+            {
+                foreach (GamePlayer player in GetPlayersInRadius(1500))
+                {
+                    player.Out.SendSpellEffectAnimation(this, this, 10621, 0, false, 1);
+                }
+            }
+            new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
+            return 0;
+        }
         public override void Die(GameObject killer)
         {
-            if (killer is HammerheadShark)
+            if (Rubis == true)
             {
-                Parent.AzureDie();
+                if (Parent != null)
+                    Parent.HandleRubySharkDeath(killer, this);
             }
             base.Die(killer);
             this.Delete();
@@ -467,6 +574,8 @@ namespace DOL.GS.Atlantis
         {
             if (this.IsAlive == true)
             {
+                if (Rubis == true && Parent != null)
+                    Parent.EndEncounter();
                 this.Health = 0;
                 this.Delete();
                 if (this.CurrentRegionID == HammerheadController.albregion && debug == true) log.Warn("Master Level - 1.8 - AzureShark Depop !");

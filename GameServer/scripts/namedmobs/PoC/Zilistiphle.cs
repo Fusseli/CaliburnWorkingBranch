@@ -26,7 +26,7 @@ namespace DOL.GS.CustomBosses
         public static readonly int AuraSpellID = 4309;   // Greater Powerguard
 
         // Guardians
-        public static readonly string Guardian1 = "Pheton";
+        public static readonly string Guardian1 = "Rheton";
         public static readonly string Guardian2 = "Busiv";
         public static readonly string Guardian3 = "Drevaul";
     }
@@ -41,10 +41,10 @@ namespace DOL.GS.CustomBosses
         {
             if (!base.AddToWorld()) return false;
 
-            Level = 85;
+            Level = 80;
             Name = "Zilistiphle";
-            Model = 660;
-            Size = 150;
+            Model = 697;
+            Size = 255;
             MaxSpeedBase = 200;
             Realm = 0;
 

@@ -9,9 +9,9 @@ using DOL.GS.Spells;
 
 namespace DOL.GS.CustomBosses
 {
-    public static class PhetonConfig
+    public static class RhetonConfig
     {
-        // Pheton main spells
+        // Rheton main spells
         public static readonly int ColdDD_ID = 161;   // Cold DD
         public static readonly int Stun_ID = 3379;   // Stun
         public static readonly int Heal_ID = 3067;   // Heal
@@ -28,7 +28,7 @@ namespace DOL.GS.CustomBosses
         };
     }
 
-    public class Pheton : GameNPC
+    public class Rheton : GameNPC
     {
         private int _nextWaveAt = 90;
 
@@ -37,14 +37,14 @@ namespace DOL.GS.CustomBosses
             if (!base.AddToWorld()) return false;
 
             _nextWaveAt = 90; // Reset so a respawned boss spawns his waves again
-            Level = 85;
-            Name = "Pheton";
-            Model = 642;
-            Size = 100;
+            Level = 75;
+            Name = "Rheton";
+            Model = 916;
+            Size = 150;
             MaxSpeedBase = 200;
             Realm = 0;
 
-            SetOwnBrain(new PhetonBrain(this));
+            SetOwnBrain(new RhetonBrain(this));
             return true;
         }
 
@@ -68,7 +68,7 @@ namespace DOL.GS.CustomBosses
 
         private void SpawnAdd()
         {
-            var add = new PhetonAdd
+            var add = new RhetonAdd
             {
                 X = X + Util.Random(-100, 100),
                 Y = Y + Util.Random(-100, 100),
@@ -76,14 +76,14 @@ namespace DOL.GS.CustomBosses
                 CurrentRegion = CurrentRegion,
                 Heading = Heading,
                 Level = 55,
-                Name = "Squelete",
-                Model = 16,
+                Name = "Skeleton",
+                Model = 938,
                 Size = 40,
                 Realm = 0
             };
 
             // Assign random spell from pool
-            int spellId = PhetonConfig.AddSpellPool[Util.Random(PhetonConfig.AddSpellPool.Length - 1)];
+            int spellId = RhetonConfig.AddSpellPool[Util.Random(RhetonConfig.AddSpellPool.Length - 1)];
             var brain = new AddBrain(spellId);
             add.SetOwnBrain(brain);
             add.AddToWorld();
@@ -94,7 +94,7 @@ namespace DOL.GS.CustomBosses
             // Despawn adds
             foreach (var npc in GetNPCsInRadius(2000))
             {
-                if (npc.Name == "Squelete")
+                if (npc.Name == "Skeleton")
                     npc.Delete();
             }
             base.Die(killer);
@@ -118,7 +118,7 @@ namespace DOL.GS.CustomBosses
         }
     }
 
-    public class PhetonAdd : GameNPC
+    public class RhetonAdd : GameNPC
     {
         public override int GetResist(eDamageType damageType)
         {
@@ -138,15 +138,15 @@ namespace DOL.GS.CustomBosses
         }
     }
 
-    public class PhetonBrain : StandardMobBrain
+    public class RhetonBrain : StandardMobBrain
     {
-        private readonly Pheton m_owner;
+        private readonly Rheton m_owner;
         private long nextCold;
         private long nextStun;
         private long nextHeal;
         private long nextDebuff;
 
-        public PhetonBrain(Pheton owner)
+        public RhetonBrain(Rheton owner)
         {
             m_owner = owner;
             AggroLevel = 100;
@@ -161,7 +161,7 @@ namespace DOL.GS.CustomBosses
             // Cold DD (scaled)
             if (nextCold < Environment.TickCount)
             {
-                var spell = BossSpellHelper.GetSpell(PhetonConfig.ColdDD_ID, Body.Level, damage: Body.Level * 6);
+                var spell = BossSpellHelper.GetSpell(RhetonConfig.ColdDD_ID, Body.Level, damage: Body.Level * 6);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -173,7 +173,7 @@ namespace DOL.GS.CustomBosses
             // Stun (every 20s)
             if (nextStun < Environment.TickCount && Util.Chance(20))
             {
-                var spell = BossSpellHelper.GetSpell(PhetonConfig.Stun_ID, Body.Level);
+                var spell = BossSpellHelper.GetSpell(RhetonConfig.Stun_ID, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -185,7 +185,7 @@ namespace DOL.GS.CustomBosses
             // Heal (scaled, every 30s)
             if (nextHeal < Environment.TickCount && Body.HealthPercent < 80)
             {
-                var spell = BossSpellHelper.GetSpell(PhetonConfig.Heal_ID, Body.Level, value: m_owner.MaxHealth / 5);
+                var spell = BossSpellHelper.GetSpell(RhetonConfig.Heal_ID, Body.Level, value: m_owner.MaxHealth / 5);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));
@@ -197,7 +197,7 @@ namespace DOL.GS.CustomBosses
             // Debuff (every 15s)
             if (nextDebuff < Environment.TickCount)
             {
-                var spell = BossSpellHelper.GetSpell(PhetonConfig.Debuff_ID, Body.Level);
+                var spell = BossSpellHelper.GetSpell(RhetonConfig.Debuff_ID, Body.Level);
                 if (spell != null)
                 {
                     Body.CastSpell(spell, SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells));

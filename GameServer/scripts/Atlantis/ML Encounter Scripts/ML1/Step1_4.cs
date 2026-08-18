@@ -52,6 +52,9 @@ namespace DOL.GS.Atlantis
         //Morphed guard list
         public List<MorphedGuard> MorphedGuardList = new List<MorphedGuard>();
 
+        //Morphed guard models (random per spawn)
+        private static readonly ushort[] GuardModels = { 33738, 33774, 33735, 33739 };
+
         //Barrier re-raise timer
         private ECSGameTimer m_barrierTimer;
 
@@ -192,7 +195,7 @@ namespace DOL.GS.Atlantis
         {
             MorphedGuard guard = new MorphedGuard();
             guard.Name = "morphed creature";
-            guard.Model = 408;
+            guard.Model = GuardModels[Util.Random(0, GuardModels.Length - 1)];
             guard.Realm = 0;
             guard.CurrentRegionID = this.CurrentRegionID;
             guard.Size = 50;

@@ -25,16 +25,16 @@ namespace DOL.GS.CustomBosses
     public class Busiv : GameNPC
     {
         private HashSet<int> addsSpawnedAt = new HashSet<int>();
-        private readonly List<Soigneur> _soigneurs = new List<Soigneur>();
+        private readonly List<Underling> _Underlings = new List<Underling>();
 
         public override bool AddToWorld()
         {
             if (!base.AddToWorld()) return false;
 
-            Level = 82;
+            Level = 75;
             Name = "Busiv";
-            Model = 650;
-            Size = 130;
+            Model = 440;
+            Size = 150;
             MaxSpeedBase = 200;
             Realm = 0;
 
@@ -59,14 +59,14 @@ namespace DOL.GS.CustomBosses
                     {
                         SpawnHealerAdd();
                     }
-                    Say($"Busiv calls forth {numAdds} Soigneur{(numAdds > 1 ? "s" : "")} to aid him!");
+                    Say($"Busiv calls forth {numAdds} Underling{(numAdds > 1 ? "s" : "")} to aid him!");
                 }
             }
         }
 
         private void SpawnHealerAdd()
         {
-            var add = new Soigneur(this)
+            var add = new Underling(this)
             {
                 X = X + Util.Random(-100, 100),
                 Y = Y + Util.Random(-100, 100),
@@ -75,19 +75,19 @@ namespace DOL.GS.CustomBosses
                 Heading = Heading,
                 Level = 55,
                 Realm = 0,
-                Name = "Soigneur",
-                Model = 605,
+                Name = "Underling",
+                Model = 2043,
                 Size = 60,
             };
 
-            add.SetOwnBrain(new SoigneurBrain(this));
+            add.SetOwnBrain(new UnderlingBrain(this));
             add.AddToWorld();
-            _soigneurs.Add(add);
+            _Underlings.Add(add);
         }
 
         public override void Die(GameObject killer)
         {
-            foreach (var add in _soigneurs)
+            foreach (var add in _Underlings)
             {
                 if (add == null)
                     continue;
@@ -95,7 +95,7 @@ namespace DOL.GS.CustomBosses
                 add.RemoveFromWorld();
                 add.Delete();
             }
-            _soigneurs.Clear();
+            _Underlings.Clear();
 
             base.Die(killer);
         }
@@ -168,23 +168,23 @@ namespace DOL.GS.CustomBosses
         }
     }
 
-    public class Soigneur : GameNPC
+    public class Underling : GameNPC
     {
         private readonly Busiv m_master;
 
-        public Soigneur(Busiv master)
+        public Underling(Busiv master)
         {
             m_master = master;
         }
     }
 
-    public class SoigneurBrain : StandardMobBrain
+    public class UnderlingBrain : StandardMobBrain
     {
         private readonly Busiv m_master;
         private long nextHeal;
         private Random rng = new Random();
 
-        public SoigneurBrain(Busiv master)
+        public UnderlingBrain(Busiv master)
         {
             m_master = master;
             AggroLevel = 0; // Healers don't attack

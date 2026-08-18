@@ -219,11 +219,11 @@ namespace DOL.GS.Atlantis
         {
             LadyFarahnaz npc = new LadyFarahnaz();
             npc.Name = "Lady Farahnaz";
-            npc.Model = 0;
+            npc.Model = 33750;
             npc.Realm = 0;
             npc.CurrentRegionID = this.CurrentRegionID;
             npc.Size = 50;
-            npc.Level = 50;
+            npc.Level = 70;
             npc.X = this.X + 100;
             npc.Y = this.Y - 100;
             npc.Z = this.Z;
