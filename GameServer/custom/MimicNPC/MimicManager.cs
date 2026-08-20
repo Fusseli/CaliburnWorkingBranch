@@ -5,6 +5,7 @@ using DOL.GS.API;
 using DOL.GS.Realm;
 using log4net;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Configuration;
 using System.Linq;
@@ -611,6 +612,16 @@ namespace DOL.GS.Scripts
     {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
+        // Cached item template pools so mimic spawns don't hammer the database
+        // with a full ItemTemplate scan for every weapon/armor piece.
+        private static readonly ConcurrentDictionary<string, IList<DbItemTemplate>> _templateCache = new();
+        private static readonly Lazy<DbItemTemplate> _cloakTemplate = new(() => GameServer.Database.FindObjectByKey<DbItemTemplate>("cloak"));
+
+        private static IList<DbItemTemplate> GetCachedTemplates(string cacheKey, Func<IList<DbItemTemplate>> query)
+        {
+            return _templateCache.GetOrAdd(cacheKey, _ => query());
+        }
+
         private static int GetEquipmentRealm(IGamePlayer player)
         {
             return player.Realm == eRealm.Renegade ? Util.Random(1, 3) : (int)player.Realm;
@@ -678,11 +689,13 @@ namespace DOL.GS.Scripts
 
             int eqRealm = GetEquipmentRealm(player);
 
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)weapType).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1)))));
+            string cacheKey = $"melee:{eqRealm}:{weapType}:{min}:{max}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)weapType).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1))))));
             if (itemList.Count != 0)
             {
                 List<DbItemTemplate> itemsToKeep = new List<DbItemTemplate>();
@@ -730,12 +743,14 @@ namespace DOL.GS.Scripts
 
             IList<DbItemTemplate> itemList;
             int eqRealm = GetEquipmentRealm(player);
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)weapType).And(
-                                                                       DB.Column("Item_Type").IsEqualTo(13).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1))))));
+            string cacheKey = $"ranged:{eqRealm}:{weapType}:{min}:{max}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)weapType).And(
+                                                                   DB.Column("Item_Type").IsEqualTo(13).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1)))))));
 
             if (itemList.Count != 0)
             {
@@ -760,12 +775,14 @@ namespace DOL.GS.Scripts
 
             int eqRealm = GetEquipmentRealm(player);
 
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)eObjectType.Shield).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("Type_Damage").IsEqualTo(shieldSize).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1))))));
+            string cacheKey = $"shield:{eqRealm}:{min}:{max}:{shieldSize}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)eObjectType.Shield).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("Type_Damage").IsEqualTo(shieldSize).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1)))))));
 
             if (itemList.Count != 0)
             {
@@ -787,11 +804,13 @@ namespace DOL.GS.Scripts
 
             int eqRealm = GetEquipmentRealm(player);
 
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)armorType).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1)))));
+            string cacheKey = $"armor:{eqRealm}:{armorType}:{min}:{max}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)armorType).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1))))));
 
             if (itemList.Count != 0)
             {
@@ -828,12 +847,14 @@ namespace DOL.GS.Scripts
 
             IList<DbItemTemplate> itemList;
             int eqRealm = GetEquipmentRealm(player);
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)weapType).And(
-                                                                       DB.Column("DPS_AF").IsEqualTo((int)instrumentType).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1))))));
+            string cacheKey = $"instrument:{eqRealm}:{weapType}:{min}:{max}:{instrumentType}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)weapType).And(
+                                                                   DB.Column("DPS_AF").IsEqualTo((int)instrumentType).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1)))))));
 
             if (itemList.Count != 0)
             {
@@ -862,20 +883,19 @@ namespace DOL.GS.Scripts
 
             int eqRealm = GetEquipmentRealm(player);
 
-            itemList = GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
-                                                                       DB.Column("Level").IsLessOrEqualTo(max).And(
-                                                                       DB.Column("Object_Type").IsEqualTo((int)eObjectType.Magical).And(
-                                                                       DB.Column("Realm").IsEqualTo(eqRealm)).And(
-                                                                       DB.Column("IsPickable").IsEqualTo(1)))));
+            string cacheKey = $"jewelry:{eqRealm}:{min}:{max}";
+            itemList = GetCachedTemplates(cacheKey, () =>
+                GameServer.Database.SelectObjects<DbItemTemplate>(DB.Column("Level").IsGreaterOrEqualTo(min).And(
+                                                                   DB.Column("Level").IsLessOrEqualTo(max).And(
+                                                                   DB.Column("Object_Type").IsEqualTo((int)eObjectType.Magical).And(
+                                                                   DB.Column("Realm").IsEqualTo(eqRealm)).And(
+                                                                   DB.Column("IsPickable").IsEqualTo(1))))));
             if (itemList.Count != 0)
             {
                 foreach (DbItemTemplate template in itemList)
                 {
                     if (template.Item_Type == Slot.CLOAK)
-                    {
-                        template.Color = Util.Random((Enum.GetValues(typeof(eColor)).Length));
                         cloakList.Add(template);
-                    }
                     else if (template.Item_Type == Slot.JEWELRY)
                         jewelryList.Add(template);
                     else if (template.Item_Type == Slot.LEFTRING || template.Item_Type == Slot.RIGHTRING)
@@ -901,7 +921,8 @@ namespace DOL.GS.Scripts
                     if (list.Count != 0)
                     {
                         DbItemTemplate itemTemplate = list[Util.Random(list.Count - 1)];
-                        AddItem(player, itemTemplate);
+                        int? itemColor = list == cloakList ? Util.Random((Enum.GetValues(typeof(eColor)).Length)) : null;
+                        AddItem(player, itemTemplate, itemColor: itemColor);
                     }
                 }
 
@@ -924,16 +945,16 @@ namespace DOL.GS.Scripts
                 // Not sure this is needed what were you thinking past self?
                 if (player.Inventory.GetItem(eInventorySlot.Cloak) == null)
                 {
-                    DbItemTemplate cloak = GameServer.Database.FindObjectByKey<DbItemTemplate>("cloak");
-                    cloak.Color = Util.Random((Enum.GetValues(typeof(eColor)).Length));
-                    AddItem(player, cloak);
+                    DbItemTemplate cloak = _cloakTemplate.Value;
+                    int cloakColor = Util.Random((Enum.GetValues(typeof(eColor)).Length));
+                    AddItem(player, cloak, itemColor: cloakColor);
                 }
             }
             else
                 log.Info("No jewelry of any kind found for " + player.Name);
         }
 
-        private static void AddItem(IGamePlayer player, DbItemTemplate itemTemplate, eHand hand = eHand.None)
+        private static void AddItem(IGamePlayer player, DbItemTemplate itemTemplate, eHand hand = eHand.None, int? itemColor = null)
         {
             if (itemTemplate == null)
                 log.Info("itemTemplate in AddItem is null");
@@ -942,6 +963,9 @@ namespace DOL.GS.Scripts
 
             if (item != null)
             {
+                if (itemColor.HasValue)
+                    item.Color = itemColor.Value;
+
                 if (item.Item_Type == Slot.LEFTRING || item.Item_Type == Slot.RIGHTRING)
                 {
                     player.Inventory.AddItem(player.Inventory.FindFirstEmptySlot(eInventorySlot.LeftRing, eInventorySlot.RightRing), item);

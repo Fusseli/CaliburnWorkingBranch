@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using DOL.GS.Scripts;
 using ECS.Debug;
 using log4net;
 
@@ -66,7 +67,7 @@ namespace DOL.GS
                     timer.Tick();
                     long stopTick = GameLoop.GetCurrentTime();
                     //TODO: See if the spawning time can be reduced.
-                    if (stopTick - startTick > 25 && timer.Owner?.Name != "Mimic Spawner")
+                    if (stopTick - startTick > 25 && timer.Owner?.Name != "Mimic Spawner" && timer.Owner is not IMimicSpawnerPersistent)
                         log.Warn($"Long {SERVICE_NAME}.{nameof(Tick)} for Timer Callback: {timer.Callback?.Method?.DeclaringType}:{timer.Callback?.Method?.Name}  Owner: {timer.Owner?.Name} Time: {stopTick - startTick}ms");
                 }
             }

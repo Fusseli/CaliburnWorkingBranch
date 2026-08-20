@@ -44,6 +44,10 @@ namespace DOL.GS.Atlantis
         public static int MinRespawn = 3;
         public static int MaxRespawn = 5;
 
+        //Minimum/Maximum time until a new ruby is revealed after the previous one was resolved ( in minutes )
+        public static int MinRubyRespawn = 15;
+        public static int MaxRubyRespawn = 25;
+
         //HammerheadSharks Array
         public int[,] HammerheadSharksArray = {
 			{343004,643214,4817},
@@ -70,6 +74,7 @@ namespace DOL.GS.Atlantis
         //Ruby state
         public bool RubyActive = false;
         public GameStaticItem RubyItem = null;
+        public long NextRubyTime = 0;
 
         //Override
         public override void SaveIntoDatabase()
@@ -203,6 +208,8 @@ namespace DOL.GS.Atlantis
         {
             if (debug == true) log.Warn("Master Level - 1.8 - EndEncounter.");
             RubyActive = false;
+            if (NextRubyTime == 0)
+                NextRubyTime = GameLoop.GameLoopTime + Util.Random(MinRubyRespawn, MaxRubyRespawn) * 60 * 1000;
             foreach (HammerheadShark mob in HammerheadSharksList)
             {
                 mob.Rubis = false;
@@ -240,7 +247,7 @@ namespace DOL.GS.Atlantis
             }
 
             //Reveal ruby on the seafloor
-            if (!RubyActive)
+            if (!RubyActive && GameLoop.GameLoopTime >= NextRubyTime)
             {
                 RubyItem = new GameStaticItem();
                 RubyItem.CurrentRegion = this.CurrentRegion;
@@ -252,6 +259,7 @@ namespace DOL.GS.Atlantis
                 RubyItem.Z = this.Z;
                 RubyItem.AddToWorld();
                 RubyActive = true;
+                NextRubyTime = 0;
                 foreach (GamePlayer player in GetPlayersInRadius(2000))
                 {
                     player.Out.SendMessage("A ruby is revealed on the seafloor!", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
