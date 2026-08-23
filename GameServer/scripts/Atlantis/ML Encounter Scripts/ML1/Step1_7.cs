@@ -47,6 +47,12 @@ namespace DOL.GS.Atlantis
         public static int MaxRepop = 30; //Maximum Repop Time for Rassa (minutes)
         public static int DepopTime = 10; //Depop Time
 
+        //Range around the controller in which living players are counted to scale the required pads ( in units )
+        public const int RequiredPlayerRange = 2000;
+
+        //Aggro Range of the wave statues
+        public static int StatueAggroRange = 600;
+
         //Launched - Step
         public bool Launched = true;
         public bool NamedAvailable = true;
@@ -162,281 +168,293 @@ namespace DOL.GS.Atlantis
                 }
                 else if (Step == 1)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave1List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave1List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(2);
                             Step = 2;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 2)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave2List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave2List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(3);
                             Step = 3;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 3)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave3List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave3List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(4);
                             Step = 4;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 4)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave4List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave4List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(5);
                             Step = 5;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 5)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave5List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave5List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(6);
                             Step = 6;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 6)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave6List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave6List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(7);
                             Step = 7;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 7)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave7List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave7List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(8);
                             Step = 8;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 8)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave8List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave8List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(9);
                             Step = 9;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 9)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave9List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave9List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(10);
                             Step = 10;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 10)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave10List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave10List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(11);
                             Step = 11;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 11)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave11List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave11List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             SpawnAWave(12);
                             Step = 12;
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
                 else if (Step == 12)
                 {
-                    if (CheckStones() == true)
+                    //During a wave the pads may be left freely - they matter again once the wave is cleared
+                    bool WaveDead = true;
+                    foreach (StatuePop Statue in Wave12List)
                     {
-                        bool Next = true;
-                        foreach (StatuePop Statue in Wave12List)
+                        if (Statue.IsAlive == true)
                         {
-                            if (Statue.IsAlive == true)
-                            {
-                                Next = false;
-                            }
+                            WaveDead = false;
                         }
-                        if (Next == true)
+                    }
+                    if (WaveDead == true)
+                    {
+                        if (CheckStones() == true)
                         {
                             if (NamedAvailable == true)
                             {
@@ -450,11 +468,11 @@ namespace DOL.GS.Atlantis
                                 Step = 0;
                             }
                         }
-                    }
-                    else
-                    {
-                        DespawnAllStatues();
-                        Step = 0;
+                        else
+                        {
+                            DespawnAllStatues();
+                            Step = 0;
+                        }
                     }
                 }
 
@@ -476,7 +494,16 @@ namespace DOL.GS.Atlantis
             {
                 if (stone.PlayerOnMe == true) ActivatedStones = ActivatedStones + 1;
             }
-            if (ActivatedStones > 4)
+
+            //Scale the required pads to the players present so the encounter works for small groups and solo play
+            int PlayersNearby = 0;
+            foreach (GamePlayer player in GetPlayersInRadius(RequiredPlayerRange))
+            {
+                if (player.IsAlive == true) PlayersNearby = PlayersNearby + 1;
+            }
+            int RequiredPads = Math.Min(5, Math.Max(1, PlayersNearby));
+
+            if (ActivatedStones >= RequiredPads)
             {
                 return true;
             }
@@ -623,7 +650,7 @@ namespace DOL.GS.Atlantis
             }
             StandardMobBrain brain = new StandardMobBrain();
             brain.AggroLevel = 100;
-            brain.AggroRange = 200;
+            brain.AggroRange = StatueAggroRange;
             Statue.SetOwnBrain(brain);
             Statue.AddToWorld();
         }

@@ -2760,6 +2760,18 @@ namespace DOL.GS.ServerProperties
 		[ServerProperty("atlas_rog", "rog_use_weighted_generation", "toggle weighted rolls vs. simple generation", false)]
 		public static bool ROG_USE_WEIGHTED_GENERATION;
 
+		[ServerProperty("atlas_rog", "rog_max_utility_cap", "absolute maximum utility a regular generated item can reach", 140)]
+		public static int ROG_MAX_UTILITY_CAP;
+
+		[ServerProperty("atlas_rog", "rog_jackpot_chance", "chance for a jackpot roll - high utility trophy item regardless of mob level (in %)", 1)]
+		public static int ROG_JACKPOT_CHANCE;
+
+		[ServerProperty("atlas_rog", "rog_jackpot_utility", "utility of a jackpot item", 115)]
+		public static int ROG_JACKPOT_UTILITY;
+
+		[ServerProperty("atlas_rog", "rog_jackpot_min_level", "minimum mob level that can roll jackpots", 65)]
+		public static int ROG_JACKPOT_MIN_LEVEL;
+
 		#endregion
 
 		#region CONTROLS_AUTOMATION

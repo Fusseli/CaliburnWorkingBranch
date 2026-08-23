@@ -48,6 +48,16 @@ namespace DOL.GS.Atlantis
         public static int MinRubyRespawn = 15;
         public static int MaxRubyRespawn = 25;
 
+        //Bleed attack / feeding frenzy
+        public const int BleedChance = 15;              //Chance per shark hit to start a bleed on the player ( percent )
+        public const int BleedTickInterval = 3 * 1000;  //Time between bleed ticks
+        public const int BleedTicks = 5;                //Number of bleed ticks
+        public const int BleedDamagePerTick = 40;       //Damage per bleed tick
+        public const int FrenzyRadius = 1500;           //Sharks within this range of the victim join the frenzy
+        public const string BleedingProperty = "Ml18_Bleeding";
+        public const string BleedTicksProperty = "Ml18_BleedTicks";
+        public const string BleedSourceProperty = "Ml18_BleedSource";
+
         //HammerheadSharks Array
         public int[,] HammerheadSharksArray = {
 			{343004,643214,4817},
@@ -362,6 +372,102 @@ namespace DOL.GS.Atlantis
             }
         }
 
+        //Feeding frenzy - all sharks nearby converge on the bleeding victim
+        public void FrenzyOn(GamePlayer victim)
+        {
+            foreach (HammerheadShark mob in HammerheadSharksList)
+            {
+                if (!mob.IsAlive || !mob.IsWithinRadius(victim, FrenzyRadius))
+                    continue;
+                if (mob.Brain is StandardMobBrain brain)
+                    brain.AddToAggroList(victim, 60);
+            }
+            if (AzureShark != null && AzureShark.IsAlive && AzureShark.IsWithinRadius(victim, FrenzyRadius))
+            {
+                if (AzureShark.Brain is StandardMobBrain azureBrain)
+                    azureBrain.AddToAggroList(victim, 60);
+            }
+        }
+
+        //Applies a bleed to a player hit by a shark and triggers the feeding frenzy
+        public static void TryApplyBleed(GameNPC shark, AttackData ad)
+        {
+            if (ad == null || ad.Target is not GamePlayer player || !player.IsAlive)
+                return;
+
+            //Already bleeding - no stacking
+            if (player.TempProperties.GetProperty<bool>(BleedingProperty, false))
+                return;
+
+            player.TempProperties.SetProperty(BleedingProperty, true);
+            player.TempProperties.SetProperty(BleedTicksProperty, BleedTicks);
+            player.TempProperties.SetProperty(BleedSourceProperty, shark);
+
+            player.Out.SendMessage("The shark's bite leaves you bleeding !", eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+            foreach (GamePlayer p in player.GetPlayersInRadius(WorldMgr.SAY_DISTANCE))
+            {
+                if (p != null && p != player)
+                    p.Out.SendMessage(player.Name + " is bleeding from the shark's bite !", eChatType.CT_Broadcast, eChatLoc.CL_ChatWindow);
+            }
+
+            HammerheadController parent = null;
+            switch (shark)
+            {
+                case HammerheadShark hammerhead:
+                    parent = hammerhead.Parent;
+                    break;
+                case AzureShark azure:
+                    parent = azure.Parent;
+                    break;
+            }
+            parent?.FrenzyOn(player);
+
+            new ECSGameTimer(player, new ECSGameTimer.ECSTimerCallback(BleedTick), BleedTickInterval);
+        }
+
+        //Applies one bleed damage tick - the timer is owned by the victim so it survives the death of the biting shark
+        public static int BleedTick(ECSGameTimer timer)
+        {
+            GamePlayer player = timer.Owner as GamePlayer;
+            if (player == null || player.ObjectState != GameObject.eObjectState.Active || !player.IsAlive)
+            {
+                ClearBleed(player);
+                return 0;
+            }
+
+            GameObject source = player.TempProperties.GetProperty<GameObject>(BleedSourceProperty, null);
+            int ticksLeft = player.TempProperties.GetProperty<int>(BleedTicksProperty, 0);
+
+            if (ticksLeft <= 0)
+            {
+                ClearBleed(player);
+                return 0;
+            }
+
+            ticksLeft--;
+            player.TempProperties.SetProperty(BleedTicksProperty, ticksLeft);
+
+            player.Out.SendMessage("You are bleeding !", eChatType.CT_Damaged, eChatLoc.CL_SystemWindow);
+            player.TakeDamage(source ?? (GameObject)player, eDamageType.Body, BleedDamagePerTick, 0);
+
+            if (ticksLeft <= 0)
+            {
+                ClearBleed(player);
+                player.Out.SendMessage("The bleeding stops.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return 0;
+            }
+
+            return BleedTickInterval;
+        }
+
+        public static void ClearBleed(GamePlayer player)
+        {
+            if (player == null)
+                return;
+            player.TempProperties.SetProperty(BleedingProperty, false);
+            player.TempProperties.SetProperty(BleedTicksProperty, 0);
+        }
+
         //Load Event
         [ScriptLoadedEvent]
         public static void ScriptLoaded(DOLEvent e, object sender, EventArgs args)
@@ -514,6 +620,16 @@ namespace DOL.GS.Atlantis
             new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
             return 0;
         }
+
+        //Bleed attack / feeding frenzy
+        public override void OnAttackEnemy(AttackData ad)
+        {
+            base.OnAttackEnemy(ad);
+
+            if (Util.Chance(HammerheadController.BleedChance))
+                HammerheadController.TryApplyBleed(this, ad);
+        }
+
         public override void Die(GameObject killer)
         {
             if (Rubis == true)
@@ -565,6 +681,15 @@ namespace DOL.GS.Atlantis
             }
             new ECSGameTimer(this, new ECSGameTimer.ECSTimerCallback(RubyGlowTick), 3 * 1000);
             return 0;
+        }
+
+        //Bleed attack / feeding frenzy
+        public override void OnAttackEnemy(AttackData ad)
+        {
+            base.OnAttackEnemy(ad);
+
+            if (Util.Chance(HammerheadController.BleedChance))
+                HammerheadController.TryApplyBleed(this, ad);
         }
         public override void Die(GameObject killer)
         {

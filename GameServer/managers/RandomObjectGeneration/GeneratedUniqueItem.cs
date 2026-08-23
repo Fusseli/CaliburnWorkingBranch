@@ -59,23 +59,23 @@ namespace DOL.GS
 
         #region Constructor Randomized
 
-        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, int minUtility = 15)
-            : this(realm, charClass, level, GenerateObjectType(realm, charClass, level), minUtility)
+        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, int minUtility = 15, int utilityCap = 0)
+            : this(realm, charClass, level, GenerateObjectType(realm, charClass, level), minUtility, utilityCap)
         {
         }
 
-        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, int minUtility = 15)
-            : this(realm, charClass, level, type, GenerateItemType(type), minUtility)
+        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, int minUtility = 15, int utilityCap = 0)
+            : this(realm, charClass, level, type, GenerateItemType(type), minUtility, utilityCap)
         {
         }
 
-        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, int minUtility = 15)
-            : this(realm, charClass, level, type, slot, GenerateDamageType(type, charClass), minUtility)
+        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, int minUtility = 15, int utilityCap = 0)
+            : this(realm, charClass, level, type, slot, GenerateDamageType(type, charClass), minUtility, utilityCap)
         {
         }
 
-        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, eDamageType dmg, int minUtility = 15)
-            : this(Util.Random(100) < Properties.ROG_TOA_ITEM_CHANCE, realm, charClass, level, type, slot, dmg, minUtility)
+        public GeneratedUniqueItem(eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, eDamageType dmg, int minUtility = 15, int utilityCap = 0)
+            : this(Util.Random(100) < Properties.ROG_TOA_ITEM_CHANCE, realm, charClass, level, type, slot, dmg, minUtility, eInstrumentType.None, utilityCap)
         {
         }
 
@@ -104,7 +104,7 @@ namespace DOL.GS
         {
         }
 
-        public GeneratedUniqueItem(bool toa, eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, eDamageType dmg, int utilityMinimum = 15, eInstrumentType instrumentType = eInstrumentType.None)
+        public GeneratedUniqueItem(bool toa, eRealm realm, eCharacterClass charClass, byte level, eObjectType type, eInventorySlot slot, eDamageType dmg, int utilityMinimum = 15, eInstrumentType instrumentType = eInstrumentType.None, int utilityCap = 0)
             : base()
         {
             this.Realm = (int)realm;
@@ -134,7 +134,7 @@ namespace DOL.GS
             this.IsDropable = true;
             this.IsPickable = true;
             this.IsTradable = true;
-            this.CapUtility(this.Level, utilityMinimum);
+            this.CapUtility(this.Level, utilityMinimum, utilityCap);
 
             if (this.Level > 51)
             {
@@ -5098,89 +5098,67 @@ namespace DOL.GS
 
         #endregion check valid stat
 
-        private void CapUtility(int mobLevel, int utilityMinimum)
+        private void CapUtility(int mobLevel, int utilityMinimum, int capOverride = 0)
         {
             int cap = 0;
             if (utilityMinimum < 1) utilityMinimum = 1;
 
-            cap = mobLevel + (Util.Random(1, 15));
-            if (cap > 140) cap = 140;
+            //Script override - guaranteed tier loot ( e.g. Cetus treasure chests )
+            //no jackpot roll, no randomize downscale, no proc penalty
+            if (capOverride > 0)
+            {
+                cap = capOverride;
+            }
+            //Jackpot - rare chance for a high utility trophy item from higher level mobs
+            //no level limit, no randomize downscale, no proc penalty
+            else if (mobLevel >= Properties.ROG_JACKPOT_MIN_LEVEL
+                && Properties.ROG_JACKPOT_CHANCE > 0
+                && Util.Chance(Properties.ROG_JACKPOT_CHANCE))
+            {
+                cap = Properties.ROG_JACKPOT_UTILITY > 0 ? Properties.ROG_JACKPOT_UTILITY : 115;
+            }
+            else
+            {
+                int maxCap = Properties.ROG_MAX_UTILITY_CAP > 0 ? Properties.ROG_MAX_UTILITY_CAP : 140;
+                cap = mobLevel + (Util.Random(1, 15));
+                if (cap > maxCap) cap = maxCap;
 
-            //randomize cap to be 80-105% of normal value
-            double random = (80 + Util.Random(25)) / 100.0;
-            cap = (int)Math.Floor(cap * random);
+                //randomize cap to be 80-105% of normal value
+                double random = (80 + Util.Random(25)) / 100.0;
+                cap = (int)Math.Floor(cap * random);
 
-            if (cap < 15)
-                cap = 15; //all items can gen with up to 15 uti
+                if (cap < 15)
+                    cap = 15; //all items can gen with up to 15 uti
 
-            if (this.ProcSpellID != 0 || this.ProcSpellID1 != 0)
-                cap = (int)Math.Floor(cap * .7); //proc items generate with lower utility
+                if (this.ProcSpellID != 0 || this.ProcSpellID1 != 0)
+                    cap = (int)Math.Floor(cap * .7); //proc items generate with lower utility
+            }
 
             //Console.WriteLine($"Cap: {cap} floor {utilityMinimum} startUti: {startUti}");
-            //bring uti up to floor first
+            //bring uti up to floor first - every line is raised each round,
+            //so a single non-increasable line can never stall the progress
             if (GetTotalUtility() < utilityMinimum)
             {
-                int worstline = 1;
-                int numAttempts = 0;
-                int utiScaleAttempts = 25;
-                while (GetTotalUtility() < utilityMinimum && numAttempts < utiScaleAttempts)
+                int guardRounds = utilityMinimum * 4 + 25;
+                bool progress = true;
+                while (GetTotalUtility() < utilityMinimum && guardRounds-- > 0 && progress)
                 {
-                    //find highest utility line on the item
-                    worstline = GetLowestUtilitySingleLine();
-                    //Console.WriteLine($"TotalUti: {GetTotalUtility()} worstline {worstline} ");
-                    numAttempts++;
+                    double before = GetTotalUtility();
 
-                    //lower the value of it by
-                    //1-5% for resist
-                    //1-15 for stat
-                    //1-3 for skill
-                    switch (worstline)
-                    {
-                        case 1:
-                        Bonus1 = IncreaseSingleLineUtility(Bonus1Type, Bonus1);
-                        break;
+                    Bonus1 = IncreaseSingleLineUtility(Bonus1Type, Bonus1);
+                    Bonus2 = IncreaseSingleLineUtility(Bonus2Type, Bonus2);
+                    Bonus3 = IncreaseSingleLineUtility(Bonus3Type, Bonus3);
+                    Bonus4 = IncreaseSingleLineUtility(Bonus4Type, Bonus4);
+                    Bonus5 = IncreaseSingleLineUtility(Bonus5Type, Bonus5);
+                    Bonus6 = IncreaseSingleLineUtility(Bonus6Type, Bonus6);
+                    Bonus7 = IncreaseSingleLineUtility(Bonus7Type, Bonus7);
+                    Bonus8 = IncreaseSingleLineUtility(Bonus8Type, Bonus8);
+                    Bonus9 = IncreaseSingleLineUtility(Bonus9Type, Bonus9);
+                    Bonus10 = IncreaseSingleLineUtility(Bonus10Type, Bonus10);
+                    ExtraBonus = IncreaseSingleLineUtility(ExtraBonusType, ExtraBonus);
 
-                        case 2:
-                        Bonus2 = IncreaseSingleLineUtility(Bonus2Type, Bonus2);
-                        break;
-
-                        case 3:
-                        Bonus3 = IncreaseSingleLineUtility(Bonus3Type, Bonus3);
-                        break;
-
-                        case 4:
-                        Bonus4 = IncreaseSingleLineUtility(Bonus4Type, Bonus4);
-                        break;
-
-                        case 5:
-                        Bonus5 = IncreaseSingleLineUtility(Bonus5Type, Bonus5);
-                        break;
-
-                        case 6:
-                        Bonus6 = IncreaseSingleLineUtility(Bonus6Type, Bonus6);
-                        break;
-
-                        case 7:
-                        Bonus7 = IncreaseSingleLineUtility(Bonus7Type, Bonus7);
-                        break;
-
-                        case 8:
-                        Bonus8 = IncreaseSingleLineUtility(Bonus8Type, Bonus8);
-                        break;
-
-                        case 9:
-                        Bonus9 = IncreaseSingleLineUtility(Bonus9Type, Bonus9);
-                        break;
-
-                        case 10:
-                        Bonus10 = IncreaseSingleLineUtility(Bonus10Type, Bonus10);
-                        break;
-
-                        case 11:
-                        ExtraBonus = IncreaseSingleLineUtility(ExtraBonusType, ExtraBonus);
-                        break;
-                    }
-                    //then recalculate
+                    double gained = GetTotalUtility() - before;
+                    progress = Math.Abs(gained) > 0.0001; //stop only on total freeze
                 }
             }
 
@@ -5329,8 +5307,14 @@ namespace DOL.GS
 
         public int GetLowestUtilitySingleLine()
         {
-            double lowestUti = GetSingleUtility(Bonus1Type, Bonus1);
-            int lowestLine = lowestUti > 0 ? 1 : 0; //if line1 had a bonus, set it as highest line, otherwise default to 0
+            double lowestUti = double.MaxValue;
+            int lowestLine = 0;
+
+            if (IsValidUpscaleType(Bonus1Type))
+            {
+                lowestUti = GetSingleUtility(Bonus1Type, Bonus1);
+                lowestLine = 1;
+            }
 
             if (GetSingleUtility(Bonus2Type, Bonus2) < lowestUti && IsValidUpscaleType(Bonus2Type))
             {
@@ -5359,7 +5343,7 @@ namespace DOL.GS
             if (GetSingleUtility(Bonus6Type, Bonus6) < lowestUti && IsValidUpscaleType(Bonus6Type))
             {
                 lowestUti = GetSingleUtility(Bonus6Type, Bonus6);
-                lowestLine = 2;
+                lowestLine = 6;
             }
 
             if (GetSingleUtility(Bonus7Type, Bonus7) < lowestUti && IsValidUpscaleType(Bonus7Type))
@@ -5388,6 +5372,7 @@ namespace DOL.GS
 
             if (GetSingleUtility(ExtraBonusType, ExtraBonus) < lowestUti && IsValidUpscaleType(ExtraBonusType))
             {
+                lowestUti = GetSingleUtility(ExtraBonusType, ExtraBonus);
                 lowestLine = 11;
             }
 
@@ -5522,6 +5507,12 @@ namespace DOL.GS
                          || BonusType == 213)
                 {
                     itemBonus = 0; //no +all skills on rogs
+                }
+                else
+                {
+                    //generic fallback - every other valid type gains at least something
+                    //(prevents the floor raise loop from stalling on unknown types)
+                    itemBonus = itemBonus + 1;
                 }
             }
             //Console.WriteLine($"Total bonus after: {Bonus}");
