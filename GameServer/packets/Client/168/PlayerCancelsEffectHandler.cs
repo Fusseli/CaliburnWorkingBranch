@@ -111,7 +111,54 @@ namespace DOL.GS.PacketHandler.Client.v168
 				ECSGameEffect effect = effectListComponent.TryGetEffectFromEffectId(m_effectId);
 
 				if (effect != null)
+				{
 					EffectService.RequestImmediateCancelEffect(effect, true);
+					return 0;
+				}
+
+				// Fallback: legacy effects (Warlock chambers/primers) live in the old list
+				// and never appear in the ECS component. On 1.110+ clients the merged
+				// UpdateIcons (PacketLib1110) writes Spell.InternalID as delveId, so the
+				// cancel packet may carry InternalID OR SpellID. Check both.
+				IGameEffect legacy = null;
+				lock (player.EffectList)
+				{
+					foreach (IGameEffect fx in player.EffectList)
+					{
+						if (fx.InternalID == m_effectId)
+						{
+							legacy = fx;
+							break;
+						}
+						if (fx is GameSpellEffect lgse && lgse.Spell != null)
+						{
+							// PacketLib1110 merged rendering writes Spell.InternalID as the 6th short
+							if (lgse.Spell.InternalID == m_effectId || lgse.Spell.Icon == m_effectId || lgse.Spell.ID == m_effectId)
+							{
+								legacy = fx;
+								break;
+							}
+						}
+					}
+				}
+
+				if (legacy is GameSpellEffect gse)
+				{
+					// Allow player to remove any positive chamber/primer immediately, live-like.
+					// Use Cancel(false) to bypass HasPositiveEffect block.
+					DOL.GS.Spells.WarlockUtil.CancelAndRemove(gse);
+					// Refresh the floating balls for this warlock
+					if (gse.SpellHandler?.Spell.SpellType == eSpellType.Chamber
+					    || gse.SpellHandler is DOL.GS.Spells.ChamberSpellHandler)
+					{
+						player.Out.SendWarlockChamberEffect(player);
+					}
+				}
+				else if (legacy != null)
+				{
+					legacy.Cancel(false);
+					player.EffectList.Remove(legacy);
+				}
 
 				return 0;
 			}

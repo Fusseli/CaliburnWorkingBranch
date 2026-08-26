@@ -681,13 +681,9 @@ namespace DOL.GS.PacketHandler
 
 			if (playerToCreate.CharacterClass.ID == (int) eCharacterClass.Warlock)
 			{
-				/*
-				ChamberEffect ce = (ChamberEffect)playerToCreate.EffectList.GetOfType(typeof(ChamberEffect));
-				if (ce != null)
-				{
-					ce.SendChamber(m_gameClient.Player);
-				}
-				 */
+				// Ensure a newly streamed-in client sees the warlock's floating chambers.
+				// The chamber visual is broadcast, so this also covers the observer.
+				playerToCreate.Out.SendWarlockChamberEffect(playerToCreate);
 			}
 
 			//if (GameServer.ServerRules.GetColorHandling(m_gameClient) == 1) // PvP

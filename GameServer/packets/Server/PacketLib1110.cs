@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using DOL.GS.Effects;
 using DOL.GS.PacketHandler.Client.v168;
 using DOL.GS.RealmAbilities;
 using DOL.GS.Spells;
@@ -137,6 +138,48 @@ namespace DOL.GS.PacketHandler
 
 					pak.WritePascalString(effect.Name);
 					entriesCount++;
+				}
+
+				// Legacy 'GameSpellEffect's (i.e. Warlock chambers and primers) are not part of the
+				// ECS effect list but must be rendered as well. Indexing continues from the loop
+				// above so both lists combine into one consistent icon bar.
+				lock (m_gameClient.Player.EffectList)
+				{
+					foreach (IGameEffect fx in m_gameClient.Player.EffectList)
+					{
+						if (fx is not GameSpellEffect legacyEffect || legacyEffect.Icon == 0)
+							continue;
+
+						fxcount++;
+
+						if (changedEffects != null && !changedEffects.Contains(legacyEffect))
+							continue;
+
+						pak.WriteByte((byte)(fxcount - 1)); // icon index
+						pak.WriteByte((byte)(fxcount - 1)); // spell-based icon source
+
+						byte immunByte = legacyEffect.IsDisabled ? (byte)1 : (byte)0;
+						pak.WriteByte(immunByte); // if non zero says "protected by" on right click
+
+						pak.WriteShort(legacyEffect.Icon);
+						pak.WriteShort((ushort)(legacyEffect.RemainingTime / 1000));
+
+						ushort delveId = 0;
+
+						if (legacyEffect.SpellHandler?.Spell != null)
+							delveId = (ushort)legacyEffect.SpellHandler.Spell.InternalID;
+
+						pak.WriteShort(delveId); // spell ID for delve info in active icon
+
+						byte flagNegativeEffect = 0;
+
+						if (legacyEffect.SpellHandler is { HasPositiveEffect: false })
+							flagNegativeEffect = 1;
+
+						pak.WriteByte(flagNegativeEffect);
+						pak.WritePascalString(legacyEffect.Name);
+						entriesCount++;
+					}
 				}
 
 				int oldCount = lastUpdateEffectsCount;

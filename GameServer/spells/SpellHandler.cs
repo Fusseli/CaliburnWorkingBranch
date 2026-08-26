@@ -1902,9 +1902,9 @@ namespace DOL.GS.Spells
 				if (effect == null)
 					effect = SpellHandler.FindEffectOnTarget(m_caster, "Uninterruptable");
 
-				//if we found an effect, cancel it!
+				//if we found an effect, cancel it! ('Cancel' alone doesn't remove it from the list.)
 				if (effect != null)
-					effect.Cancel(false);
+					WarlockUtil.CancelAndRemove(effect);
 			}
 
 			//the quick cast is unallowed whenever you miss the spell

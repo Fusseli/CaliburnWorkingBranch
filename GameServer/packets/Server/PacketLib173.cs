@@ -66,28 +66,50 @@ namespace DOL.GS.PacketHandler
 						}
 						else
 						{
-							ChamberSpellHandler chamber = (ChamberSpellHandler)effect.SpellHandler;
-							if (chamber.PrimarySpell != null && chamber.SecondarySpell == null)
+						ChamberSpellHandler chamber = (ChamberSpellHandler)effect.SpellHandler;
+						if (chamber.PrimarySpell != null && chamber.SecondarySpell == null)
+						{
+							pak.WriteByte((byte)3);
+						}
+						else if (chamber.PrimarySpell != null && chamber.SecondarySpell != null)
+						{
+							// The client renders a different glyph/color per value. Every loaded
+							// chamber MUST write exactly one byte, otherwise all following slots
+							// shift and the whole packet becomes unreadable for the client.
+							switch (chamber.SecondarySpell.SpellType)
 							{
-								pak.WriteByte((byte)3);
-							}
-							else if (chamber.PrimarySpell != null && chamber.SecondarySpell != null)
-							{
-								if (chamber.SecondarySpell.SpellType == eSpellType.Lifedrain)
+								case eSpellType.Lifedrain:
 									pak.WriteByte(0x11);
-								else if (chamber.SecondarySpell.SpellType.ToString().IndexOf("SpeedDecrease") != -1)
-									pak.WriteByte(0x33);
-								else if (chamber.SecondarySpell.SpellType == eSpellType.PowerRegenBuff)
-									pak.WriteByte(0x77);
-								else if (chamber.SecondarySpell.SpellType == eSpellType.DirectDamage)
-									pak.WriteByte(0x66);
-								else if (chamber.SecondarySpell.SpellType == eSpellType.SpreadHeal)
-									pak.WriteByte(0x55);
-								else if (chamber.SecondarySpell.SpellType == eSpellType.Nearsight)
-									pak.WriteByte(0x44);
-								else if (chamber.SecondarySpell.SpellType == eSpellType.DamageOverTime)
+									break;
+								case eSpellType.DamageOverTime:
 									pak.WriteByte(0x22);
+									break;
+								case eSpellType.WarlockSpeedDecrease:
+								case eSpellType.SpeedDecrease:
+								case eSpellType.UnbreakableSpeedDecrease:
+									pak.WriteByte(0x33);
+									break;
+								case eSpellType.Nearsight:
+									pak.WriteByte(0x44);
+									break;
+								case eSpellType.SpreadHeal:
+								case eSpellType.Heal:
+								case eSpellType.HealOverTime:
+									pak.WriteByte(0x55);
+									break;
+								case eSpellType.DirectDamage:
+								case eSpellType.Bolt:
+									pak.WriteByte(0x66);
+									break;
+								case eSpellType.PowerRegenBuff:
+								case eSpellType.HealthRegenBuff:
+									pak.WriteByte(0x77);
+									break;
+								default:
+									pak.WriteByte((byte)3); // Unmapped secondary type: generic ball.
+									break;
 							}
+						}
 						}
 					}
 				}

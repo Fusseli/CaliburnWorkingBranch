@@ -75,9 +75,11 @@ namespace DOL.GS.Spells
 			}
 		}
 
-		// Likely to be broken. It used to override 'CastSpell', but it no longer exists in 'SpellHanlder'.
-		// 'StartSpell' takes a target but we're not even using it.
-		// Can't be tested since Warlocks aren't functional.
+		/// <summary>
+		/// If a matching chamber effect already exists on the caster this fires the loaded spells
+		/// instantly (primary + optional secondary), otherwise it starts a normal cast during which
+		/// 'PlayerCastingComponent' stores clicked primary/secondary spells into this handler.
+		/// </summary>
 		public override bool StartSpell(GameLiving target)
 		{
 			GamePlayer caster = (GamePlayer)m_caster;
@@ -187,15 +189,23 @@ namespace DOL.GS.Spells
 					MessageToCaster("That target isn't attackable at this time!", eChatType.CT_System);
 					return false;
 				}
-				spellhandler.StartSpell(Target);
+				// Use Tick so both PBAE (Radius) and single-target secondaries resolve their
+				// targets correctly (Self vs Enemy, IsPBAoE). Direct dd+pbae works this way
+				// via the pending Tick path, chambers must match it.
+				spellhandler.Target = Target;
+				spellhandler.Tick();
 				#endregion
 
 				if (chamber.SecondarySpell != null)
 				{
 					spellhandler2 = ScriptMgr.CreateSpellHandler(caster, chamber.SecondarySpell, chamber.SecondarySpellLine);
-					spellhandler2.StartSpell(Target);
+					(spellhandler2 as SpellHandler).Target = Target;
+					(spellhandler2 as SpellHandler).Tick();
 				}
-				effect.Cancel(false);
+				WarlockUtil.CancelAndRemove(effect);
+				// Send the visual state after the effect is really gone from the list,
+				// otherwise the packet would still contain the fired chamber.
+				((GamePlayer)m_caster).Out.SendWarlockChamberEffect((GamePlayer)m_caster);
 
 				if (m_caster is GamePlayer)
 				{
@@ -241,6 +251,12 @@ namespace DOL.GS.Spells
 				{
 					MessageToCaster("Your " + m_spell.Name + " is ready for use.", eChatType.CT_Spell);
 					//StartSpell(target); // and action
+
+					// 'GameEffectList.Add' never overwrites, so replace any leftover instance of this chamber first.
+					GameSpellEffect existing = SpellHandler.FindEffectOnTarget(m_caster, "Chamber", m_spell.Name);
+					if (existing != null)
+						WarlockUtil.CancelAndRemove(existing);
+
 					GameSpellEffect neweffect = CreateSpellEffect(target, 1);
 					neweffect.Start(m_caster);
 					SendEffectAnimation(m_caster, 0, false, 1);
@@ -284,15 +300,19 @@ namespace DOL.GS.Spells
 		{
 			switch(spellName)
 			{
-				case "Chamber of Minor Fate":
-					return 1;
 				case "Chamber of Restraint":
+					return 1;
+				case "Chamber of Creation":
 					return 2;
 				case "Chamber of Destruction":
 					return 3;
+				case "Chamber of Lesser Fate":
+				case "Chamber of Lesser Fade":
+				case "Chamber of Minor Fate":
 				case "Chamber of Fate":
 					return 4;
 				case "Chamber of Greater Fate":
+				case "Chamber of Decimation":
 					return 5;
 			}
 
@@ -331,6 +351,10 @@ namespace DOL.GS.Spells
 		}
 		#endregion
 		// constructor
-		public ChamberSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line) {}
+		public ChamberSpellHandler(GameLiving caster, Spell spell, SpellLine line) : base(caster, spell, line)
+		{
+			// The slot must be valid for 'SendWarlockChamberEffect' to build a well-formed packet.
+			m_effectslot = GetEffectSlot(spell.Name);
+		}
 	}
 }

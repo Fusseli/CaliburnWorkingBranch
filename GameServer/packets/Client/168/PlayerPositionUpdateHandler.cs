@@ -926,12 +926,6 @@ namespace DOL.GS.PacketHandler.Client.v168
                 if (client.Player.Steed != null && client.Player.Steed.ObjectState is GameObject.eObjectState.Active)
                     client.Player.Heading = client.Player.Steed.Heading;
 
-                if ((eCharacterClass) client.Player.CharacterClass.ID is eCharacterClass.Warlock)
-                {
-                    //Send Chamber effect
-                    client.Player.Out.SendWarlockChamberEffect(client.Player);
-                }
-
                 //handle closing of windows
                 //trade window
                 if (client.Player.TradeWindow != null)

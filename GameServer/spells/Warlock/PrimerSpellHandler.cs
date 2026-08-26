@@ -48,7 +48,30 @@ namespace DOL.GS.Spells
 
 		protected override GameSpellEffect CreateSpellEffect(GameLiving target, double effectiveness)
 		{
-			return new GameSpellEffect(this, Spell.Duration, 0, effectiveness);
+			// DB Duration for primers is in seconds (10 = 10 sec), GameSpellEffect expects ms
+			int durationMs = Spell.Duration * 1000;
+			if (durationMs <= 0)
+				durationMs = 10 * 1000;
+			return new GameSpellEffect(this, durationMs, 0, effectiveness);
+		}
+
+		/// <summary>
+		/// Warlock primers bypass the ECS effect pipeline and start a legacy GameSpellEffect instead,
+		/// so the existing lookups keep working: free-cast check in 'PowerCost', primer cancellation
+		/// in 'FinishSpellCast' and the mutual exclusion checks in each primer's 'CheckBeginCast'.
+		/// </summary>
+		public override void ApplyEffectOnTarget(GameLiving target)
+		{
+			if (!target.IsAlive || target.EffectList == null)
+				return;
+
+			// Replace any leftover primer of the same type instead of stacking.
+			GameSpellEffect existing = SpellHandler.FindEffectOnTarget(target, Spell.SpellType.ToString());
+			if (existing != null)
+				WarlockUtil.CancelAndRemove(existing);
+
+			GameSpellEffect effect = CreateSpellEffect(target, CasterEffectiveness);
+			effect.Start(target);
 		}
 
 		public override void OnEffectStart(GameSpellEffect effect)
@@ -84,7 +107,7 @@ namespace DOL.GS.Spells
 				GameSpellEffect effect = SpellHandler.FindEffectOnTarget(living, this);
 				if (effect != null)
 				{
-					effect.Cancel(false);
+					WarlockUtil.CancelAndRemove(effect);
 					((GamePlayer)living).Out.SendMessage("You move and break your modification spell.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 				}
 			}

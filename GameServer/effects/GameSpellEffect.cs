@@ -359,6 +359,27 @@ namespace DOL.GS.Effects
 		/// <param name="noMessages"></param>
 		protected virtual void RemoveEffect(bool noMessages)
 		{
+			// Warlock chambers/primers still use the legacy list. The base implementation
+			// is a no-op in this codebase (most buffs are ECS now), but warlock effects
+			// must actually leave the list on expire/cancel, otherwise icons stay forever
+			// and chambers can be fired infinitely.
+			if (SpellHandler?.Spell.SpellType == eSpellType.Chamber
+			    || SpellHandler?.Spell.SpellType == eSpellType.Powerless
+			    || SpellHandler?.Spell.SpellType == eSpellType.Range
+			    || SpellHandler?.Spell.SpellType == eSpellType.Uninterruptable)
+			{
+				StopTimers();
+				lock (m_LockObject)
+				{
+					IsExpired = true;
+				}
+
+				if (Owner != null && Owner.EffectList != null)
+					Owner.EffectList.Remove(this);
+
+				return;
+			}
+
 			//lock (m_LockObject)
 			//{
 			//	StopTimers();

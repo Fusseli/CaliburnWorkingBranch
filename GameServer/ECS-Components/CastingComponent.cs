@@ -18,6 +18,22 @@ namespace DOL.GS
         public GameLiving Owner { get; }
         public SpellHandler SpellHandler { get; protected set; }
         public SpellHandler QueuedSpellHandler { get; private set; }
+
+        // Warlock: a secondary spell prepared while a primer was casting. Fired once the primer completes.
+        public Spell PendingWarlockSecondary { get; private set; }
+        public SpellLine PendingWarlockSecondaryLine { get; private set; }
+
+        public void SetPendingWarlockSecondary(Spell spell, SpellLine spellLine)
+        {
+            PendingWarlockSecondary = spell;
+            PendingWarlockSecondaryLine = spellLine;
+        }
+
+        public void ClearPendingWarlockSecondary()
+        {
+            PendingWarlockSecondary = null;
+            PendingWarlockSecondaryLine = null;
+        }
         public EntityManagerId EntityManagerId { get; set; } = new(EntityManager.EntityType.CastingComponent, false);
         public bool IsCasting => SpellHandler != null;
 
@@ -86,7 +102,7 @@ namespace DOL.GS
             return spellHandler;
         }
 
-        protected void StartCastSpell(StartCastSpellRequest startCastSpellRequest)
+        protected virtual void StartCastSpell(StartCastSpellRequest startCastSpellRequest)
         {
             SpellHandler newSpellHandler = CreateSpellHandler(startCastSpellRequest);
 
@@ -161,6 +177,7 @@ namespace DOL.GS
 
         public void ClearUpSpellHandlers()
         {
+            ClearPendingWarlockSecondary();
             SpellHandler = null;
             QueuedSpellHandler = null;
         }
@@ -176,13 +193,47 @@ namespace DOL.GS
             {
                 if (currentSpell.CastTime > 0)
                 {
-                    if (QueuedSpellHandler != null && player.SpellQueue)
+                    // Warlock: fire the secondary that was prepared during a primer cast.
+                    if (PendingWarlockSecondary != null)
+                    {
+                        Spell pendingSpell = PendingWarlockSecondary;
+                        SpellLine pendingLine = PendingWarlockSecondaryLine;
+                        ClearPendingWarlockSecondary();
+                        QueuedSpellHandler = null;
+
+                        if (ScriptMgr.CreateSpellHandler(Owner, pendingSpell, pendingLine) is SpellHandler pendingHandler)
+                        {
+                            pendingHandler.Target = Owner.TargetObject as GameLiving;
+
+                            if (pendingHandler.Spell.IsInstantCast)
+                            {
+                                // Instant spells must never claim 'SpellHandler': nothing would reset it
+                                // after the synchronous execution and every later instant spell would
+                                // execute immediately as well.
+                                SpellHandler = null;
+                                pendingHandler.Tick();
+                            }
+                            else
+                            {
+                                SpellHandler = pendingHandler;
+                                pendingHandler.Tick();
+                            }
+                        }
+                        else
+                            SpellHandler = null;
+                    }
+                    else if (QueuedSpellHandler != null && player.SpellQueue)
                     {
                         SpellHandler = QueuedSpellHandler;
                         QueuedSpellHandler = null;
                     }
                     else
                         SpellHandler = null;
+                }
+                else
+                {
+                    // A completed instant handler was assigned at some point; release it.
+                    SpellHandler = null;
                 }
             }
             else if (Owner is NecromancerPet necroPet)
