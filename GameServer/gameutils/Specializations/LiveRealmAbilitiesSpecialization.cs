@@ -57,6 +57,24 @@ namespace DOL.GS
 				
 				return list;
 			}
+
+			// PR19a: mimics spend earned ranks through the auto-buyer; surface
+			// granted RAs (plus the free RR5 at RL40) as live abilities so
+			// passives apply through the normal Activate/AbilityBonus path.
+			if (living is Scripts.MimicNPC mimic)
+			{
+				var mimicList = mimic.GetRealmAbilities().Cast<Ability>().ToList();
+
+				if (mimic.RealmLevel >= 40)
+				{
+					Ability ab = SkillBase.GetClassRR5Ability(mimic.CharacterClass.ID);
+
+					if (ab != null)
+						mimicList.Add((RealmAbilities.RealmAbility)ab);
+				}
+
+				return mimicList;
+			}
 			
 			return new List<Ability>();
 		}

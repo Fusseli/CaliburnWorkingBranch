@@ -6,6 +6,7 @@ using System.Reflection;
 using DOL.Database;
 using System.Runtime.InteropServices;
 using DOL.GS;
+using DOL.GS.ReGoap.Mimic;
 using DOL.GS.Scripts;
 using DOL.GS.ServerProperties;
 using log4net;
@@ -149,7 +150,8 @@ namespace DOL.AI.Brain
 
             _brain.AlreadyCheckedHeals = false;
 
-            _brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive);
+            if (!_brain.TryGoap(MimicDecisionContext.Support))
+                _brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive);
 
             base.Think();
         }
@@ -183,7 +185,7 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             _brain.AlreadyCheckedHeals = false;
-            if (_brain.CheckHeals())
+            if (_brain.TryGoap(MimicDecisionContext.Healing) || _brain.CheckHeals())
                 return;
 
             if (_leader == null || (_leader != null && _leader.ObjectState != GameObject.eObjectState.Active || !_brain.Body.Group.IsInTheGroup(_leader)))
@@ -222,7 +224,8 @@ namespace DOL.AI.Brain
                 if (_brain.Body.IsSitting && !_brain.CheckStats(75))
                     _brain.MimicBody.Sit(false);
 
-                if (!_brain.Body.IsSitting && !_brain.Body.IsCasting && !_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
+                if (!_brain.Body.IsSitting && !_brain.Body.IsCasting
+                    && !_brain.TryGoap(MimicDecisionContext.Support) && !_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
                     _brain.MimicBody.Sit(_brain.CheckStats(75));
             }
 
@@ -343,6 +346,9 @@ namespace DOL.AI.Brain
                 }
             }
 
+            if (_brain.TryGoap(MimicDecisionContext.Combat))
+                return;
+
             if (_brain.IsHealer)
                 _brain.CheckHeals();
             else
@@ -383,6 +389,9 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             _brain.AlreadyCheckedHeals = false;
+
+            if (_brain.TryGoap(MimicDecisionContext.Healing))
+                return;
 
             if (_brain.PreventCombat || _brain.IsHealer)
                 return;
@@ -469,7 +478,7 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             _brain.AlreadyCheckedHeals = false;
-            if (_brain.CheckHeals())
+            if (_brain.TryGoap(MimicDecisionContext.Healing) || _brain.CheckHeals())
                 return;
 
             if (!_brain.IsPulling && _brain.Body.IsDestinationValid)
@@ -479,7 +488,11 @@ namespace DOL.AI.Brain
                 _brain.CheckPuller();
 
             if (_brain.IsMainCC)
+            {
+                if (_brain.TryGoap(MimicDecisionContext.Support))
+                    return;
                 _brain.CheckMainCC();
+            }
 
             if (!_brain.IsPulling && !_brain.IsHealer)
             {
@@ -494,14 +507,15 @@ namespace DOL.AI.Brain
                     _brain.FSM.SetCurrentState(eFSMStateType.AGGRO);
                     if (leaderTarget != null)
                         _brain.AddToAggroList(leaderTarget, 1);
-                    _brain.AttackMostWanted();
+                    if (!_brain.TryGoap(MimicDecisionContext.Combat))
+                        _brain.AttackMostWanted();
                     return;
                 }
             }
 
             if (!_brain.Body.IsMoving && !_brain.Body.InCombat)
             {
-                if (!_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
+                if (!_brain.TryGoap(MimicDecisionContext.Support) && !_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
                     _brain.MimicBody.Sit(_brain.CheckStats(75));
             }
 
@@ -529,7 +543,7 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             _brain.AlreadyCheckedHeals = false;
-            if (_brain.CheckHeals())
+            if (_brain.TryGoap(MimicDecisionContext.Healing) || _brain.CheckHeals())
                 return;
 
             if (!_brain.Body.IsNearSpawn &&
@@ -582,7 +596,7 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             _brain.AlreadyCheckedHeals = false;
-            if (_brain.CheckHeals())
+            if (_brain.TryGoap(MimicDecisionContext.Healing) || _brain.CheckHeals())
                 return;
 
             if (!_brain.PreventCombat && !_brain.IsHealer)
@@ -623,15 +637,18 @@ namespace DOL.AI.Brain
         {
             _brain.AlreadyCheckedHeals = false;
 
-            if (!_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
+            if (!_brain.TryGoap(MimicDecisionContext.Support) && !_brain.CheckSpells(MimicBrain.eCheckSpellType.Defensive))
                 _brain.MimicBody.IsDuelReady = true;
+            else
+                return;
 
             if (_brain.MimicBody.DuelPartner != null && _brain.MimicBody.DuelPartner is IGamePlayer gPlayer)
             {
                 if (gPlayer.IsDuelReady)
                 {
                     _brain.CheckProximityAggro(_brain.AggroRange);
-                    _brain.AttackMostWanted();
+                    if (!_brain.TryGoap(MimicDecisionContext.Combat))
+                        _brain.AttackMostWanted();
                 }
             }
         }
@@ -652,7 +669,8 @@ namespace DOL.AI.Brain
 
         public override void Think()
         {
-            _brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
+            if (_brain.Body.IsAlive)
+                _brain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
             base.Think();
         }
     }

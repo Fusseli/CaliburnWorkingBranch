@@ -1,5 +1,7 @@
 ﻿using DOL.AI;
 using DOL.AI.Brain;
+using DOL.GS;
+using DOL.GS.RealmAbilities;
 using DOL.GS.ServerProperties;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +25,20 @@ namespace DOL.GS.Scripts
         public List<GameLiving> CCTargets = new List<GameLiving>();
 
         public int ConLevelFilter = -2;
+
+        public const string RoleTank = "tank";
+        public const string RoleAssist = "assist";
+        public const string RoleCC = "cc";
+        public const string RolePuller = "puller";
+
+        /// <summary>Roles assigned by hand (/mrole or whisper claim). Elections never touch them.</summary>
+        public readonly HashSet<string> ManualRoles = new();
+
+        public void LockRole(string role)
+        {
+            if (!string.IsNullOrEmpty(role))
+                ManualRoles.Add(role.ToLowerInvariant());
+        }
 
         public GameObject CurrentTarget
         {
@@ -118,6 +134,116 @@ namespace DOL.GS.Scripts
                 CampPoint = null;
         }
 
+        #region RoleElection
+
+        /// <summary>One member's capabilities for role election, read once from live
+        /// state. Scoring is pure logic on snapshots, so elections are unit-testable
+        /// without server singletons; only snapshot construction touches game objects.</summary>
+        public sealed class RoleCapabilities
+        {
+            public GameLiving Member;
+            public MimicBrain Brain;
+            public bool IsHealer, HealerManual, CanHeal, CanCC, CanNuke, HasGuard, HasBow;
+
+            public static RoleCapabilities Read(GameLiving m)
+            {
+                var c = new RoleCapabilities { Member = m };
+                var mn = m as MimicNPC;
+                c.Brain = mn?.MimicBrain;
+                c.IsHealer = c.Brain != null && c.Brain.IsHealer;
+                c.HealerManual = c.Brain != null && c.Brain.HealerManual;
+                c.CanHeal = mn != null && (mn.CanCastHealSpells || mn.CanCastInstantHealSpells);
+                c.CanCC = mn != null && mn.CanCastCrowdControlSpells;
+                c.CanNuke = mn != null && mn.CanCastHarmfulSpells;
+                c.HasGuard = mn != null && mn.HasAbility(Abilities.Guard);
+                c.HasBow = mn?.Inventory?.GetItem(eInventorySlot.DistanceWeapon) != null;
+                return c;
+            }
+
+            /// <summary>Guard holders first, melee over casters, healers never.</summary>
+            public int TankScore() => IsHealer ? 0 : HasGuard ? 10 : CanNuke ? 2 : 5;
+
+            /// <summary>Assist callers: nukers first, melee next, healers never.</summary>
+            public int AssistScore() => IsHealer ? 0 : CanNuke ? 6 : 5;
+
+            /// <summary>CC callers: only mez-capable bots score; ties keep the incumbent.</summary>
+            public int CcScore() => CanCC ? 10 : 0;
+
+            /// <summary>Pullers: ranged weapon required (same rule as SetMainPuller).</summary>
+            public int PullerScore() => HasBow ? 10 : 0;
+        }
+
+        /// <summary>Class-aware role defaults for bot groups. A fresh group starts with
+        /// every role on the leader; a healer-class leader would tank, pull, CC and call
+        /// targets at once. Election moves each role to the most capable bot member.
+        /// Players are never assigned or demoted, manually locked roles are skipped,
+        /// and the incumbent stays on any tie, so elections never flap. Silent on purpose:
+        /// no group spam on every join/leave.</summary>
+        public void ElectRoles(System.Collections.Generic.IEnumerable<GameLiving> members)
+            => ElectSnapshots(members
+                ?.Where(m => m is MimicNPC && m.IsAlive && m.ObjectState == GameObject.eObjectState.Active)
+                .Select(RoleCapabilities.Read).ToList()
+                ?? new System.Collections.Generic.List<RoleCapabilities>());
+
+        public void ElectSnapshots(System.Collections.Generic.List<RoleCapabilities> bots)
+        {
+            if (bots.Count == 0)
+                return;
+            ElectRole(RoleTank, c => c.TankScore(), bots, v => MainTank = v, () => MainTank);
+            ElectRole(RoleAssist, c => c.AssistScore(), bots, v => MainAssist = v, () => MainAssist);
+            ElectRole(RoleCC, c => c.CcScore(), bots, v => MainCC = v, () => MainCC);
+            ElectRole(RolePuller, c => c.PullerScore(), bots, v => MainPuller = v, () => MainPuller);
+            ElectHealers(bots);
+        }
+
+        private void ElectRole(string role, System.Func<RoleCapabilities, int> score,
+            System.Collections.Generic.List<RoleCapabilities> bots,
+            System.Action<GameLiving> assign, System.Func<GameLiving> current)
+        {
+            if (ManualRoles.Contains(role))
+                return;
+            var holder = current();
+            if (holder is GamePlayer)
+                return;
+            RoleCapabilities best = null;
+            int bestScore = int.MinValue;
+            foreach (var c in bots)
+            {
+                int s = score(c);
+                if (s > bestScore) { bestScore = s; best = c; }
+            }
+            if (best == null || best.Member == holder)
+                return;
+            var incumbent = bots.FirstOrDefault(c => c.Member == holder);
+            int holderScore = incumbent != null ? score(incumbent) : int.MinValue;
+            if (bestScore > holderScore)
+                assign(best.Member);
+        }
+
+        /// <summary>Flag heal-capable bots as healers until the group has coverage
+        /// (one per four members). Never touches manually /mheal-toggled bots,
+        /// never unflags anyone: manual choice wins by staying put.</summary>
+        private void ElectHealers(System.Collections.Generic.List<RoleCapabilities> bots)
+        {
+            int desired = System.Math.Max(1, bots.Count / 4);
+            int flagged = bots.Count(c => c.IsHealer);
+            if (flagged >= desired)
+                return;
+            foreach (var c in bots)
+            {
+                if (flagged >= desired)
+                    break;
+                if (!c.IsHealer && !c.HealerManual && c.CanHeal && c.Brain != null)
+                {
+                    c.Brain.IsHealer = true;
+                    c.IsHealer = true;
+                    flagged++;
+                }
+            }
+        }
+
+        #endregion
+
         public void SetPullPoint(Point2D point)
         {
             if (point != null)
@@ -162,7 +288,8 @@ namespace DOL.GS.Scripts
         public bool AlreadyCastingCureDisease;
         /// <summary>Is a group member already casting a cure poison spell?</summary>
         public bool AlreadyCastingCurePoison;
-
+        /// <summary>Is a group member already casting a resurrection spell? Set in CheckGroupHealth/ExecuteGoapRez.</summary>
+        public bool AlreadyCastingRez;
         private int m_healthPercent;
         private int m_diseasePercent;
         private int m_poisonPercent;
@@ -198,6 +325,7 @@ namespace DOL.GS.Scripts
                 AlreadyCastingCureMezz = false;
                 AlreadyCastingCureDisease = false;
                 AlreadyCastingCurePoison = false;
+                AlreadyCastingRez = false;
 
                 m_healthPercent = 100;
                 m_diseasePercent = 100;
@@ -210,6 +338,11 @@ namespace DOL.GS.Scripts
                         nextCheckTime = 0;
                     else
                     {
+                        // PR16: corpses are rez jobs, not heal jobs. Dead members are
+                        // counted by the rez scan (PR17), never by heal counters.
+                        if (!groupMember.IsAlive)
+                            continue;
+
                         m_percentCurrent = groupMember.HealthPercent;
 
                         if (m_percentCurrent < 100)
@@ -261,6 +394,7 @@ namespace DOL.GS.Scripts
                                 case eSpellType.CureMezz: AlreadyCastingCureMezz = true; break;
                                 case eSpellType.CureDisease: AlreadyCastingCureDisease = true; break;
                                 case eSpellType.CurePoison: AlreadyCastingCurePoison = true; break;
+                                case eSpellType.Resurrect: AlreadyCastingRez = true; break;
                             }
                     }
                 }

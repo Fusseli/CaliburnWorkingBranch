@@ -19,6 +19,30 @@ namespace DOL.GS.ReGoap.Core
         protected IReGoapAction<TKey, TValue> currentAction;
         protected IReGoapGoal<TKey, TValue> currentGoal;
         protected bool actionRunning;
+        public bool LastActionFailed { get; private set; }
+
+        /// <summary>Find the highest priority achievable goal, rather than letting an
+        /// unsupported goal starve all lower priority work. Runs on the owning AI thread.</summary>
+        public bool TryPlan(ReGoapPlanner<TKey, TValue> planner)
+        {
+            var state = memory.GetWorldState();
+            foreach (var candidate in goals.Where(g => !g.IsGoalSatisfied(state))
+                .Select(g => (Goal: g, Priority: g.GetPriority(state)))
+                .Where(g => g.Priority > 0 && float.IsFinite(g.Priority))
+                .OrderByDescending(g => g.Priority))
+            {
+                var plan = planner.Plan(this, state, candidate.Goal.GetGoalState());
+                if (plan == null || plan.Count == 0)
+                    continue;
+
+                SetPlan(plan);
+                SetCurrentGoal(candidate.Goal);
+                return true;
+            }
+
+            ClearPlan();
+            return false;
+        }
 
         public ReGoapAgent()
         {
@@ -86,7 +110,7 @@ namespace DOL.GS.ReGoap.Core
 
         public bool HasPlan()
         {
-            return currentPlan != null && currentPlan.Count > 0;
+            return actionRunning || (currentPlan != null && currentPlan.Count > 0);
         }
 
         public bool IsActionRunning()
@@ -158,7 +182,7 @@ namespace DOL.GS.ReGoap.Core
             var worldState = memory.GetWorldState();
 
             IReGoapGoal<TKey, TValue> bestGoal = null;
-            float highestPriority = float.MinValue;
+            float highestPriority = 0;
 
             foreach (var goal in goals)
             {
@@ -182,6 +206,7 @@ namespace DOL.GS.ReGoap.Core
         /// </summary>
         public virtual void ExecuteCurrentAction()
         {
+            LastActionFailed = false;
             // If no action is running, try to start the next one
             if (!actionRunning)
             {
@@ -204,12 +229,13 @@ namespace DOL.GS.ReGoap.Core
             // Run the current action
             if (currentAction != null && actionRunning)
             {
-                bool completed = currentAction.Run(this, OnActionComplete, OnActionFailed);
+                var runningAction = currentAction;
+                bool completed = runningAction.Run(this, OnActionComplete, OnActionFailed);
 
                 // If action returned true, it completed this tick
-                if (completed)
+                if (completed && ReferenceEquals(currentAction, runningAction) && actionRunning)
                 {
-                    actionRunning = false;
+                    OnActionComplete(runningAction);
                 }
             }
         }
@@ -228,6 +254,7 @@ namespace DOL.GS.ReGoap.Core
 
         protected virtual void OnActionFailed(IReGoapAction<TKey, TValue> action)
         {
+            LastActionFailed = true;
             actionRunning = false;
             currentAction = null;
             ClearPlan();

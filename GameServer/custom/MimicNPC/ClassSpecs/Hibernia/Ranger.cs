@@ -10,6 +10,7 @@ namespace DOL.GS.Scripts
 
     public class RangerSpec : MimicSpec
     {
+        private static string BowSpec => ServerProperties.Properties.ALLOW_OLD_ARCHERY ? Specs.RecurveBow : Specs.Archery;
         public RangerSpec()
         {
             SpecName = "RangerSpec";
@@ -32,7 +33,7 @@ namespace DOL.GS.Scripts
                 case 0:
                 case 1:
                 Add(ObjToSpec(WeaponOneType), 32, 0.4f);
-                Add(Specs.RecurveBow, 35, 0.9f);
+                Add(BowSpec, 35, 0.9f);
                 Add(Specs.Pathfinding, 40, 0.5f);
                 Add(Specs.Celtic_Dual, 29, 0.3f);
                 Add(Specs.Stealth, 35, 0.2f);
@@ -41,7 +42,7 @@ namespace DOL.GS.Scripts
                 case 2:
                 case 3:
                 Add(ObjToSpec(WeaponOneType), 35, 0.4f);
-                Add(Specs.RecurveBow, 35, 0.9f);
+                Add(BowSpec, 35, 0.9f);
                 Add(Specs.Pathfinding, 36, 0.5f);
                 Add(Specs.Celtic_Dual, 31, 0.3f);
                 Add(Specs.Stealth, 35, 0.2f);
@@ -50,7 +51,7 @@ namespace DOL.GS.Scripts
                 case 4:
                 case 5:
                 Add(ObjToSpec(WeaponOneType), 27, 0.4f);
-                Add(Specs.RecurveBow, 45, 0.9f);
+                Add(BowSpec, 45, 0.9f);
                 Add(Specs.Pathfinding, 40, 0.5f);
                 Add(Specs.Celtic_Dual, 19, 0.3f);
                 Add(Specs.Stealth, 35, 0.2f);

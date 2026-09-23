@@ -116,6 +116,20 @@ namespace DOL.GS.ReGoap.Core
             return string.Join(", ", _state.Select(kvp => $"{kvp.Key}={kvp.Value}"));
         }
 
+        public override bool Equals(object obj)
+        {
+            return obj is ReGoapState<TKey, TValue> other && Count == other.Count && MeetsGoal(other);
+        }
+
+        public override int GetHashCode()
+        {
+            // Dictionary insertion order must not affect closed-set membership.
+            int hash = 0;
+            foreach (var pair in _state)
+                hash ^= HashCode.Combine(pair.Key, pair.Value);
+            return hash;
+        }
+
         public Dictionary<TKey, TValue> GetValues()
         {
             return new Dictionary<TKey, TValue>(_state);

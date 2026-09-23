@@ -111,7 +111,7 @@ namespace DOL.GS.ReGoap.Core
             List<IReGoapAction<TKey, TValue>> actions,
             IReGoapAgent<TKey, TValue> agent,
             Func<IReGoapNode<TKey, TValue>, bool> earlyExit = null,
-            int maxIterations = 1000)
+            int maxIterations = 128)
         {
             openList.Clear();
             closedSet.Clear();
@@ -154,6 +154,9 @@ namespace DOL.GS.ReGoap.Core
                     if (!currentNode.State.MeetsGoal(preconditions))
                         continue;
 
+                    if (!action.CheckPreconditions(agent, currentNode.State))
+                        continue;
+
                     // Calculate new state after applying action
                     var newState = new ReGoapState<TKey, TValue>(currentNode.State);
                     var effects = action.GetEffects(agent);
@@ -169,6 +172,8 @@ namespace DOL.GS.ReGoap.Core
                         continue;
 
                     float actionCost = action.GetCost(agent, currentNode.State);
+                    if (!float.IsFinite(actionCost) || actionCost < 0)
+                        continue;
                     float newGCost = currentNode.GCost + actionCost;
                     float hCost = CalculateHeuristic(newState, goalState);
 
@@ -237,7 +242,9 @@ namespace DOL.GS.ReGoap.Core
         private float CalculateHeuristic(ReGoapState<TKey, TValue> currentState, ReGoapState<TKey, TValue> goalState)
         {
             // Heuristic: count of unsatisfied goal conditions
-            return currentState.MissingDifference(goalState);
+            // Actions can satisfy several conditions and cost less than one. Zero is
+            // an admissible heuristic for those actions (uniform-cost search).
+            return 0;
         }
     }
 }

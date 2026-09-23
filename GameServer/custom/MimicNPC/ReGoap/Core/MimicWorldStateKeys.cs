@@ -139,6 +139,21 @@ namespace DOL.GS.Scripts.ReGoap
         /// <summary>Group member needing mezz cure from MimicGroup.MemberToCureMezz</summary>
         public const string MEMBER_TO_CURE_MEZZ = "memberToCureMezz";
 
+        /// <summary>Dead group member awaiting rez from MimicBrain.FindRezTarget (PR17)</summary>
+        public const string MEMBER_TO_REZ = "memberToRez";
+
+        /// <summary>Dead stranger awaiting rez from MimicBrain.FindOutsiderRezTarget (PR17b)</summary>
+        public const string OUTSIDER_TO_REZ = "outsiderToRez";
+
+        /// <summary>Number of dead group members in region (PR17)</summary>
+        public const string NUM_DEAD = "numDead";
+
+        /// <summary>Can cast a resurrection spell (has spell, able to act, not silenced)</summary>
+        public const string CAN_CAST_REZ = "canCastRez";
+
+        /// <summary>Mid-fight rez is safe: caster clear, corpse nearly alone (PR18)</summary>
+        public const string REZ_COMBAT_SAFE = "rezCombatSafe";
+
         /// <summary>Number needing disease cure from MimicGroup.NumNeedCureDisease</summary>
         public const string NUM_NEED_CURE_DISEASE = "numNeedCureDisease";
 
@@ -166,6 +181,9 @@ namespace DOL.GS.Scripts.ReGoap
 
         /// <summary>Cure poison already casting from MimicGroup.AlreadyCastingCurePoison</summary>
         public const string ALREADY_CASTING_CURE_POISON = "alreadyCastingCurePoison";
+
+        /// <summary>Rez already casting from MimicGroup.AlreadyCastingRez (PR17)</summary>
+        public const string ALREADY_CASTING_REZ = "alreadyCastingRez";
 
         #endregion
 
