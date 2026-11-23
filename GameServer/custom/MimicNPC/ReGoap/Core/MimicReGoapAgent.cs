@@ -73,10 +73,28 @@ namespace DOL.GS.ReGoap.Mimic
             AddGoal(new DebuffPriorityGoal(Body, Brain));
             AddGoal(new PositionalStyleGoal(Body, Brain));
             AddGoal(new ArrowTypeGoal(Body, Brain));
+            // PR31: singers rank songs by what they are for. A bard is a healer/buffer/
+            // demezzer, so it sings often; a minstrel is a damage class, so its songs are
+            // a supplement. Decided from the class, not from an elected role, because a
+            // bard that happens to be main assist still needs to keep the group speed up.
+            AddGoal(new SongGoal(Body, Brain, SupportLeaningSinger()));
             AddGoal(new DealDamageGoal(Body, Brain));
             AddGoal(new BuffMaintenanceGoal(Body, Brain));
             MimicTacticalAction.Register(this);
             _initialized = true;
+        }
+
+        /// <summary>PR31: is this bot a support-leaning singer? Bards sing as their main
+        /// job (heal, buff, speed, demezze); Minstrels are a damage class whose songs
+        /// supplement the swing. Keyed on the class rather than the elected role, because
+        /// role changes with the group and a bard keeps needing the speed buff either way.
+        /// Anything without songs registered simply never sees SongGoal fire.</summary>
+        private bool SupportLeaningSinger()
+        {
+            if (Body == null || Brain == null || !Brain.CanPlaySongs)
+                return false;
+            return Body.CharacterClass != null
+                && Body.CharacterClass.ID == (int)eCharacterClass.Bard;
         }
 
         public bool TryThink(MimicDecisionContext context)

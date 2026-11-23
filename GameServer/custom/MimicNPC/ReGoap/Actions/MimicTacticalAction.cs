@@ -64,6 +64,11 @@ namespace DOL.GS.ReGoap.Mimic.Actions
                 "outsiderRezzed", () => brain.ExecuteGoapRezOutside(), 1f));
             agent.AddAction(new MimicTacticalAction("UsePurge", TacticalSensor.PurgeAvailable,
                 "purged", () => brain.ExecuteGoapPurge(), 1f));
+            // PR31: playing a song is its own action because it needs the instrument
+            // stance committed, not just a spell chosen - SwitchWeapon cancels any pulse
+            // already running.
+            agent.AddAction(new MimicTacticalAction("CastSong", TacticalSensor.SongAvailable,
+                DOL.GS.ReGoap.Mimic.Goals.SongGoal.SongCastEffect, () => brain.ExecuteGoapSong(), 1f));
         }
 
         public override float GetCost(IReGoapAgent<string, object> agent, ReGoapState<string, object> state)

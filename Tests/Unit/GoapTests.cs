@@ -6,6 +6,7 @@ using DOL.AI.Brain;
 using DOL.GS;
 using DOL.GS.ReGoap.Core;
 using DOL.GS.ReGoap.Mimic;
+using DOL.GS.ReGoap.Mimic.Goals;
 using DOL.GS.ReGoap.Mimic.Sensors;
 using DOL.GS.Scripts;
 using DOL.GS.Scripts.ReGoap;
@@ -645,6 +646,52 @@ namespace DOL.Tests.Unit
                 "Row already present: re-saving must not duplicate the unique");
             Assert.That(MimicSaveManager.NeedsTemplatePersist(false, false), Is.False,
                 "A plain DbItemTemplate needs no extra row - that is why weapons and shields always came back");
+        }
+
+        // PR31: songs.
+        [Test]
+        public void SongRankingPutsSpeedFirstAndHealingLast()
+        {
+            // PR31. The speed song is why bards and minstrels matter in a group - a
+            // group-wide buff wanted before every fight - so it outranks the resource
+            // songs. The health regen song is a slow over-time and never a substitute for
+            // a real heal, so it is the lowest-ranked song by construction.
+            Assert.That(SongGoal.SONG_PRIORITY_SUPPORT, Is.GreaterThan(40f),
+                "A bard's songs must outrank adds control (40) or they never fire");
+            Assert.That(SongGoal.SONG_PRIORITY_SUPPORT, Is.LessThan(50f),
+                "Songs must never displace group heal (50)");
+            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.GreaterThan(2f),
+                "A minstrel's songs must outrank plain damage (2)");
+            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.LessThan(9f),
+                "A minstrel's songs must not displace interrupts (9)");
+            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.LessThan(SongGoal.SONG_PRIORITY_SUPPORT),
+                "A damage-class singer treats songs as a supplement, not its job");
+        }
+
+        [Test]
+        public void SongGoalOnlyFiresWhenTheSensorOffers()
+        {
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var song = agent.GetGoals().Single(g => g.GetName() == "SongGoal");
+            Assert.That(song.GetPriority(State((TacticalSensor.SongAvailable, true))),
+                Is.GreaterThan(0));
+            Assert.That(song.GetPriority(State((TacticalSensor.SongAvailable, false))),
+                Is.EqualTo(0));
+            Assert.That(song.IsGoalSatisfied(State((TacticalSensor.SongAvailable, true))), Is.False);
+            Assert.That(song.IsGoalSatisfied(State((TacticalSensor.SongAvailable, false))), Is.True);
+        }
+
+        [Test]
+        public void SongGoalIsRegisteredForEveryBotButSilentWithoutSongs()
+        {
+            // Registered unconditionally like every other goal - eligibility is the
+            // sensor's job. A bot with no songs in its pool simply never sees it fire.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            Assert.That(agent.GetGoals().Count(g => g.GetName() == "SongGoal"), Is.EqualTo(1));
+            Assert.That(agent.GetActions().Any(a => a.GetName() == "CastSong"), Is.True,
+                "The goal needs its action or the planner can never satisfy it");
         }
 
         [Test]

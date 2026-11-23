@@ -435,6 +435,236 @@ namespace DOL.AI.Brain
             && Body.Inventory != null
             && Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null;
 
+        #region PR31 - songs
+
+        /// <summary>Every song this bot can play: spells with NeedInstrument, taken from the
+        /// same usable spell list everything else uses. Spell.NeedInstrument is exactly
+        /// InstrumentRequirement != 0, so this is a pure data test - Bard/Minstrel songs,
+        /// the five Bard_Speed_Song tiers, everything else the DB gives an instrument
+        /// requirement all arrive here without hard-coding a single song name.</summary>
+        public List<Spell> GetSongs()
+        {
+            var songs = new List<Spell>();
+            // MimicBody, not Body: Body is the GameNPC-typed property, and only MimicNPC
+            // exposes the usable spell list.
+            if (MimicBody == null)
+                return songs;
+            foreach (var entry in MimicBody.GetAllUsableListSpells())
+            {
+                if (entry?.Item1 == null || entry.Item2 == null)
+                    continue;
+                foreach (var skill in entry.Item2)
+                {
+                    if (skill is Spell spell && spell.NeedInstrument)
+                        songs.Add(spell);
+                }
+            }
+            return songs;
+        }
+
+        /// <summary>Which slot holds an instrument we could play from. Bards get one in
+        /// TwoHandWeapon and one in DistanceWeapon (MimicNPC.SetWeapons), so prefer the
+        /// distance slot - that is also the stance the old dead code assumed.</summary>
+        public eActiveWeaponSlot GetInstrumentStance()
+        {
+            if (Body?.Inventory == null)
+                return eActiveWeaponSlot.Standard;
+            if (Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null)
+                return eActiveWeaponSlot.Distance;
+            if (Body.Inventory.GetItem(eInventorySlot.TwoHandWeapon) != null)
+                return eActiveWeaponSlot.TwoHanded;
+            return eActiveWeaponSlot.Standard;
+        }
+
+        /// <summary>Can this bot actually play a song right now: does it know any, and does
+        /// it hold something to play them with?</summary>
+        public bool CanPlaySongs
+        {
+            get
+            {
+                if (Body == null || Body.Inventory == null)
+                    return false;
+                return GetSongs().Count > 0 && GetInstrumentStance() != eActiveWeaponSlot.Standard;
+            }
+        }
+
+        /// <summary>PR31: is a song already pulsing on this bot?
+        ///
+        /// This matters more than it looks. MimicNPC.SwitchWeapon cancels every active
+        /// pulse whose InstrumentRequirement is set, so a bot that flips weapons each tick
+        /// cancels its own song the moment it starts. That is why the old song code was
+        /// switched off: nothing held the stance, so songs could never survive a decision.</summary>
+        public bool IsSongPulsing
+        {
+            get
+            {
+                if (Body == null)
+                    return false;
+                // ActivePulseSpells is a Dictionary<eSpellType, Spell> - the values are the
+                // pulsing spells themselves, not effect objects.
+                foreach (var spell in Body.ActivePulseSpells.Values)
+                {
+                    if (spell != null && spell.NeedInstrument)
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>PR31: pick the song worth playing right now, or null.
+        ///
+        /// Ordered by how much the bot's realm depends on it, which is the opposite order
+        /// to how urgent each individual song is:
+        ///   - Speed first. Bards and Minstrels are their realm's speed class, and the
+        ///     speed song is a group-wide buff, so it is wanted before every fight and
+        ///     re-applied through the post-fight regen window.
+        ///   - Then endurance and mana, which are group resources that run down.
+        ///   - Then healing, and only as a supplement: a health regen song is a slow
+        ///     over-time, never a substitute for a real heal, so it must never outrank
+        ///     HealGroupGoal. It is ranked below every real heal on purpose.
+        ///
+        /// Pure decision, so it is unit-testable without a live body.</summary>
+        public Spell GetBestSong(bool inCombat, bool regenWindow, bool groupNeedsMana,
+            bool groupNeedsEndurance, bool groupNeedsHealth)
+        {
+            Spell speed = null, endur = null, mana = null, heal = null;
+            foreach (var song in GetSongs())
+            {
+                switch (song.SpellType)
+                {
+                    case eSpellType.SpeedEnhancement:
+                    case eSpellType.SpeedOfTheRealm:
+                    case eSpellType.CombatSpeedBuff:
+                    case eSpellType.CelerityBuff:
+                        // Speed is a pre-battle and regen-window buff, not a mid-fight one.
+                        if (!inCombat || regenWindow)
+                            speed = PickHigherTier(speed, song);
+                        break;
+                    case eSpellType.EnduranceRegenBuff:
+                    case eSpellType.AllRegenBuff:
+                    case eSpellType.PowerHealthEnduranceRegenBuff:
+                        if (groupNeedsEndurance)
+                            endur = PickHigherTier(endur, song);
+                        break;
+                    case eSpellType.PowerRegenBuff:
+                    case eSpellType.HeroismBuff:
+                        if (groupNeedsMana)
+                            mana = PickHigherTier(mana, song);
+                        break;
+                    case eSpellType.HealthRegenBuff:
+                        if (groupNeedsHealth)
+                            heal = PickHigherTier(heal, song);
+                        break;
+                }
+            }
+            return speed ?? endur ?? mana ?? heal;
+        }
+
+        /// <summary>Songs come in five tiers (Bard_Speed_Song runs Clear Path 144% through
+        /// Clear Horizon 204%). Higher Value is the better song, so take the strongest tier
+        /// the bot owns rather than whichever the list happened to yield first.</summary>
+        private static Spell PickHigherTier(Spell current, Spell candidate)
+            => current == null || candidate.Value > current.Value ? candidate : current;
+
+        /// <summary>PR31: cast one song. One tick of work, no recursion, fails closed so the
+        /// planner simply tries something else next decision.
+        ///
+        /// Plays from the instrument slot because SpellHandler.CheckInstrument() tests the
+        /// caster's ACTIVE weapon, and MimicNPC.SwitchWeapon cancels any pulse already
+        /// running - so the stance is committed here and held by ShouldHoldSongStance until
+        /// the song runs out.</summary>
+        public bool ExecuteGoapSong()
+        {
+            if (Body == null || !CanPlaySongs || IsSongPulsing)
+                return false;
+            var song = GetBestSong(Body.InCombat, IsInRegenWindow(), GroupNeedsMana(),
+                GroupNeedsEndurance(), GroupNeedsHealth());
+            if (song == null)
+                return false;
+            if (Body.GetSkillDisabledDuration(song) > 0)
+                return false;
+            _goapSelectingSpell = true;
+            try
+            {
+                var stance = GetInstrumentStance();
+                if (Body.ActiveWeaponSlot != stance)
+                    Body.SwitchWeapon(stance);
+                Body.TargetObject = Body;
+                return Body.CastSpell(song, m_mobSpellLine);
+            }
+            finally { _goapSelectingSpell = false; }
+        }
+
+        /// <summary>PR31: while a song is pulsing the bot must stay on the instrument.
+        /// Every caller that would switch to a melee weapon has to ask this first.</summary>
+        public bool ShouldHoldSongStance
+            => IsSongPulsing && Body != null && Body.ActiveWeaponSlot == GetInstrumentStance();
+
+        /// <summary>PR31: "not fighting, or still winding down after a fight" - the window
+        /// where a bard or minstrel should be keeping the group speed buff up. There is no
+        /// regen FSM state (the states are WakingUp/Idle/FollowLeader/Aggro/Roaming/Camp/
+        /// ReturnToSpawn/Patrolling/Duel/Dead), so it is derived: calm, no aggro, and not
+        /// badly hurt.</summary>
+        public bool IsInRegenWindow()
+        {
+            if (Body == null)
+                return false;
+            if (Body.InCombat || HasAggro)
+                return false;
+            return Body.HealthPercent >= 70;
+        }
+
+        /// <summary>PR31: does anybody in the group need mana topped up? Mirrors the
+        /// threshold the old dead song code used (ManaPercent &lt; 80 on a mana class).</summary>
+        public bool GroupNeedsMana()
+        {
+            if (Body == null)
+                return false;
+            if (Body.Group == null)
+                return Body.MaxMana > 0 && Body.ManaPercent < 80;
+            foreach (GameLiving member in Body.Group.GetMembersInTheGroup())
+            {
+                if (member != null && member.MaxMana > 0 && member.ManaPercent < 80)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>PR31: group endurance running down, which is what a solo endurance song
+        /// exists for.</summary>
+        public bool GroupNeedsEndurance()
+        {
+            if (Body == null)
+                return false;
+            if (Body.Group == null)
+                return Body.EndurancePercent < 60;
+            foreach (GameLiving member in Body.Group.GetMembersInTheGroup())
+            {
+                if (member != null && member.EndurancePercent < 60)
+                    return true;
+            }
+            return false;
+        }
+
+        /// <summary>PR31: someone is hurt enough to be worth topping up. Deliberately a low
+        /// bar - the health song is a supplement that must never delay a real heal, so it
+        /// only gets played when something is genuinely low.</summary>
+        public bool GroupNeedsHealth()
+        {
+            if (Body == null)
+                return false;
+            if (Body.Group == null)
+                return Body.HealthPercent < Properties.NPC_HEAL_THRESHOLD;
+            foreach (GameLiving member in Body.Group.GetMembersInTheGroup())
+            {
+                if (member != null && member.HealthPercent < Properties.NPC_HEAL_THRESHOLD)
+                    return true;
+            }
+            return false;
+        }
+
+        #endregion
+
         /// <summary>How far this bot can actually reach a corpse with the rez spells it
         /// holds. The sensor used to gate on the flat REZ_RANGE while the action gated on
         /// the spell's own range, so any corpse in between was planned every tick and then
@@ -1927,9 +2157,14 @@ namespace DOL.AI.Brain
                         }
                     }
 
+                    // PR31: never switch off the instrument while a song is pulsing -
+                    // MimicNPC.SwitchWeapon cancels every active pulse that needs an
+                    // instrument, so doing this mid-song killed the song every tick and is
+                    // why songs were unusable before.
                     if ((MimicBody.CharacterClass.ID == (int)eCharacterClass.Minstrel ||
                         (MimicBody.CharacterClass.ID == (int)eCharacterClass.Bard && Body.Group == null)) &&
-                        Body.ActiveWeaponSlot != eActiveWeaponSlot.Standard)
+                        Body.ActiveWeaponSlot != eActiveWeaponSlot.Standard &&
+                        !ShouldHoldSongStance)
                         Body.SwitchWeapon(eActiveWeaponSlot.Standard);
 
                     Body.StartAttack(Body.TargetObject);
@@ -3047,7 +3282,10 @@ namespace DOL.AI.Brain
 
             Body.TargetObject = null;
 
-            // TODO: Instrument classes need special logic.
+            // PR31: songs are not defensive spells and are deliberately not cast from
+            // here. They need an instrument equipped and a held stance, so they have their
+            // own path - SongGoal plus ExecuteGoapSong. The unreachable switch that used
+            // to sit under this guard was written before that path existed.
             if (spell.NeedInstrument)
             {
                 return false;
@@ -3524,7 +3762,8 @@ namespace DOL.AI.Brain
             {
                 target = null;
 
-                // TODO: Handle instrument spells
+                // PR31: songs are excluded on purpose - see ExecuteGoapSong, which handles
+                // the instrument stance. Everything else keeps the interrupt and recast gates.
                 if (spell.NeedInstrument || (!spell.Uninterruptible && Body.IsBeingInterrupted) ||
                     (spell.HasRecastDelay && Body.GetSkillDisabledDuration(spell) > 0))
                 {

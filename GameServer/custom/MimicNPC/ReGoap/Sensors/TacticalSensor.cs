@@ -33,6 +33,13 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
         public const string DebuffAvailable = "debuffAvailable";
         public const string FlankAvailable = "flankAvailable";
         public const string ArrowTypeAvailable = "arrowTypeAvailable";
+        /// <summary>PR31: this bot knows songs, holds an instrument, and has a reason to
+        /// play one. Never true for a bot already pulsing - it must hold the stance
+        /// rather than restart the song.</summary>
+        public const string SongAvailable = "songAvailable";
+        /// <summary>PR31: the song type worth playing, as an eSpellType name. Lets the goal
+        /// score without re-deriving the bot's pool.</summary>
+        public const string SONG_TYPE = "songType";
 
         private static readonly eEffect[] DebuffEffects =
         {
@@ -205,6 +212,22 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             }
             SetObject(MimicWorldStateKeys.OUTSIDER_TO_REZ, outsiderToRez);
             SetBool(RezOutsideAvailable, outsiderToRez != null);
+
+            // PR31: songs. Cheap and last - it walks the bot's own usable spell list, which
+            // is only worth doing when the cheaper decisions above found nothing urgent.
+            // A bot already pulsing a song is not offered another one: it has to hold the
+            // instrument stance, and restarting would cancel the pulse it is relying on.
+            bool canSing = canAct && _brain.CanPlaySongs && !_brain.IsSongPulsing
+                && !_body.IsCasting && !_body.IsBeingInterrupted;
+            Spell songToPlay = null;
+            if (canSing)
+            {
+                bool regenWindow = _brain.IsInRegenWindow();
+                songToPlay = _brain.GetBestSong(_body.InCombat || _brain.HasAggro, regenWindow,
+                    _brain.GroupNeedsMana(), _brain.GroupNeedsEndurance(), _brain.GroupNeedsHealth());
+            }
+            SetObject(SONG_TYPE, songToPlay == null ? null : songToPlay.SpellType.ToString());
+            SetBool(SongAvailable, songToPlay != null);
             // Self-purge (PR19b): hard CC with a ready Purge RA. Yield while
             // interrupted (Quickcast/kite own that tick).
             var purge = _brain.GetPurgeAbility();
