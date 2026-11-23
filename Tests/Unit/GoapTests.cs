@@ -771,6 +771,67 @@ namespace DOL.Tests.Unit
                 "Bow users stay excluded from debuffing and kiting");
         }
 
+        // PR37: what the AI is able to see.
+        [Test]
+        public void CrowdControlIsClassifiedByKindNotByTwoSpellTypes()
+        {
+            // PR37. The only definition of "crowd control" was an inline test in
+            // MimicNPC.SortSpells: SpellType == Mesmerize, or SpellType == SpeedDecrease
+            // with Value >= 99. A mezz, and a hard root. Every other kind of control - a
+            // partial snare, any stun - was filed under HarmfulSpells instead, so the bot
+            // never knew it was carrying one. That is the reason "tanks should be snared"
+            // was not implementable: the snare was not in the pool to be chosen from.
+            Assert.Multiple(() =>
+            {
+                Assert.That(CcClassifier.Classify(eSpellType.Mesmerize, 0), Is.EqualTo(CcKind.Mezzer));
+                Assert.That(CcClassifier.Classify(eSpellType.Mez, 0), Is.EqualTo(CcKind.Mezzer));
+                Assert.That(CcClassifier.Classify(eSpellType.CeremonialBracerMezz, 0), Is.EqualTo(CcKind.Mezzer));
+                Assert.That(CcClassifier.Classify(eSpellType.Stun, 0), Is.EqualTo(CcKind.Stun));
+                Assert.That(CcClassifier.Classify(eSpellType.StyleStun, 0), Is.EqualTo(CcKind.Stun));
+                Assert.That(CcClassifier.Classify(eSpellType.UnresistableStun, 0), Is.EqualTo(CcKind.Stun));
+                Assert.That(CcClassifier.Classify(eSpellType.DirectDamage, 0), Is.EqualTo(CcKind.None));
+                Assert.That(CcClassifier.Classify(eSpellType.Archery, 0), Is.EqualTo(CcKind.None),
+                    "A bow is damage, not control");
+            });
+        }
+
+        [Test]
+        public void APartialSpeedDecreaseIsASnareAndAFullOneIsARoot()
+        {
+            // PR37. This is exactly what the old Value >= 99 clause discarded. eSpellType has
+            // no Root and no Snare member at all - a root is a SpeedDecrease that reached
+            // 100% - so a snare is a SpeedDecrease below that line, and below the line it
+            // was invisible to the AI. The whole speed-decrease family counts, not just the
+            // one type the old test named.
+            Assert.Multiple(() =>
+            {
+                Assert.That(CcClassifier.Classify(eSpellType.SpeedDecrease, 100), Is.EqualTo(CcKind.Root));
+                Assert.That(CcClassifier.Classify(eSpellType.SpeedDecrease, CcClassifier.ROOT_VALUE_THRESHOLD),
+                    Is.EqualTo(CcKind.Root));
+                Assert.That(CcClassifier.Classify(eSpellType.SpeedDecrease, 50), Is.EqualTo(CcKind.Snare));
+                Assert.That(CcClassifier.Classify(eSpellType.SpeedDecrease, 1), Is.EqualTo(CcKind.Snare));
+                Assert.That(CcClassifier.Classify(eSpellType.DamageSpeedDecrease, 40), Is.EqualTo(CcKind.Snare));
+                Assert.That(CcClassifier.Classify(eSpellType.StyleSpeedDecrease, 99), Is.EqualTo(CcKind.Root));
+                Assert.That(CcClassifier.IsCrowdControl(eSpellType.SpeedDecrease, 50), Is.True,
+                    "A snare is crowd control - that is the entire point of PR37");
+            });
+        }
+
+        [Test]
+        public void AreaControlIsToldApartFromSingleTarget()
+        {
+            // PR37 pins the question PR40 will ask: how many enemies are standing in this
+            // spell. A single-target spell with a radius is area control, and so is an AREA
+            // target with no radius at all - neither field alone answers the question.
+            Assert.Multiple(() =>
+            {
+                Assert.That(CcClassifier.IsAreaControl(eSpellTarget.AREA, 0), Is.True);
+                Assert.That(CcClassifier.IsAreaControl(eSpellTarget.ENEMY, 400), Is.True);
+                Assert.That(CcClassifier.IsAreaControl(eSpellTarget.ENEMY, 0), Is.False);
+                Assert.That(CcClassifier.IsAreaControl(eSpellTarget.SELF, 0), Is.False);
+            });
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

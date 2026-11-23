@@ -1548,8 +1548,13 @@ namespace DOL.GS.Scripts
 
                     BoltSpells.Add(spell);
                 }
-                else if (spell.SpellType == eSpellType.Mesmerize ||
-                        (spell.SpellType == eSpellType.SpeedDecrease && spell.Value >= 99))
+                // PR37: this used to be the inline test
+                //   SpellType == Mesmerize || (SpellType == SpeedDecrease && Value >= 99)
+                // which saw a mezz and a hard root and nothing else. Every other kind of
+                // control - a partial snare, any stun - was filed under HarmfulSpells, so
+                // the AI never knew the bot was carrying it. CcClassifier is now the only
+                // definition, and the pool below is what the CC goal reads.
+                else if (CcClassifier.IsCrowdControl(spell.SpellType, spell.Value))
                 {
                     //if (spell.IsInstantCast)
                     //{
