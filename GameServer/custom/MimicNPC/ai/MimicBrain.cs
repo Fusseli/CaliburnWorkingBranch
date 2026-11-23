@@ -483,27 +483,32 @@ namespace DOL.AI.Brain
 
         #region PR31 - songs
 
+        /// <summary>PR33: the song chosen on the tick the bot stepped onto the instrument,
+        /// cast on the next one. Cleared whenever the decision is abandoned.</summary>
+        private Spell _pendingSong;
+
         /// <summary>Every song this bot can play: spells with NeedInstrument, taken from the
-        /// same usable spell list everything else uses. Spell.NeedInstrument is exactly
+        /// same usable skill list everything else uses. Spell.NeedInstrument is exactly
         /// InstrumentRequirement != 0, so this is a pure data test - Bard/Minstrel songs,
         /// the five Bard_Speed_Song tiers, everything else the DB gives an instrument
-        /// requirement all arrive here without hard-coding a single song name.</summary>
+        /// requirement all arrive here without hard-coding a single song name.
+        ///
+        /// PR33: this reads GetAllUsableSkills(), NOT GetAllUsableListSpells(). Those are two
+        /// different lists on MimicNPC and only the first one holds songs: the "// Add Songs"
+        /// block lives inside GetAllUsableSkills and writes into m_usableSkills as
+        /// Tuple&lt;Skill, Skill&gt; where Item1 is the spell. GetAllUsableListSpells returns
+        /// m_usableListSpells - the list-caster spell set - which has no songs in it at all.
+        /// Reading the wrong one silently returned an empty list, so CanPlaySongs was always
+        /// false, SongAvailable was never set, and SongGoal never fired.</summary>
         public List<Spell> GetSongs()
         {
             var songs = new List<Spell>();
-            // MimicBody, not Body: Body is the GameNPC-typed property, and only MimicNPC
-            // exposes the usable spell list.
             if (MimicBody == null)
                 return songs;
-            foreach (var entry in MimicBody.GetAllUsableListSpells())
+            foreach (var entry in MimicBody.GetAllUsableSkills())
             {
-                if (entry?.Item1 == null || entry.Item2 == null)
-                    continue;
-                foreach (var skill in entry.Item2)
-                {
-                    if (skill is Spell spell && spell.NeedInstrument)
-                        songs.Add(spell);
-                }
+                if (entry?.Item1 is Spell spell && spell.NeedInstrument)
+                    songs.Add(spell);
             }
             return songs;
         }
@@ -612,33 +617,80 @@ namespace DOL.AI.Brain
         private static Spell PickHigherTier(Spell current, Spell candidate)
             => current == null || candidate.Value > current.Value ? candidate : current;
 
-        /// <summary>PR31: cast one song. One tick of work, no recursion, fails closed so the
-        /// planner simply tries something else next decision.
+        /// <summary>PR31/PR33: play one song, one tick of work per decision.
         ///
-        /// Plays from the instrument slot because SpellHandler.CheckInstrument() tests the
-        /// caster's ACTIVE weapon, and MimicNPC.SwitchWeapon cancels any pulse already
-        /// running - so the stance is committed here and held by ShouldHoldSongStance until
-        /// the song runs out.</summary>
+        /// Playing from the instrument slot matters because SpellHandler.CheckInstrument()
+        /// tests the caster's ACTIVE weapon, and MimicNPC.SwitchWeapon cancels any pulse
+        /// already running - so the stance has to be committed and held.
+        ///
+        /// PR33: the switch and the cast are deliberately separate ticks. Doing both in one
+        /// call means casting in the same breath that changed the active weapon, and
+        /// CheckInstrument() can reject the cast against the outgoing weapon - which looks
+        /// exactly like "the song animation played and then nothing happened". One tick to
+        /// step into position, the next to play.
+        ///
+        /// Fails closed so the planner simply tries something else next decision.</summary>
         public bool ExecuteGoapSong()
         {
             if (Body == null || !CanPlaySongs || IsSongPulsing)
+            {
+                _pendingSong = null;
                 return false;
-            var song = GetBestSong(Body.InCombat, IsInRegenWindow(), GroupNeedsMana(),
+            }
+
+            // Tick one: step onto the instrument and stop. The next tick casts.
+            var stance = GetInstrumentStance();
+            if (Body.ActiveWeaponSlot != stance)
+            {
+                _pendingSong = null;
+                Body.SwitchWeapon(stance);
+                log.Debug($"Song: switching to {stance} to play {MimicBody.Name}'s next song");
+                return true;
+            }
+
+            var song = _pendingSong;
+            _pendingSong = null;
+            song ??= GetBestSong(Body.InCombat, IsInRegenWindow(), GroupNeedsMana(),
                 GroupNeedsEndurance(), GroupNeedsHealth());
             if (song == null)
                 return false;
             if (Body.GetSkillDisabledDuration(song) > 0)
+            {
+                log.Debug($"Song: {song.Name} still on cooldown for {MimicBody.Name}");
                 return false;
+            }
             _goapSelectingSpell = true;
             try
             {
-                var stance = GetInstrumentStance();
-                if (Body.ActiveWeaponSlot != stance)
-                    Body.SwitchWeapon(stance);
                 Body.TargetObject = Body;
-                return Body.CastSpell(song, m_mobSpellLine);
+                bool cast = Body.CastSpell(song, m_mobSpellLine);
+                // PR33: log it. Songs failed silently for a long time - the only visible
+                // sign was an animation with no effect, and nothing said why.
+                log.Debug($"Song: {MimicBody.Name} cast {song.Name} ({song.SpellType}) = {cast}"
+                    + (cast ? "" : $" [active weapon {Body.ActiveWeapon}:{(Body.ActiveWeapon == null ? "none" : Body.ActiveWeapon.Object_Type.ToString())}]"));
+                return cast;
             }
             finally { _goapSelectingSpell = false; }
+        }
+
+        /// <summary>PR33: melee wants the sword, not the drum. A singer that just put the
+        /// instrument away is holding it, and hitting with it is both weak and wrong-looking.
+        /// Bards and Minstrels keep their melee weapon precisely for rupts and for playing
+        /// solo, so they switch to it before swinging and back to the instrument to sing.
+        /// </summary>
+        private bool PrepareMeleeStance()
+        {
+            if (Body?.Inventory == null || IsSongPulsing)
+                return false;
+            if (Body.ActiveWeaponSlot == eActiveWeaponSlot.Standard)
+                return false;
+            bool hasMelee = Body.Inventory.GetItem(eInventorySlot.RightHandWeapon) != null
+                || Body.Inventory.GetItem(eInventorySlot.TwoHandWeapon) != null;
+            if (!hasMelee)
+                return false;
+            Body.SwitchWeapon(eActiveWeaponSlot.Standard);
+            log.Debug($"Melee stance: {MimicBody.Name} putting the instrument away");
+            return true;
         }
 
         /// <summary>PR31: while a song is pulsing the bot must stay on the instrument.
@@ -2125,6 +2177,11 @@ namespace DOL.AI.Brain
 
         private void AttackSelectedTarget(bool allowSpellSelection)
         {
+            // PR33: a bard or minstrel that just sang is holding the instrument. Swinging
+            // with it is weak and looks wrong, and both keep a melee weapon precisely for
+            // rupting and for playing solo - so step onto it first and attack next tick.
+            if (PrepareMeleeStance())
+                return;
             if (Body.TargetObject != null)
             {
                 if (Body.ControlledBrain != null)

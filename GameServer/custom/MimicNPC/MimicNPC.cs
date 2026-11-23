@@ -212,11 +212,19 @@ namespace DOL.GS.Scripts
                 break;
 
                 case eSpecType.Instrument:
-                MimicEquipment.SetMeleeWeapon(this, MimicSpec.WeaponOneType, eHand.oneHand);
-                MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.TwoHandWeapon, eInstrumentType.Flute);
-                MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.DistanceWeapon, eInstrumentType.Drum);
-                MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.FirstEmptyBackpack, eInstrumentType.Lute);
-                break;
+                    MimicEquipment.SetMeleeWeapon(this, MimicSpec.WeaponOneType, eHand.oneHand);
+                    MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.TwoHandWeapon, eInstrumentType.Flute);
+                    MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.DistanceWeapon, eInstrumentType.Drum);
+                    MimicEquipment.SetInstrumentROG(this, Realm, (eCharacterClass)CharacterClass.ID, Level, eObjectType.Instrument, eInventorySlot.FirstEmptyBackpack, eInstrumentType.Lute);
+                    // PR33: hold the instrument from the start. This case never switched
+                    // weapon, and eActiveWeaponSlot.Standard is 0 - the default - so a singer
+                    // spawned gripping its melee weapon while its three instruments sat
+                    // invisible in the pack. SpellHandler.CheckInstrument() reads the ACTIVE
+                    // weapon, so songs were started and then cancelled every time.
+                    // The melee weapon stays equipped for rupts and for playing solo; the
+                    // brain swaps between the two as the situation needs.
+                    SwitchWeapon(eActiveWeaponSlot.Distance);
+                    break;
 
                 default:
                 if (CharacterClass.ClassType == eClassType.ListCaster ||

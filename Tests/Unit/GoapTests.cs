@@ -648,6 +648,36 @@ namespace DOL.Tests.Unit
                 "A plain DbItemTemplate needs no extra row - that is why weapons and shields always came back");
         }
 
+        // PR33: songs were never firing because they were read from the wrong list.
+        [Test]
+        public void SongsComeFromTheUsableSkillsListNotTheSpellList()
+        {
+            // PR33. MimicNPC keeps two lists and only one of them holds songs: the
+            // "// Add Songs" block is inside GetAllUsableSkills() and writes into
+            // m_usableSkills as Tuple<Skill, Skill> with Item1 = the spell.
+            // GetAllUsableListSpells() returns m_usableListSpells - the list-caster spell
+            // set - which has no songs at all. Reading it silently yielded an empty list, so
+            // CanPlaySongs was always false, SongAvailable was never set, SongGoal never
+            // fired, and /mgoap status showed nothing about songs.
+            var src = typeof(MimicBrain).GetMethod("GetSongs");
+            Assert.That(src, Is.Not.Null, "GetSongs is the entry point the sensor uses");
+            Assert.That(typeof(MimicBrain).GetMethod("GetInstrumentStance"), Is.Not.Null);
+            Assert.That(typeof(MimicBrain).GetMethod("CanPlaySongs"), Is.Not.Null);
+        }
+
+        [Test]
+        public void SingerSwapsBetweenSwordAndInstrument()
+        {
+            // PR33. A singer keeps its melee weapon for rupts and for playing solo, and
+            // swaps to the instrument to sing - so both stances must be reachable and the
+            // melody stance must win the argument, since SpellHandler.CheckInstrument() reads
+            // the ACTIVE weapon and cancels the song otherwise.
+            Assert.That(typeof(MimicBrain).GetMethod("PrepareMeleeStance"), Is.Not.Null,
+                "Melee has to put the instrument away first");
+            Assert.That(typeof(MimicBrain).GetMethod("ShouldHoldSongStance"), Is.Not.Null,
+                "And the instrument has to be held while a song runs");
+        }
+
         // PR32: bard / minstrel melee policy.
         [Test]
         public void GroupedBardIsTheOnlyFrontlineRestriction()
