@@ -2330,7 +2330,7 @@ namespace DOL.AI.Brain
         /// <summary>
         /// Drop claims that no longer mean anything: dead, gone, out of range or no longer
         /// something we may attack. A claim is not removed when a cast starts, so a resisted
-        /// control is retried rather than forgotten - but PR41 is where it stops being
+        /// control is retried rather than forgotten - but PR44 is where it stops being
         /// retried forever.
         /// </summary>
         public void PruneCcClaims()
@@ -4385,23 +4385,69 @@ namespace DOL.AI.Brain
 
             Body.TargetObject = oldTarget;
             return cast;
-
-            bool CanCastDefensiveSpell(Spell spell, out GameLiving target)
-            {
-                target = null;
-
-                // PR31: songs are excluded on purpose - see ExecuteGoapSong, which handles
-                // the instrument stance. Everything else keeps the interrupt and recast gates.
-                if (spell.NeedInstrument || (!spell.Uninterruptible && Body.IsBeingInterrupted) ||
-                    (spell.HasRecastDelay && Body.GetSkillDisabledDuration(spell) > 0))
-                {
-                    return false;
-                }
-
-                target = FindTargetForDefensiveSpell(spell);
-                return target != null;
-            }
         }
+
+        /// <summary>
+        /// PR41: can this defensive spell be cast on a target right now?
+        ///
+        /// Hoisted out of CheckDefensiveSpells so the sensor can ask the SAME question
+        /// the action asks. Before this, the sensor reported the buff state from a
+        /// hard-coded false and the action worked it out for itself - so the two could
+        /// not agree, and the goal could never be satisfied.
+        /// </summary>
+        protected bool CanCastDefensiveSpell(Spell spell, out GameLiving target)
+        {
+            target = null;
+
+            // PR31: songs are excluded on purpose - see ExecuteGoapSong, which handles
+            // the instrument stance. Everything else keeps the interrupt and recast gates.
+            if (spell.NeedInstrument || (!spell.Uninterruptible && Body.IsBeingInterrupted) ||
+                (spell.HasRecastDelay && Body.GetSkillDisabledDuration(spell) > 0))
+            {
+                return false;
+            }
+
+            target = FindTargetForDefensiveSpell(spell);
+            return target != null;
+        }
+
+        /// <summary>
+        /// PR41: how many of this bot's own buffs are still missing?
+        ///
+        /// The same question the defensive action asks, narrowed to the bot's own buffs.
+        /// A buff that is already up is skipped - LivingHasEffect finds the effect on the
+        /// body - so only the ones that genuinely need casting are counted. A buff on
+        /// recast cooldown is not counted either, because casting it would fail anyway.
+        ///
+        /// Summons are excluded: FindTargetForDefensiveSpell returns the caster for
+        /// those too, and a summon is not a buff.
+        /// </summary>
+        public int CountMissingSelfBuffs()
+        {
+            if (Body == null || !Body.CanCastMiscSpells)
+                return 0;
+
+            int missing = 0;
+            foreach (Spell spell in Body.MiscSpells)
+            {
+                if (spell == null || spell.SpellType == eSpellType.Summon)
+                    continue;
+                if (CanCastDefensiveSpell(spell, out GameLiving target) && target == Body)
+                    missing++;
+            }
+
+            return missing;
+        }
+
+        /// <summary>
+        /// PR41: does this bot still have a buff it could apply?
+        ///
+        /// This is what the sensor reports as BUFFS_MAINTAINED (inverted). While that key
+        /// was hard-coded false, BuffMaintenanceGoal.IsGoalSatisfied was always false, so
+        /// the goal re-fired on every tick out of combat and nobody could tell from
+        /// /mgoap status whether the buffs were actually up.
+        /// </summary>
+        public bool HasMissingSelfBuff() => CountMissingSelfBuffs() > 0;
 
         protected virtual GameLiving FindTargetForDefensiveSpell(Spell spell)
         {

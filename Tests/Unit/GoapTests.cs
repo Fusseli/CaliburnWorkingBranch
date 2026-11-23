@@ -1126,6 +1126,87 @@ namespace DOL.Tests.Unit
             });
         }
 
+        // PR42: the buff state has to be measured, not asserted.
+        [Test]
+        public void TheBuffStateIsMeasuredRatherThanHardCoded()
+        {
+            // PR42. BUFFS_MAINTAINED used to be a hard-coded false in the sensor, and
+            // BuffMaintenanceGoal.IsGoalSatisfied reads it - so the goal was NEVER
+            // satisfied. It re-fired on every tick out of combat, and /mgoap status could
+            // not say whether the self buffs had actually landed.
+            //
+            // A hard-coded value cannot be pinned by a decision test, so this is a guard:
+            // the sensor must measure the buff state, not assert it.
+            string source = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..",
+                "GameServer", "custom", "MimicNPC", "ReGoap", "Sensors", "TacticalSensor.cs");
+            if (!File.Exists(source))
+                Assert.Ignore("TacticalSensor.cs is not next to the test binary");
+
+            var setters = new List<string>();
+            foreach (string line in File.ReadAllLines(source))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith("//"))
+                    continue;
+                if (trimmed.Contains("BUFFS_MAINTAINED"))
+                    setters.Add(trimmed);
+            }
+
+            Assert.That(setters, Is.Not.Empty, "The sensor must set the buff state at all");
+            foreach (string setter in setters)
+            {
+                Assert.That(setter, Does.Not.Contain(", false"),
+                    "The buff state must be measured, not hard-coded. Found: " + setter);
+                Assert.That(setter, Does.Contain("HasMissingSelfBuff"),
+                    "The sensor must ask the brain the same question the action asks. Found: " + setter);
+            }
+        }
+
+        [Test]
+        public void BuffMaintenanceIsSatisfiedOnlyWhenTheBuffsAreUp()
+        {
+            // PR42. The goal's contract, which the hard-coded false made unreachable:
+            // in combat it yields (combat goals win), and out of combat it is satisfied
+            // only once the bot has nothing left to buff.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var goal = agent.GetGoals().Single(g => g.GetName() == "BuffMaintenanceGoal");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(goal.IsGoalSatisfied(State(
+                    (MimicWorldStateKeys.IN_COMBAT, true),
+                    (MimicWorldStateKeys.BUFFS_MAINTAINED, false),
+                    (MimicWorldStateKeys.CAN_CAST_DEFENSIVE_SPELLS, true))), Is.True,
+                    "In combat the buff goal yields - combat goals take absolute precedence");
+
+                Assert.That(goal.IsGoalSatisfied(State(
+                    (MimicWorldStateKeys.IN_COMBAT, false),
+                    (MimicWorldStateKeys.BUFFS_MAINTAINED, true),
+                    (MimicWorldStateKeys.CAN_CAST_DEFENSIVE_SPELLS, true))), Is.True,
+                    "Nothing left to buff - the goal is done");
+
+                Assert.That(goal.IsGoalSatisfied(State(
+                    (MimicWorldStateKeys.IN_COMBAT, false),
+                    (MimicWorldStateKeys.BUFFS_MAINTAINED, false),
+                    (MimicWorldStateKeys.CAN_CAST_DEFENSIVE_SPELLS, true))), Is.False,
+                    "A buff is still missing - the goal must keep working");
+            });
+        }
+
+        [Test]
+        public void TheDebugStatusReportsHowManyBuffsAreMissing()
+        {
+            // PR42. The whole point of measuring the buff state is that somebody can see
+            // it. /mgoap status prints the agent's debug info, so the missing count has to
+            // be in there - otherwise the question "did the buff land?" has no answer.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            string info = agent.GetDebugInfo();
+            Assert.That(info, Does.Contain("Buffs: missing"),
+                "The debug status must report the missing buff count. Got:\n" + info);
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

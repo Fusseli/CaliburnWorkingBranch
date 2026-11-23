@@ -236,6 +236,10 @@ namespace DOL.GS.ReGoap.Mimic
             // is on - if it sits, the bot is trying to control something it cannot.
             $"Control: adds {Brain.GetCcCandidates().Count}; ccPrimary {Brain.IsCcPrimary}; " +
             $"underPressure {Brain.IsUnderPressure()}\n" +
+            // PR41: how many of the bot's own buffs are still missing. This is the number
+            // that says whether the self buffs actually landed - the buff state used to be
+            // a hard-coded false, so nothing could report it.
+            $"Buffs: missing {Brain.CountMissingSelfBuffs()}\n" +
             $"Sensors: {sensors.Count}; goals: {goals.Count}; actions: {actions.Count}";
     }
 }

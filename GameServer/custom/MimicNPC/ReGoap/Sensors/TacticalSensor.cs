@@ -94,7 +94,15 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             SetInt(MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, adds);
             SetInt(MimicWorldStateKeys.NUM_ENEMIES, _brain.GetOrderedAggroList().Count);
             SetBool(MimicWorldStateKeys.IS_MAIN_CC, _brain.IsMainCC);
-            SetBool(MimicWorldStateKeys.BUFFS_MAINTAINED, false);
+            // PR41: the buff state has to be measured, not asserted. It used to be
+            // hard-coded false, and BuffMaintenanceGoal.IsGoalSatisfied reads it - so the
+            // goal was NEVER satisfied, it re-fired on every tick out of combat, and
+            // /mgoap status could not say whether the buffs were up.
+            //
+            // The question asked here is the same one the defensive action asks, so the
+            // sensor and the action cannot disagree: a buff that is already on the bot is
+            // not missing, and one on recast cooldown cannot be cast anyway.
+            SetBool(MimicWorldStateKeys.BUFFS_MAINTAINED, !_brain.HasMissingSelfBuff());
             SetBool(SupportAvailable, canAct && !_body.IsSilenced && _body.CanCastHealSpells);
             // PR40: a defensive cast in flight must not be re-requested. The action picks a
             // RANDOM missing buff and queues it, and CastingComponent silently discards
