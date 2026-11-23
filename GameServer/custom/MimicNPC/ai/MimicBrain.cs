@@ -415,6 +415,16 @@ namespace DOL.AI.Brain
         /// <summary>Standard rez range: all realm rez spells use 1500 units.</summary>
         public const int REZ_RANGE = 1500;
 
+        /// <summary>PR26: is this bot fighting with a bow? The active weapon *slot* is
+        /// the only trustworthy signal. GameLiving.CanCastHarmfulSpells is just
+        /// HarmfulSpells.Count &gt; 0, which is true for every archer because their bow is
+        /// an eSpellType.Archery spell, and for melee bots that happen to hold a harm - so
+        /// it cannot be used to tell "is a bow user" from "can cast". The same trap bit the
+        /// RA buyer, where Item_Type (an eObjectType) was compared against an
+        /// eInventorySlot and the two numberings collided on 13.
+        /// Used by the sensor to keep bow users out of kiting and out of debuffing.</summary>
+        public bool IsBowUser => Body != null && Body.ActiveWeaponSlot == eActiveWeaponSlot.Distance;
+
         /// <summary>How far this bot can actually reach a corpse with the rez spells it
         /// holds. The sensor used to gate on the flat REZ_RANGE while the action gated on
         /// the spell's own range, so any corpse in between was planned every tick and then

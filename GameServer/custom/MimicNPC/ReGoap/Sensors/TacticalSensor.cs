@@ -216,7 +216,12 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             // Solo casters mirror the FSM (long flight, hold ring); grouped casters fall
             // back to a kite mate (tank first) instead of fleeing across the map.
             // Main tanks hold the line in groups and never kite.
-            bool isCaster = _body.CanCastHarmfulSpells || _brain.IsHealer;
+            // PR26: CanCastHarmfulSpells is only "has any harmful spell", which is true
+            // for every archer (their bow is a spell) and for melee bots holding a harm.
+            // Gating kiting on that made archers and melee run back and forth mid-fight.
+            // A bow user wants to hold its range, not break it, and melee has no ranged
+            // cast to protect - so neither kites. Only genuine casters do.
+            bool isCaster = (_body.CanCastHarmfulSpells || _brain.IsHealer) && !_brain.IsBowUser;
             bool solo = _body.Group == null;
             bool meleed = false;
             if (combat && isCaster)
@@ -271,7 +276,11 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                 foreach (var fx in DebuffEffects)
                     if (EffectListService.GetEffectOnTarget(targetLiving, fx) != null) { targetDebuffed = true; break; }
             }
-            SetBool(DebuffAvailable, canAct && targetValid && canDebuff && !targetDebuffed
+            // PR26: archers are physical damage, not debuffers. DebuffPriorityGoal scores
+            // 3.0 (assist) / 0.9, above ArrowTypeGoal 2.5 and DealDamageGoal 2.0, so an
+            // archer holding any debuff-flagged spell stopped shooting to debuff instead.
+            // A bow user is excluded outright.
+            SetBool(DebuffAvailable, canAct && !_brain.IsBowUser && targetValid && canDebuff && !targetDebuffed
                 && !_body.IsSilenced && !_brain.IsFleeing);
             // Positional styles: same gates as the FSM flank loop (melee weapon, attack
             // range, positional styles, not the tank), plus a victim standing still and

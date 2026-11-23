@@ -626,6 +626,68 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR26: bow users must be excluded from kiting and debuffing.
+        [Test]
+        public void BowUsersAreNotKitingOrDebuffingCandidates()
+        {
+            // PR26: isCaster used to be CanCastHarmfulSpells, which is only
+            // HarmfulSpells.Count > 0 - true for every archer, because a bow is an
+            // eSpellType.Archery spell, and for melee bots holding a harm. That made
+            // archers and melee kite back and forth mid-fight.
+            //
+            // The exclusion lives in the sensor against MimicBrain.IsBowUser, which reads
+            // the active weapon slot. The slot is the only honest signal: the same trap
+            // appears twice more in this codebase (the RA buyer's Item_Type vs
+            // eInventorySlot collision, and this one).
+            var brain = new MimicBrain();
+            Assert.That(brain.IsBowUser, Is.False,
+                "An uninitialised mimic has no distance slot, so it is not a bow user");
+            // KiteGoal itself is unchanged and still ranks 6 when the sensor offers it -
+            // the gate is in the sensor, so the goal and the action stay in agreement.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var kite = agent.GetGoals().Single(g => g.GetName() == "KiteGoal");
+            Assert.That(kite.GetPriority(State((TacticalSensor.KiteAvailable, true))), Is.GreaterThan(0));
+            Assert.That(kite.GetPriority(State((TacticalSensor.KiteAvailable, false))), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void DebuffGoalIsGatedByTheSensorNotTheGoal()
+        {
+            // PR26: DebuffPriorityGoal scores 3.0 (assist) / 0.9, above ArrowTypeGoal 2.5
+            // and DealDamageGoal 2.0, so an archer holding any debuff-flagged spell stopped
+            // shooting to debuff. DebuffAvailable now excludes bow users, so the goal never
+            // sees a stale true for one.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var debuff = agent.GetGoals().Single(g => g.GetName() == "DebuffPriorityGoal");
+            var damage = agent.GetGoals().Single(g => g.GetName() == "DealDamageGoal");
+            float assistDebuff = debuff.GetPriority(State(
+                (TacticalSensor.DebuffAvailable, true), (MimicWorldStateKeys.IS_MAIN_ASSIST, true)));
+            float dps = damage.GetPriority(State(
+                (MimicWorldStateKeys.IN_COMBAT, true), (MimicWorldStateKeys.HAS_TARGET, true),
+                (MimicWorldStateKeys.IS_MAIN_ASSIST, true)));
+            Assert.That(assistDebuff, Is.GreaterThan(0),
+                "A bot that is not a bow user may still debuff - unchanged behaviour");
+            Assert.That(assistDebuff, Is.GreaterThan(dps),
+                "For a debuffer, debuffing still outranks plain damage");
+            Assert.That(debuff.GetPriority(State(
+                (TacticalSensor.DebuffAvailable, false), (MimicWorldStateKeys.IS_MAIN_ASSIST, true))),
+                Is.EqualTo(0), "Withdrawn by the sensor, so an archer is never offered it");
+        }
+
+        [Test]
+        public void BowSlotIsTheOnlyReliableRangedSignal()
+        {
+            // PR26 regression guard, same shape as the PR25 RA one. CanCastHarmfulSpells
+            // cannot distinguish "has a bow" from "can cast", and the enums that look like
+            // they could (eObjectType vs eInventorySlot) collide on 13.
+            Assert.That((int)eObjectType.Axe, Is.EqualTo((int)eInventorySlot.DistanceWeapon),
+                "The collision that made the old Item_Type test ask 'is this an axe?'");
+            Assert.That((int)eActiveWeaponSlot.Distance, Is.Not.EqualTo(13),
+                "The slot enum is a separate numbering, so the slot check is unambiguous");
+        }
+
         // PR25: realm-ability archetype detection.
         [Test]
         public void ArchetypeFollowsTheRangedWeaponSlot()

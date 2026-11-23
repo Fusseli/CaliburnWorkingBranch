@@ -248,9 +248,9 @@ namespace DOL.GS.Scripts
                     case GS.Abilities.Weapon_Thrown: MimicEquipment.SetRangedWeapon(this, eObjectType.Thrown); break;
                     case GS.Abilities.Weapon_Shortbows: MimicEquipment.SetRangedWeapon(this, eObjectType.Fired); break;
                     case GS.Abilities.Weapon_Crossbow: MimicEquipment.SetRangedWeapon(this, eObjectType.Crossbow); break;
-                    case GS.Abilities.Weapon_RecurvedBows: MimicEquipment.SetRangedWeapon(this, eObjectType.RecurvedBow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
-                    case GS.Abilities.Weapon_Longbows: MimicEquipment.SetRangedWeapon(this, eObjectType.Longbow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
-                    case GS.Abilities.Weapon_CompositeBows: MimicEquipment.SetRangedWeapon(this, eObjectType.CompositeBow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
+                    case GS.Abilities.Weapon_RecurvedBows: SetRangedWeaponOnce(eObjectType.RecurvedBow); break;
+                    case GS.Abilities.Weapon_Longbows: SetRangedWeaponOnce(eObjectType.Longbow); break;
+                    case GS.Abilities.Weapon_CompositeBows: SetRangedWeaponOnce(eObjectType.CompositeBow); break;
                     case GS.Abilities.Weapon_Archery when !ServerProperties.Properties.ALLOW_OLD_ARCHERY:
                         eObjectType bow = CharacterClass.ID switch
                         {
@@ -259,14 +259,32 @@ namespace DOL.GS.Scripts
                             (int)eCharacterClass.Ranger => eObjectType.RecurvedBow,
                             _ => eObjectType.GenericItem
                         };
-                        if (bow != eObjectType.GenericItem)
-                        {
-                            MimicEquipment.SetRangedWeapon(this, bow);
-                            SwitchWeapon(eActiveWeaponSlot.Distance);
-                        }
+                        SetRangedWeaponOnce(bow);
                         break;
                 }
             }
+        }
+
+        /// <summary>PR26: put a bow in the distance slot, but only if nothing is there
+        /// already, and hand the slot over to it.
+        ///
+        /// SetRanged loops every ability the bot owns and there is no break out of the
+        /// loop, so two matching cases add a bow twice. Under the new-archery flag a bot
+        /// can hold both Weapon_Archery and the old bow ability, and the second
+        /// SetRangedWeapon call then hit an occupied DistanceWeapon (slot 13):
+        /// "Inventory.AddItem -> Destination slot is not empty (13)" once per archer
+        /// spawn, from MimicNPC's constructor via SetWeapons/SetRanged.
+        ///
+        /// Guarding on the slot rather than on the ability list fixes every combination,
+        /// including the old-flag cases, and does not disturb the first bow - which was
+        /// already correct, which is why archer damage and abilities worked.</summary>
+        private void SetRangedWeaponOnce(eObjectType bow)
+        {
+            if (bow == eObjectType.GenericItem)
+                return;
+            if (Inventory.GetItem(eInventorySlot.DistanceWeapon) == null)
+                MimicEquipment.SetRangedWeapon(this, bow);
+            SwitchWeapon(eActiveWeaponSlot.Distance);
         }
 
         private void SetJewelry()
