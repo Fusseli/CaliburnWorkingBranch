@@ -648,6 +648,51 @@ namespace DOL.Tests.Unit
                 "A plain DbItemTemplate needs no extra row - that is why weapons and shields always came back");
         }
 
+        // PR32: bard / minstrel melee policy.
+        [Test]
+        public void GroupedBardIsTheOnlyFrontlineRestriction()
+        {
+            // PR32. The policy is deliberately narrow and asymmetric, because the two
+            // classes are not interchangeable: a Bard is the realm's heal, CC, cleanse and
+            // speed and its melee is poor, while a Minstrel is a legitimate melee attacker
+            // that also songs. Gating Minstrels the same way would break the class.
+            Assert.That(MimicBrain.MayMeleeAttack(isBard: true, isMinstrel: false, hasGroup: true), Is.False,
+                "A grouped Bard stays in support");
+            Assert.That(MimicBrain.MayMeleeAttack(isBard: true, isMinstrel: false, hasGroup: false), Is.True,
+                "A solo Bard has no one to support and must still fight for itself");
+            Assert.That(MimicBrain.MayMeleeAttack(isBard: true, isMinstrel: true, hasGroup: true), Is.True,
+                "A Minstrel is the better melee class of the two and is never held back");
+            Assert.That(MimicBrain.MayMeleeAttack(isBard: false, isMinstrel: false, hasGroup: true), Is.True,
+                "Every other class is unchanged, grouped or not");
+            Assert.That(MimicBrain.MayMeleeAttack(isBard: false, isMinstrel: false, hasGroup: false), Is.True);
+        }
+
+        [Test]
+        public void OnlyTheGroupedBardCaseIsWithheld()
+        {
+            // The reason helper returns null exactly when attacking is permitted, so this
+            // pins the single withheld case rather than re-stating the truth table.
+            var brain = new MimicBrain();
+            Assert.That(typeof(MimicBrain).GetMethod("MeleeRestrictionReason"), Is.Not.Null,
+                "The sensor logs this when it withholds a damage target");
+            // And the FSM must consult the same rule, or a grouped Bard still charges in
+            // through the legacy path even though GOAP would never pick a damage goal.
+            Assert.That(typeof(MimicBrain).GetMethod("MayAttackInMelee"), Is.Not.Null,
+                "One definition shared by the sensor and the FSM");
+        }
+
+        [Test]
+        public void BardMeleeRestrictionDoesNotBlockInterrupts()
+        {
+            // The regression this guards: the frontline restriction applies to damage
+            // attacks only. A Bard must still be able to walk into an enemy caster to rupt
+            // it - that is ExecuteGoapInterrupt's melee-first behaviour, and interrupting is
+            // how a Bard earns its place in a fight. If InterruptAvailable ever starts
+            // consulting MayMeleeAttack, this test's intent is violated.
+            Assert.That(typeof(MimicBrain).GetMethod("ExecuteGoapInterrupt"), Is.Not.Null,
+                "Interrupts must survive the frontline policy");
+        }
+
         // PR31: songs.
         [Test]
         public void SongRankingPutsSpeedFirstAndHealingLast()

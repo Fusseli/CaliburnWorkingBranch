@@ -99,7 +99,12 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             SetBool(ControlAvailable, canAct && context != MimicDecisionContext.Healing && !_brain.PreventCombat
                 && _brain.IsMainCC && adds > 0 && _body.CanCastCrowdControlSpells && !_body.IsSilenced && !_body.IsCasting);
             SetBool(OffenseAvailable, canAct && targetValid && !_body.IsSilenced && !_brain.IsFleeing);
-            SetBool(AttackAvailable, canAct && targetValid && !_body.IsCasting);
+            // PR32: a grouped Bard does not take a damage target at all - it is the realm's
+            // heal, CC, cleanse and speed, and its melee is poor. Minstrels are the better
+            // melee class of the two and are untouched, and a solo Bard still fights for
+            // itself. InterruptAvailable below is deliberately NOT gated by this, so a Bard
+            // can still walk into an enemy caster to rupt it.
+            SetBool(AttackAvailable, canAct && targetValid && !_body.IsCasting && _brain.MayAttackInMelee);
             bool enemyCasting = targetValid && targetLiving.IsCasting;
             SetBool(EnemyCasting, enemyCasting);
             SetBool(InterruptAvailable, canAct && enemyCasting && !_body.IsCasting);

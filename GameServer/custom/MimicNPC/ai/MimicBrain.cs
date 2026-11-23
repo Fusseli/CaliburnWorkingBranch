@@ -435,6 +435,52 @@ namespace DOL.AI.Brain
             && Body.Inventory != null
             && Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null;
 
+        #region PR32 - bard / minstrel melee policy
+
+        /// <summary>PR32: is this a Bard? Bards are their realm's support class -
+        /// healer, buffer, demezzer and speed - so a grouped Bard stays off the frontline
+        /// and works the instrument.</summary>
+        public bool IsBard
+            => MimicBody?.CharacterClass != null
+            && MimicBody.CharacterClass.ID == (int)eCharacterClass.Bard;
+
+        /// <summary>PR32: is this a Minstrel? Unlike a Bard a Minstrel is a legitimate
+        /// melee attacker as well as a singer, so the frontline restriction does not apply
+        /// to it.</summary>
+        public bool IsMinstrel
+            => MimicBody?.CharacterClass != null
+            && MimicBody.CharacterClass.ID == (int)eCharacterClass.Minstrel;
+
+        /// <summary>PR32: the frontline rule, as a pure decision so it is unit-testable.
+        ///
+        /// Only a Bard in a group is held back:
+        ///  - grouped Bard  - stays in support; its melee is poor and its heal, CC, cleanse
+        ///    and speed are what the group is actually missing
+        ///  - solo Bard     - no one to support, so it fights for itself
+        ///  - Minstrel      - never held back; it is the better melee class of the two and
+        ///    is meant to trade blows while it songs
+        ///  - anyone else   - unchanged
+        ///
+        /// Deliberately not applied to interrupts: ExecuteGoapInterrupt melee-pressures an
+        /// enemy caster before falling back to an instant, and that rupt is precisely the one
+        /// melee a Bard is still allowed to make.
+        /// </summary>
+        public static bool MayMeleeAttack(bool isBard, bool isMinstrel, bool hasGroup)
+            => !isBard || isMinstrel || !hasGroup;
+
+        /// <summary>PR32: should this bot be allowed to swing at things? See
+        /// <see cref="MayMeleeAttack"/> for the policy. Used by both the GOAP sensor and
+        /// the FSM so the two paths cannot disagree.</summary>
+        public bool MayAttackInMelee
+            => Body != null && MayMeleeAttack(IsBard, IsMinstrel, Body.Group != null);
+
+        /// <summary>PR32: why attacking is withheld, or null when it is not. Null exactly
+        /// when attacking is permitted, which makes it directly testable.</summary>
+        public string MeleeRestrictionReason()
+            => MayAttackInMelee ? null : "grouped Bard keeps to support";
+
+        #endregion
+
         #region PR31 - songs
 
         /// <summary>Every song this bot can play: spells with NeedInstrument, taken from the
@@ -2041,18 +2087,41 @@ namespace DOL.AI.Brain
         /// <summary>
         /// Selects and attacks the next target or does nothing.
         /// </summary>
-        public virtual void AttackMostWanted()
-        {
-            if (!IsActive)
-                return;
+            public virtual void AttackMostWanted()
+            {
+                if (!IsActive)
+                    return;
 
-            //if (PvPMode || CheckAssist == null)
+                //if (PvPMode || CheckAssist == null)
 
-            if (!CheckMainTankTarget())
-                Body.TargetObject = CalculateNextAttackTarget();
+                if (!CheckMainTankTarget())
+                    Body.TargetObject = CalculateNextAttackTarget();
 
-            AttackSelectedTarget(true);
-        }
+                // PR32: same frontline restriction the sensor applies to AttackAvailable.
+                // Without this a grouped Bard still charged in through the FSM even though
+                // GOAP would never have picked DealDamageGoal for it - the two paths have to
+                // agree or the policy is half a policy. Self-defence is exempt: if
+                // something is already on us, backing off to a song stance is how we die.
+                if (!MayAttackInMelee && !IsUnderAttack())
+                    return;
+
+                AttackSelectedTarget(true);
+            }
+
+            /// <summary>PR32: is something already hitting us? Used so the Bard frontline
+            /// restriction never becomes "stand there and get killed".</summary>
+            private bool IsUnderAttack()
+            {
+                if (Body == null)
+                    return false;
+                foreach (var entry in GetOrderedAggroList())
+                {
+                    var enemy = entry.Item1;
+                    if (enemy != null && enemy.IsAlive && enemy.TargetObject == Body)
+                        return true;
+                }
+                return false;
+            }
 
         private void AttackSelectedTarget(bool allowSpellSelection)
         {
