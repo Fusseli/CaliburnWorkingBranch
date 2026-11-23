@@ -163,6 +163,11 @@ namespace DOL.GS.ReGoap.Mimic
             $"AI: {Status}\nEnabled: {_enabled}\nGOAP decisions: {Decisions}; fallback decisions: {Fallbacks}\n" +
             $"Last goal: {LastGoal}\nLast action: {LastAction}\n" +
             $"Last think: sense {LastSenseMs}ms; plan {LastPlanMs}ms\n" +
+            // PR38: the three numbers that explain why control is or is not chosen.
+            // "adds" is the ACTIONABLE count, so it must fall to zero the moment control
+            // is on - if it sits, the bot is trying to control something it cannot.
+            $"Control: adds {Brain.GetCcCandidates().Count}; ccPrimary {Brain.IsCcPrimary}; " +
+            $"underPressure {Brain.IsUnderPressure()}\n" +
             $"Sensors: {sensors.Count}; goals: {goals.Count}; actions: {actions.Count}";
     }
 }

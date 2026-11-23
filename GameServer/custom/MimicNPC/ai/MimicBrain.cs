@@ -1334,11 +1334,14 @@ namespace DOL.AI.Brain
             {
                 if (type == eCheckSpellType.CrowdControl)
                 {
-                    var group = Body.Group?.MimicGroup;
-                    if (group == null) return false;
-                    group.CCTargets.RemoveAll(t => t == null || !t.IsAlive || t.IsMezzed || t.IsStunned
-                        || t.IsRooted || t == group.CurrentTarget || t.CurrentRegion != Body.CurrentRegion || !CanAggroTarget(t));
-                    if (group.CCTargets.Count == 0) return false;
+                    // PR38: prune the claim list, then ask for a live candidate. The old
+                    // test was "does CCTargets still hold something", which was false for a
+                    // bot group from the moment it pulled, and unreachable for an ungrouped
+                    // bot - the branch returned false on a null group before testing
+                    // anything. Both meant this action could never run.
+                    PruneCcClaims();
+                    if (GetCcCandidates().Count == 0)
+                        return false;
                 }
                 if (type == eCheckSpellType.Offensive)
                     Body.ControlledBrain?.Attack(Body.TargetObject);
@@ -2087,32 +2090,290 @@ namespace DOL.AI.Brain
 
         public void CheckMainCC()
         {
-            if (Body.Group.MimicGroup.CCTargets.Count > 0)
+            var group = Body.Group?.MimicGroup;
+
+            // PR38: the guard was Body.Group.MimicGroup.CCTargets.Count - an unguarded
+            // dereference on a body that may have no group at all, and a count of a list
+            // that only a player's BAF ever filled.
+            if (group != null && group.CCTargets.Count > 0)
             {
                 if (CheckSpells(eCheckSpellType.CrowdControl))
                     return;
             }
 
-            if (!Body.InCombat && Body.Group.MimicGroup.CCTargets.Count > 0)
+            if (!Body.InCombat && group != null && group.CCTargets.Count > 0)
             {
-                Body.Group.MimicGroup.CCTargets = ValidateCCList(Body.Group.MimicGroup.CCTargets);
+                group.CCTargets = ValidateCCList(group.CCTargets);
             }
         }
+
+        #region CcCandidates
+
+        /// <summary>
+        /// PR38: the rule for "may I put control on this enemy right now", with every input
+        /// already resolved, so it can be pinned by a test without a body.
+        ///
+        /// <paramref name="isPrimaryTarget"/> is the group's shared target. Controlling the
+        /// enemy everybody is already hitting buys nothing, so it is excluded - that was the
+        /// intent of the old filter and it is kept. With no group there is no primary target,
+        /// which is what lets a solo bot control at all.
+        ///
+        /// <paramref name="claimedByGroup"/> is a sibling that already started a cast at this
+        /// enemy. Without it, every mezz-capable bot in a group fires at the same add. The
+        /// caster's own claim is not included - see ClaimCcTarget.
+        /// </summary>
+        public static bool IsControllableEnemy(bool alive, bool active, bool sameRegion, bool aggroable,
+            bool alreadyControlled, bool isPrimaryTarget, bool claimedByGroup)
+            => alive && active && sameRegion && aggroable && !alreadyControlled && !isPrimaryTarget && !claimedByGroup;
+
+        /// <summary>
+        /// PR38: the first control spell in this bot's pool that it can actually land on
+        /// this enemy right now, or false. This is the one place "can I control that enemy"
+        /// is answered, and both the candidate count and the cast read it, so the number the
+        /// sensor reports and the casts the brain makes can never disagree.
+        ///
+        /// Three separate ways a spell is refused, each of which used to be invisible:
+        ///  - not castable now (cooldown, or the target type)
+        ///  - the effect is already on the enemy. LivingHasEffect also recognises the spell
+        ///    we are mid-cast with, so a queued cast is not repeated
+        ///  - out of the spell's own reach. The cast path had this filter but the count did
+        ///    not, so an unreachable add was reported as work the bot could do.
+        /// </summary>
+        public bool TryPickControlSpell(GameLiving enemy, out Spell spell)
+        {
+            spell = null;
+            var pool = MimicBody?.CrowdControlSpells;
+            if (enemy == null || Body == null || pool == null)
+                return false;
+
+            foreach (Spell candidate in pool)
+            {
+                if (!CanUseControlSpell(candidate) || LivingHasEffect(enemy, candidate))
+                    continue;
+
+                if (candidate.Range > 0 && !Body.IsWithinRadius(enemy, candidate.Range))
+                    continue;
+
+                spell = candidate;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// PR38: can this control spell be cast right now? The same data test as
+        /// CanCastOffensiveSpell, except that it accepts instant casts.
+        ///
+        /// CanCastOffensiveSpell requires CastTime > 0, which is right for damage - an
+        /// instant nuke is handled by the instant path. Crowd control has no such second
+        /// path: instant mezzes are routed into CrowdControlSpells by SortSpells and were
+        /// then refused here by the cast-time test, and CheckInstantOffensiveSpells never
+        /// saw them because that iterates InstantHarmfulSpells. Dead on both paths.
+        /// </summary>
+        protected bool CanUseControlSpell(Spell spell)
+        {
+            if (spell == null || Body == null)
+                return false;
+            if (Body.GetSkillDisabledDuration(spell) > 0)
+                return false;
+            return spell.Target is eSpellTarget.ENEMY or eSpellTarget.AREA or eSpellTarget.CONE;
+        }
+
+        /// <summary>
+        /// PR38: is control this bot's job? Only a mezzer qualifies.
+        ///
+        /// PR37 put roots and snares into the same pool as mezzes, and every one of them
+        /// wakes CanCastCrowdControlSpells. Without this narrowing a Druid carrying a single
+        /// root would take the group's control duty and spend the fight casting it.
+        ///
+        /// Capability-derived, not a class table: it reads the pool SortSpells already built.
+        /// </summary>
+        public bool IsCcPrimary
+        {
+            get
+            {
+                var pool = MimicBody?.CrowdControlSpells;
+                if (pool == null)
+                    return false;
+                foreach (Spell spell in pool)
+                {
+                    if (CcClassifier.IsMezzer(spell))
+                        return true;
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// PR38: enemies this bot has real control work for, highest effective aggro first.
+        ///
+        /// This is the aggro-list candidate set, narrowed to the ACTIONABLE ones. The
+        /// difference is the whole point: the first filter asked "is this enemy still
+        /// controllable", and that test reads IsMezzed/IsStunned/IsRooted - but a snare sets
+        /// none of them (SpeedDecreaseSpellHandler only sets IsRooted at Value == 99). A
+        /// snared enemy therefore stayed a candidate forever, the count never drained, and
+        /// the bot never went back to damage. Now a candidate is one a cast would actually
+        /// change something for, so the count falls to zero the moment control is on.
+        ///
+        /// This replaces MimicGroup.CCTargets as the source of CC work. CCTargets had
+        /// exactly one producer in the entire server - StandardMobBrain's
+        /// battlegroup-add-finder, and only for a mob that walked past a *player*. A bot
+        /// group fighting another bot group therefore always saw zero, the sensor's
+        /// NUM_CONTROLLABLE_ADDS was always 0, ControlAvailable was always false, and the
+        /// CC goal could never fire.
+        /// </summary>
+        public List<GameLiving> GetCcCandidates()
+        {
+            List<GameLiving> candidates = new List<GameLiving>();
+            if (Body == null)
+                return candidates;
+
+            var group = Body.Group?.MimicGroup;
+            var claimed = group?.CCTargets;
+            GameLiving primary = group?.CurrentTarget as GameLiving;
+
+            foreach (var entry in GetOrderedAggroList())
+            {
+                GameLiving enemy = entry.Item1;
+                if (enemy == null || enemy == Body)
+                    continue;
+
+                if (!IsControllableEnemy(
+                        enemy.IsAlive,
+                        enemy.ObjectState == GameObject.eObjectState.Active,
+                        enemy.CurrentRegion == Body.CurrentRegion,
+                        CanAggroTarget(enemy),
+                        enemy.IsMezzed || enemy.IsStunned || enemy.IsRooted,
+                        enemy == primary,
+                        claimed != null && claimed.Contains(enemy) && enemy != _myCcClaim))
+                    continue;
+
+                if (!TryPickControlSpell(enemy, out _))
+                    continue;
+
+                candidates.Add(enemy);
+            }
+
+            return candidates;
+        }
+
+        /// <summary>
+        /// Claim an enemy for this group so no sibling re-casts at it.
+        ///
+        /// PR38: the claim is written when the cast STARTS, and it used to hide the target
+        /// from the caster as well as from its siblings - so a control that was resisted
+        /// dropped that add from the caster's own candidate list and was never retried.
+        /// The caster's own claim is therefore remembered separately and does not block it.
+        /// </summary>
+        public void ClaimCcTarget(GameLiving enemy)
+        {
+            _myCcClaim = enemy;
+            var group = Body.Group?.MimicGroup;
+            if (group != null && enemy != null && !group.CCTargets.Contains(enemy))
+                group.CCTargets.Add(enemy);
+        }
+
+        /// <summary>
+        /// Drop claims that no longer mean anything: dead, gone, out of range or no longer
+        /// something we may attack. A claim is not removed when a cast starts, so a resisted
+        /// control is retried rather than forgotten - but PR41 is where it stops being
+        /// retried forever.
+        /// </summary>
+        public void PruneCcClaims()
+        {
+            var group = Body.Group?.MimicGroup;
+            if (group != null)
+            {
+                group.CCTargets.RemoveAll(t => t == null || !t.IsAlive || t.IsMezzed || t.IsStunned
+                    || t.IsRooted || t.CurrentRegion != Body.CurrentRegion || !CanAggroTarget(t));
+            }
+
+            // PR38: the caster's own claim must not outlive the enemy it was made for,
+            // or it blocks that enemy from ever being controlled again.
+            if (_myCcClaim != null && (group == null || !group.CCTargets.Contains(_myCcClaim)))
+                _myCcClaim = null;
+        }
+
+        /// <summary>How close an enemy has to be to count as sitting on us.</summary>
+        public const int PRESSURE_MELEE_RANGE = 200;
+
+        /// <summary>
+        /// PR38: is an enemy sitting on us? One definition, shared by the control gate and
+        /// the kite gate - they used to ask the same question in two places.
+        /// </summary>
+        public bool IsEngagedInMelee()
+        {
+            if (Body == null)
+                return false;
+
+            foreach (var entry in GetOrderedAggroList())
+            {
+                var enemy = entry.Item1;
+                if (enemy == null || !enemy.IsAlive || enemy.TargetObject != Body)
+                    continue;
+                if (Body.IsWithinRadius(enemy, PRESSURE_MELEE_RANGE))
+                    return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// PR38: are we in a hurry? Being interrupted, or an enemy on us, means starting a
+        /// multi-second control now is how you get interrupted instead of how you win.
+        /// </summary>
+        public bool IsUnderPressure() => Body != null && (Body.IsBeingInterrupted || IsEngagedInMelee());
+
+        /// <summary>
+        /// PR38: should this bot hold off on control? Pure, so it can be pinned without a
+        /// body. The control gate is deliberately NOT gated on being a caster or in combat,
+        /// so a pac healer is pressured for the first time.
+        /// </summary>
+        public static bool ShouldWithholdControl(bool underPressure, bool silenced, bool casting)
+            => underPressure || silenced || casting;
+
+        /// <summary>
+        /// PR38: may this bot start a new offensive cast?
+        ///
+        /// The missing "!IsCasting" here was the queued-cast chain. OffenseAvailable was the
+        /// only one of the three action gates that did not test it, so while a six second
+        /// control was running the damage goal was still planned, the damage action queued
+        /// another spell, and CastingComponent promotes a queued spell to the active cast
+        /// when the first one ends - which means IsCasting never became false and the bot
+        /// could do nothing but cast, forever.
+        /// </summary>
+        public static bool CanStartOffensiveCast(bool isCasting, bool isSilenced, bool isFleeing)
+            => !isCasting && !isSilenced && !isFleeing;
+
+        /// <summary>The enemy this bot last started a control cast on.</summary>
+        private GameLiving _myCcClaim;
+
+        #endregion CcCandidates
 
         // Test for bad lists. Might not be needed.
         private List<GameLiving> ValidateCCList(List<GameLiving> ccList)
         {
             List<GameLiving> validatedList = new List<GameLiving>();
 
-            if (ccList.Count != 0)
+            // PR38: this hard-cast to StandardMobBrain. MimicBrain and StandardMobBrain are
+            // siblings - both implement IOldAggressiveBrain, neither derives from the other -
+            // so any MimicNPC in this list threw InvalidCastException. That was unreachable
+            // while only BAF mobs went in. CC candidates are enemies, and when two bot groups
+            // fight each other the enemies are MimicNPCs, so it is now the ordinary case.
+            foreach (GameLiving cc in ccList)
             {
-                foreach (GameLiving cc in ccList)
-                {
-                    if (cc is GameNPC npc && npc != null && npc.IsAlive && ((StandardMobBrain)npc.Brain).HasAggro)
-                    {
-                        validatedList.Add(cc);
-                    }
-                }
+                // Brain hangs off GameNPC, not GameLiving - the same reason the old body
+                // began with `cc is GameNPC npc`.
+                if (!(cc is GameNPC npc) || !npc.IsAlive)
+                    continue;
+
+                bool hasAggro = npc.Brain is StandardMobBrain mob ? mob.HasAggro
+                    : npc.Brain is MimicBrain mimic ? mimic.HasAggro
+                    : false;
+
+                if (hasAggro)
+                    validatedList.Add(cc);
             }
 
             return validatedList;
@@ -2860,24 +3121,43 @@ namespace DOL.AI.Brain
 
             if (!casted && type == eCheckSpellType.CrowdControl)
             {
-                if (MimicBody.CanCastCrowdControlSpells)
+                // PR38: only a mezzer takes the control duty, and only when it is not
+                // pressured, silenced or already casting. A Druid with one root is not a
+                // controller, and a bot with a mob on it should not start a six second mez.
+                if (MimicBody.CanCastCrowdControlSpells && IsCcPrimary
+                    && !ShouldWithholdControl(IsUnderPressure(), Body.IsSilenced, Body.IsCasting))
                 {
-                    Body.TargetObject = MimicBody.Group.MimicGroup.CCTargets[Util.Random(MimicBody.Group.MimicGroup.CCTargets.Count - 1)];
-
-                    foreach (Spell spell in MimicBody.CrowdControlSpells)
+                    // PR38: the candidate set is the aggro list. This used to read
+                    // MimicBody.Group.MimicGroup.CCTargets - an unguarded dereference that
+                    // threw for an ungrouped bot, and a list that only ever received mobs
+                    // which walked past a player. Bot against bot, the list was always
+                    // empty, so this whole block never ran. That is the reason there was
+                    // so little crowd control to see.
+                    //
+                    // Both the target and the spell come from the same gate
+                    // (TryPickControlSpell), so the count the sensor reports and the cast
+                    // the brain makes can never disagree. Both picks were Util.Random
+                    // before: two mez-capable bots in one group could pick the same add and
+                    // neither could answer "which enemy does this class control".
+                    foreach (GameLiving candidate in GetCcCandidates())
                     {
-                        if (CanCastOffensiveSpell(spell) && !LivingHasEffect((GameLiving)Body.TargetObject, spell))
-                            spellsToCast.Add(spell);
-                    }
+                        if (!TryPickControlSpell(candidate, out Spell spell))
+                            continue;
 
-                    if (spellsToCast.Count > 0)
-                    {
-                        Spell spell = spellsToCast[Util.Random(spellsToCast.Count - 1)];
-
+                        Body.TargetObject = candidate;
                         casted = Body.CastSpell(spell, m_mobSpellLine);
 
                         if (casted)
-                            MimicBody.Group.MimicGroup.CCTargets.Remove((GameLiving)Body.TargetObject);
+                        {
+                            // PR38: claim it on cast START. The old code removed the target
+                            // on a successful cast, which meant a mezz that landed vanished
+                            // from the list while one that was resisted stayed in it being
+                            // retried - and the caster's own claim hid it from the caster,
+                            // so it was never retried at all.
+                            ClaimCcTarget(candidate);
+                        }
+
+                        break;
                     }
                 }
             }
@@ -2933,29 +3213,24 @@ namespace DOL.AI.Brain
                 if ((MimicBody.CanUsePositionalStyles || MimicBody.CanUseAnytimeStyles) && (Body.IsWithinRadius(Body.TargetObject, 550) || Body.ManaPercent <= 10))
                     return false;
 
-                if (MimicBody.CanCastCrowdControlSpells)
-                {
-                    int ccChance = 50;
-
-                    GameLiving livingTarget = Body.TargetObject as GameLiving;
-
-                    if (livingTarget?.TargetObject == Body && Body.IsWithinRadius(Body.TargetObject, 500))
-                        ccChance = 95;
-
-                    if (Body.Group?.MimicGroup.CurrentTarget == Body.TargetObject)
-                        ccChance = 0;
-
-                    if (Util.Chance(ccChance))
-                    {
-                        foreach (Spell spell in MimicBody.CrowdControlSpells)
-                        {
-                            // Prevent Minstrel from spamming their AoE mez for now.
-                            if (spell.CastTime < 5)
-                                if (CanCastOffensiveSpell(spell) && !LivingHasEffect((GameLiving)Body.TargetObject, spell))
-                                    spellsToCast.Add(spell);
-                        }
-                    }
-                }
+                // PR38: the opportunistic crowd-control roll that used to live here is gone.
+                //
+                // It was a Util.Chance(50) - 95 when the target was already on us, 0 when the
+                // target was the group's shared one - that pushed a control spell into
+                // spellsToCast BEFORE the damage pool below, so a successful roll meant the
+                // damage spells were never even considered. The "offensive" action was a
+                // control action half the time.
+                //
+                // That is what built the queued-cast chain. A six second control starts, the
+                // sensor's OffenseAvailable did not test IsCasting, so the damage goal was
+                // planned again on the next tick, the roll produced another control, and
+                // CastingComponent promotes a queued spell to the active cast when the first
+                // one ends - so IsCasting never became false. The bot could do nothing but
+                // cast control, for the whole fight.
+                //
+                // Control now has its own planned action (ControlAdd -> ControlAddsGoal),
+                // which is what a decision should look like. A random roll inside the damage
+                // path is not a decision.
 
                 if (MimicBody.CanCastBolts && spellsToCast.Count < 1)
                 {

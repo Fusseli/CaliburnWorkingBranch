@@ -80,6 +80,20 @@ namespace DOL.GS.Scripts
         /// <summary>Is this spell type a hard control, whatever its magnitude?</summary>
         public static bool IsHardControl(eSpellType type) => Mezzers.Contains(type) || Stuns.Contains(type);
 
+        /// <summary>
+        /// PR38: is this spell type a mesmerise, as opposed to any other control?
+        ///
+        /// This is the whole test for "control is this bot's job". A root or a snare is
+        /// something a bot throws while it is already doing its real work, so it must not
+        /// make a Druid or a Cleric take the control duty - only a mezzer does. Compared
+        /// with IsHardControl the narrowing is on purpose: stuns share the "cannot act"
+        /// property but are a melee reward, not a battle plan.
+        /// </summary>
+        public static bool IsMezzer(eSpellType type) => Mezzers.Contains(type);
+
+        /// <summary>Is this spell a mesmerise?</summary>
+        public static bool IsMezzer(Spell spell) => spell != null && IsMezzer(spell.SpellType);
+
         /// <summary>Does this spell type control movement at all?</summary>
         public static bool IsMovementControl(eSpellType type) => IsHardControl(type) || IsSpeedDecrease(type);
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using DOL.AI.Brain;
 using DOL.GS;
 using DOL.GS.Effects;
 using DOL.GS.RealmAbilities;
@@ -85,10 +86,11 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                 (m.IsDiseased && (_body.CureDisease != null || _body.CureDiseaseGroup != null)) ||
                 (m.IsPoisoned && (_body.CurePoison != null || _body.CurePoisonGroup != null))));
 
-            var ccTargets = _body.Group?.MimicGroup.CCTargets;
-            int adds = ccTargets?.Count(m => m != null && m.IsAlive && !m.IsMezzed && !m.IsStunned
-                && !m.IsRooted && m != _body.Group.MimicGroup.CurrentTarget
-                && m.CurrentRegion == _body.CurrentRegion && _brain.CanAggroTarget(m)) ?? 0;
+            // PR38: the CC candidate set is the aggro list now. It used to be
+            // MimicGroup.CCTargets, which only ever received mobs that walked past a *player*
+            // in the group, so against another bot group - or solo - this was always 0,
+            // ControlAvailable was always false and the CC goal never fired.
+            int adds = _brain.GetCcCandidates().Count;
             SetInt(MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, adds);
             SetInt(MimicWorldStateKeys.NUM_ENEMIES, _brain.GetOrderedAggroList().Count);
             SetBool(MimicWorldStateKeys.IS_MAIN_CC, _brain.IsMainCC);
@@ -96,9 +98,31 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             SetBool(SupportAvailable, canAct && !_body.IsSilenced && _body.CanCastHealSpells);
             SetBool(BuffsAvailable, canAct && context == MimicDecisionContext.Support && !_body.InCombat
                 && !_body.IsMoving && !_body.IsSilenced);
+            // PR38: the IsMainCC gate is gone. Only the group's elected crowd controller could
+            // ever reach this action, so in a group of eight with three mezz-capable bots
+            // exactly one acted, and a solo bot - which is never any role - could not act
+            // at all. The role is still elected and still used by the pre-pull path in
+            // CheckMainCC; it is simply no longer a licence to use a spell.
+            //
+            // Three gates are added instead. IsCcPrimary keeps control to the mezzers, so
+            // the roots and snares PR37 classified do not turn a Druid or a Cleric into the
+            // group's controller. The pressure gate stops a bot starting a multi-second mez
+            // while it is being hit, rupted or already casting - and unlike the kite gate's
+            // pressure test this one is not gated on being a caster or in combat, so it
+            // reaches healers. And "adds" is the actionable count now, so it drains the
+            // moment control is actually on and the bot returns to its other goals without
+            // any class policy saying so.
             SetBool(ControlAvailable, canAct && context != MimicDecisionContext.Healing && !_brain.PreventCombat
-                && _brain.IsMainCC && adds > 0 && _body.CanCastCrowdControlSpells && !_body.IsSilenced && !_body.IsCasting);
-            SetBool(OffenseAvailable, canAct && targetValid && !_body.IsSilenced && !_brain.IsFleeing);
+                && adds > 0 && _body.CanCastCrowdControlSpells && _brain.IsCcPrimary
+                && !MimicBrain.ShouldWithholdControl(_brain.IsUnderPressure(), _body.IsSilenced, _body.IsCasting));
+            // PR38: the missing "!IsCasting" here was the queued-cast chain. This was the
+            // only one of the three action gates that did not test it, so while a six second
+            // control was running the damage goal was still planned, the damage action
+            // queued another spell, and CastingComponent promotes a queued spell to the
+            // active cast when the first one ends - IsCasting never became false, and the
+            // bot could do nothing but cast, for the whole fight.
+            SetBool(OffenseAvailable, canAct && targetValid
+                && MimicBrain.CanStartOffensiveCast(_body.IsCasting, _body.IsSilenced, _brain.IsFleeing));
             // PR32: a grouped Bard does not take a damage target at all - it is the realm's
             // heal, CC, cleanse and speed, and its melee is poor. Minstrels are the better
             // melee class of the two and are untouched, and a solo Bard still fights for
@@ -255,17 +279,11 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             // user is still excluded: it holds its range instead.
             bool isCaster = (_brain.HasRangedOffensive || _brain.IsHealer) && !_brain.IsBowUser;
             bool solo = _body.Group == null;
-            bool meleed = false;
-            if (combat && isCaster)
-            {
-                foreach (var entry in _brain.GetOrderedAggroList())
-                {
-                    var enemy = entry.Item1;
-                    if (enemy == null || !enemy.IsAlive || enemy.TargetObject != _body)
-                        continue;
-                    if (_body.IsWithinRadius(enemy, 200)) { meleed = true; break; }
-                }
-            }
+            // PR38: the scan moved to MimicBrain.IsEngagedInMelee so "an enemy is sitting on
+            // us" has one definition, shared with the control gate. The combat/isCaster part
+            // stays here - that is kite policy, and loosening it would put melee classes
+            // back on the run, which is exactly what PR36 fixed.
+            bool meleed = combat && isCaster && _brain.IsEngagedInMelee();
             bool pressured = combat && isCaster && canAct && (_body.IsBeingInterrupted || meleed);
 
             // PR36: already in reach means fighting beats running. Without this a hybrid

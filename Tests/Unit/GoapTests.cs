@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using DOL.AI.Brain;
@@ -830,6 +831,195 @@ namespace DOL.Tests.Unit
                 Assert.That(CcClassifier.IsAreaControl(eSpellTarget.ENEMY, 0), Is.False);
                 Assert.That(CcClassifier.IsAreaControl(eSpellTarget.SELF, 0), Is.False);
             });
+        }
+
+        // PR38: where CC work comes from.
+        [Test]
+        public void CcCandidatesComeFromWhoeverIsActuallyAttackingUs()
+        {
+            // PR38. The candidate set used to be MimicGroup.CCTargets, and that list had
+            // exactly one producer in the whole server: StandardMobBrain's
+            // battlegroup-add-finder, and only for a mob that walked past a *player*. Bot
+            // against bot it was always empty, so NUM_CONTROLLABLE_ADDS was 0,
+            // ControlAvailable was false and the CC goal could never fire at all. The set
+            // is read off the aggro list now. This pins every way a candidate is refused.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, true, true, false, false, false), Is.True,
+                    "An aggroed, live, uncontrolled add is fair game");
+                Assert.That(MimicBrain.IsControllableEnemy(false, true, true, true, false, false, false), Is.False,
+                    "Not alive");
+                Assert.That(MimicBrain.IsControllableEnemy(true, false, true, true, false, false, false), Is.False,
+                    "Not active - a dead object, a ghost or a caster");
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, false, true, false, false, false), Is.False,
+                    "Not in this region");
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, true, false, false, false, false), Is.False,
+                    "Something we may not attack is not a control target");
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, true, true, true, false, false), Is.False,
+                    "Already under control - the point is to pick one out of the mez, not to re-mez it");
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, true, true, false, true, false), Is.False,
+                    "The group's shared target is being hit already, controlling it buys nothing");
+                Assert.That(MimicBrain.IsControllableEnemy(true, true, true, true, false, false, true), Is.False,
+                    "A sibling already started a cast here");
+            });
+        }
+
+        [Test]
+        public void EveryCcCapableBotMayControlNotOnlyTheElectedOne()
+        {
+            // PR38. ControlAvailable required _brain.IsMainCC. In a group of eight with three
+            // mezz-capable bots exactly one ever acted, and a solo bot - which is never any
+            // role - could not act at all. A lone mimic against a pack is supposed to be able
+            // to mezz it.
+            //
+            // The sensor needs a live body to run, so what is pinned here is the goal's
+            // contract: it scores off the number of real candidates and nothing else. The
+            // proof that the IsMainCC gate is gone is PR38's live checklist - a solo bard
+            // against three mimics should open. See README_PR38.md.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var goal = agent.GetGoals().Single(g => g.GetName() == "ControlAddsGoal");
+            Assert.Multiple(() =>
+            {
+                Assert.That(goal.GetPriority(State(
+                    (TacticalSensor.ControlAvailable, true),
+                    (MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, 1))), Is.GreaterThan(0),
+                    "One real candidate is worth a cast, whoever this bot is");
+                Assert.That(goal.GetPriority(State(
+                    (TacticalSensor.ControlAvailable, true),
+                    (MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, 0))), Is.EqualTo(0),
+                    "No candidates means nothing to do");
+            });
+        }
+
+        [Test]
+        public void OnlyMezzersTakeTheControlDuty()
+        {
+            // PR38. PR37 put roots and snares into the same pool as mezzes, and every one
+            // of them wakes CanCastCrowdControlSpells. Without a narrowing a Druid carrying
+            // a single root took the group's control duty and spent the fight casting it.
+            //
+            // Stuns do not qualify either: a stun is a melee reward, not a battle plan.
+            // The test is capability-derived - the pool SortSpells already built - and
+            // deliberately NOT a class table.
+            Assert.Multiple(() =>
+            {
+                Assert.That(CcClassifier.IsMezzer(eSpellType.Mesmerize), Is.True);
+                Assert.That(CcClassifier.IsMezzer(eSpellType.Mez), Is.True);
+                Assert.That(CcClassifier.IsMezzer(eSpellType.CeremonialBracerMezz), Is.True);
+                Assert.That(CcClassifier.IsMezzer(eSpellType.Stun), Is.False,
+                    "A stun is a melee reward, not a battle plan");
+                Assert.That(CcClassifier.IsMezzer(eSpellType.SpeedDecrease), Is.False,
+                    "A root is thrown while you are already doing your real work");
+                Assert.That(CcClassifier.IsMezzer(eSpellType.DirectDamage), Is.False);
+            });
+        }
+
+        [Test]
+        public void PressedSilencedOrCastingBotsWithholdControl()
+        {
+            // PR38. The control gate had no "am I engaged" test at all, so a bot with a mob
+            // on it still started a multi-second mezz - and a mezz that gets interrupted
+            // leaves the count unchanged, so the next tick starts it again. That is a loop,
+            // and it is what a bard or a minstrel standing in melee looked like.
+            //
+            // The rule is pure, so it can be pinned without a body. The live proof that the
+            // sensor consults it is PR38's checklist: a bard with a mob on it must not
+            // start a mezz.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicBrain.ShouldWithholdControl(false, false, false), Is.False,
+                    "Free, loud and idle: go ahead");
+                Assert.That(MimicBrain.ShouldWithholdControl(true, false, false), Is.True,
+                    "An enemy on us - a multi-second control would just be interrupted");
+                Assert.That(MimicBrain.ShouldWithholdControl(false, true, false), Is.True,
+                    "Silenced");
+                Assert.That(MimicBrain.ShouldWithholdControl(false, false, true), Is.True,
+                    "Already casting something");
+            });
+        }
+
+        [Test]
+        public void ControlIsFlatPricedSoMoreAddsCannotOutrankKiting()
+        {
+            // PR38. The old score was Min(4 x adds, 40): two adds scored 8, ten scored 40.
+            // The bigger the fight, the less the bot fought - the exact opposite of what
+            // should happen. One cast is one cast, so the count is only a zero guard.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var control = agent.GetGoals().Single(g => g.GetName() == "ControlAddsGoal");
+            var kite = agent.GetGoals().Single(g => g.GetName() == "KiteGoal");
+
+            foreach (int adds in new[] { 1, 2, 5, 10, 99 })
+            {
+                var state = State((TacticalSensor.ControlAvailable, true),
+                    (MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, adds));
+                Assert.That(control.GetPriority(state), Is.EqualTo(ControlAddsGoal.Priority),
+                    adds + " adds must not change the price of a control cast");
+            }
+
+            Assert.That(control.GetPriority(State((TacticalSensor.ControlAvailable, true),
+                    (MimicWorldStateKeys.NUM_CONTROLLABLE_ADDS, 1))),
+                Is.LessThan(kite.GetPriority(State((TacticalSensor.KiteAvailable, true)))),
+                "Getting away still beats choosing an off-assist add to mez");
+        }
+
+        [Test]
+        public void AQueuedControlCannotChainIntoAnEndlessCastLoop()
+        {
+            // PR38. The queued-cast chain. OffenseAvailable was the only one of the three
+            // action gates that did not test IsCasting, so while a six second control was
+            // running the damage goal was planned again, the damage action queued another
+            // spell, and CastingComponent promotes a queued spell to the active cast when
+            // the first one ends - IsCasting never became false, and the bot could do
+            // nothing but cast, for the whole fight.
+            //
+            // The rule is pure, so it can be pinned without a body. The live proof is
+            // PR38's checklist: mezz one add, then watch the bot attack.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicBrain.CanStartOffensiveCast(false, false, false), Is.True);
+                Assert.That(MimicBrain.CanStartOffensiveCast(true, false, false), Is.False,
+                    "Already casting - a second cast would only be queued, and the queue is what made the chain");
+                Assert.That(MimicBrain.CanStartOffensiveCast(false, true, false), Is.False);
+                Assert.That(MimicBrain.CanStartOffensiveCast(false, false, true), Is.False);
+            });
+        }
+
+        [Test]
+        public void TheControlPoolHasExactlyOneDecisionPath()
+        {
+            // PR38. The opportunistic crowd-control roll inside CheckSpells(Offensive) is
+            // gone. It was a Util.Chance(50) that pushed a control spell into spellsToCast
+            // BEFORE the damage pool, so the "offensive" action was a control action half
+            // the time - and it was the engine of the queued-cast chain.
+            //
+            // A deletion cannot be pinned by a decision test, so this is a guard instead.
+            // The control POOL may be read in exactly two places: the capability check
+            // (IsCcPrimary - "is a mezzer") and the single gate (TryPickControlSpell - the
+            // only place a control spell is chosen). A third reader means a second decision
+            // path, which is what the random roll was. The CanCastCrowdControlSpells
+            // capability flag is a different thing and is read in several places.
+            string source = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..",
+                "GameServer", "custom", "MimicNPC", "ai", "MimicBrain.cs");
+            if (!File.Exists(source))
+                Assert.Ignore("MimicBrain.cs is not next to the test binary");
+
+            var readers = new List<string>();
+            foreach (string line in File.ReadAllLines(source))
+            {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith("//"))
+                    continue;
+                if (trimmed.Contains("CrowdControlSpells") && !trimmed.Contains("CanCastCrowdControlSpells"))
+                    readers.Add(trimmed);
+            }
+
+            Assert.That(readers.Count, Is.EqualTo(2),
+                "The control pool must be read in exactly two places - the capability check and "
+                + "the single gate. It used to be read a third time, by a random roll inside the "
+                + "damage path, which is what made the bot cast control forever.\n"
+                + "Found: " + string.Join(" | ", readers));
         }
 
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
