@@ -247,6 +247,39 @@ namespace DOL.Tests.Unit
         }
 
         [Test]
+        public void FinishedKiteFlightHoldsInsteadOfHopping()
+        {
+            // PR22: the solo kite used to clamp every non-travelling tick to a 400-unit
+            // hop, so a bot that reached the ring immediately fled again -> run, turn,
+            // run, turn. Arrival has to be able to end the flight.
+            Assert.That(MimicBrain.ShouldKeepFleeing(200, MimicBrain.KITE_HOLD_RANGE), Is.True,
+                "Pursuer still on top: the flight has to continue");
+            Assert.That(MimicBrain.ShouldKeepFleeing(MimicBrain.KITE_HOLD_RANGE - 1,
+                MimicBrain.KITE_HOLD_RANGE), Is.True, "Just inside the ring still flees");
+            Assert.That(MimicBrain.ShouldKeepFleeing(MimicBrain.KITE_HOLD_RANGE,
+                MimicBrain.KITE_HOLD_RANGE), Is.False, "On the ring is far enough to hold");
+            Assert.That(MimicBrain.ShouldKeepFleeing(2000, MimicBrain.KITE_HOLD_RANGE), Is.False,
+                "Well clear: hold, face the enemy and cast");
+
+            // Holding must actually end the goal, or the bot still hops while casting.
+            Assert.That(MimicBrain.ShouldKeepKiting(false, false, false), Is.False,
+                "Not fleeing, nothing glued to us: the goal is satisfied and we hold");
+        }
+
+        [Test]
+        public void KiteRingIsSharedBySensorAndAction()
+        {
+            // PR22: the sensor gated its hold-ring scan on IsFleeing while the action
+            // cleared IsFleeing the moment it held, so the ring could never fire. One
+            // constant now decides "hold" on both sides.
+            Assert.That(MimicBrain.KITE_HOLD_RANGE, Is.EqualTo(400),
+                "Legacy FSM arrival test was 400; sensor and action must share it");
+            Assert.That(MimicBrain.KITE_FLIGHT_DISTANCE, Is.GreaterThan(MimicBrain.KITE_HOLD_RANGE),
+                "The ring has to sit outside the hold range or every flight ends instantly");
+            Assert.That(MimicBrain.KITE_MIN_HOP, Is.GreaterThan(0));
+        }
+
+        [Test]
         public void PressuredCasterKitesAndQuickcastComesFirst()
         {
             var agent = new MimicReGoapAgent(Identity(), new MimicBrain());

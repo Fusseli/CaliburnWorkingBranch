@@ -224,7 +224,11 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             }
             bool pressured = combat && isCaster && canAct && (_body.IsBeingInterrupted || meleed);
             bool holdRing = false;
-            if (solo && combat && isCaster && canAct && _brain.IsFleeing)
+            // Computed whenever the bot could kite, not only while a flight is already
+            // flagged: the action clears IsFleeing the moment it holds, so gating this on
+            // IsFleeing meant the ring was dead code and the two never agreed. Uses the
+            // same constant as the action, so "hold" means one thing.
+            if (solo && combat && isCaster && canAct)
             {
                 foreach (var entry in _brain.GetOrderedAggroList())
                 {
@@ -233,7 +237,7 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                         continue;
                     if (enemy.CurrentRegion != _body.CurrentRegion)
                         continue;
-                    if (_body.IsWithinRadius(enemy, 700)) { holdRing = true; break; }
+                    if (_body.IsWithinRadius(enemy, DOL.AI.Brain.MimicBrain.KITE_HOLD_RANGE)) { holdRing = true; break; }
                 }
             }
             bool soloKite = solo && DOL.AI.Brain.MimicBrain.ShouldKeepKiting(pressured, _brain.IsFleeing, holdRing);

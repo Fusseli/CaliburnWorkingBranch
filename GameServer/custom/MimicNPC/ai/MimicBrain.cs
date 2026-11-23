@@ -654,7 +654,11 @@ namespace DOL.AI.Brain
 
         public bool ExecuteGoapKite()
         {
-            // Solo: FSM-parity long flight, never restart a running one.
+            // Solo: FSM-parity long flight. A finished flight is judged, never blindly
+            // restarted: still inside the hold range -> run again, far enough -> stand
+            // still, face the enemy and let the sensor drop KiteAvailable so the caster
+            // can actually cast. That terminal state is what makes this kiting instead of
+            // a 400-unit hop loop (run, turn, run, turn).
             // Grouped (non-tank): fall back to a kite mate so peel/guard take over
             // instead of fleeing across the map; hold there while pressured.
             // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
@@ -662,12 +666,24 @@ namespace DOL.AI.Brain
             {
                 if (IsFleeing && Body.IsDestinationValid)
                     return true;
+                int distanceToTarget = Body.TargetObject != null
+                    ? Body.GetDistance(Body.TargetObject)
+                    : 0;
+                if (Body.TargetObject != null && IsFleeing && TargetFleePosition != null
+                    && !ShouldKeepFleeing(distanceToTarget, KITE_HOLD_RANGE))
+                {
+                    // Flight finished and the pursuer is outside the hold range.
+                    IsFleeing = false;
+                    TargetFleePosition = null;
+                    Body.StopFollowing();
+                    Body.TurnTo(Body.TargetObject);
+                    return true;
+                }
                 IsFleeing = false;
                 TargetFleePosition = null;
-                int dist = Body.TargetObject != null ? 2000 - Body.GetDistance(Body.TargetObject) : 1200;
-                if (dist < 400)
-                    dist = 400;
-                Flee(dist);
+                Flee(Body.TargetObject != null
+                    ? Math.Max(KITE_MIN_HOP, KITE_FLIGHT_DISTANCE - distanceToTarget)
+                    : KITE_NO_TARGET_FLIGHT);
                 return IsFleeing || Body.IsMoving;
             }
             if (IsMainTank)
@@ -693,6 +709,24 @@ namespace DOL.AI.Brain
         /// something is still glued to.</summary>
         public static bool ShouldKeepKiting(bool pressured, bool fleeing, bool pursuerInsideRing)
             => pressured || (fleeing && pursuerInsideRing);
+
+        /// <summary>Ring the caster tries to reach, measured from the pursuer.</summary>
+        public const int KITE_FLIGHT_DISTANCE = 2000;
+        /// <summary>Inside this range a finished flight continues; outside it the caster
+        /// holds and turns to face. Same 400-unit arrival test the legacy FSM used, and
+        /// the sensor reads the same constant so the two can never disagree again.</summary>
+        public const int KITE_HOLD_RANGE = 400;
+        /// <summary>Never issue a flight shorter than this, even when already on the ring,
+        /// so a fresh kite start is a decisive break rather than a shuffle.</summary>
+        public const int KITE_MIN_HOP = 400;
+        /// <summary>Fallback flight when the target was lost mid-decision: no target means
+        /// no ring to measure from, so break away a fixed distance like the legacy FSM.</summary>
+        public const int KITE_NO_TARGET_FLIGHT = 1200;
+
+        /// <summary>Did a completed flight get the caster out of reach? Pure for unit
+        /// tests; ExecuteGoapKite owns the hold, this only answers "run again?".</summary>
+        public static bool ShouldKeepFleeing(int distanceToTarget, int holdRange)
+            => distanceToTarget < holdRange;
 
         /// <summary>Nearest converge point for a grouped kite: the main tank first
         /// (peel/guard take over on arrival), else the nearest living member in region.
@@ -1888,8 +1922,6 @@ namespace DOL.AI.Brain
 
             if (Body.CurrentRegion.GetZone(point.X, point.Y) == null)
             {
-                Point2D validPoint = null;
-
                 for (int i = 0; i < 8; i++)
                 {
                     heading += 512;
@@ -1897,7 +1929,7 @@ namespace DOL.AI.Brain
                     if (heading > 4096)
                         heading -= 4096;
 
-                    validPoint = Body.GetPointFromHeading(heading, fleeDistance);
+                    Point2D validPoint = Body.GetPointFromHeading(heading, fleeDistance);
 
                     if (Body.CurrentRegion.GetZone(validPoint.X, validPoint.Y) != null)
                     {
@@ -1906,7 +1938,10 @@ namespace DOL.AI.Brain
                     }
                 }
 
-                if (point == null)
+                // Surrounded or walled in: every candidate sits outside any zone, so
+                // refuse the flight instead of pathing at nothing. The old guard tested
+                // `point`, which was already non-null here and could never fire.
+                if (Body.CurrentRegion.GetZone(point.X, point.Y) == null)
                     return null;
             }
 
