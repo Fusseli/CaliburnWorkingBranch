@@ -626,6 +626,40 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR28: the storage check must trust IsPersisted, not AddObject's boolean.
+        [Test]
+        public void RowStoredTrustsIsPersistedOnly()
+        {
+            // PR28: StoreGear used `if (!Database.AddObject(copy)) throw`. For a table with
+            // relations that boolean is AND-ed with SaveObjectRelations (ObjectDatabase
+            // .cs:151), and Inventory has an ItemUnique relation that is routinely already
+            // persisted and unchanged - so SaveObjectRelations logs a WARN ("not allowed to
+            // be added") and returns false for a relation with nothing to do. That made
+            // AddObject return false on a successful insert, so every /msave threw and its
+            // rollback deleted the rows it had just written.
+            Assert.That(MimicSaveManager.RowStored(true), Is.True,
+                "A persisted row landed, whatever AddObject reported");
+            Assert.That(MimicSaveManager.RowStored(false), Is.False,
+                "A row that was never persisted is a real failure");
+        }
+
+        [Test]
+        public void StorageCallSitesCheckIsPersistedNotTheAddObjectBoolean()
+        {
+            // Deliberately NOT a source-text or reflection assertion on MimicSaveManager:
+            // these paths need a live database, and a test that greps source or resolves
+            // the repo from the assembly path would be brittle and would only pretend to
+            // verify something. The live /msave round trip is the real test - see
+            // README_PR28.md. What is pinned here is the decision itself.
+            //
+            // The distinction that caused the bug: a row can be written and still leave
+            // AddObject returning false, because its boolean also covers relation work.
+            Assert.That(MimicSaveManager.RowStored(true), Is.True,
+                "Persisted means the row landed - that is the whole signal");
+            Assert.That(MimicSaveManager.RowStored(false), Is.False,
+                "Not persisted means the write failed and the rollback must run");
+        }
+
         // PR27: the ranged test must read the inventory, never the active slot.
         [Test]
         public void RangedAttackerTestReadsTheInventoryNotTheActiveSlot()

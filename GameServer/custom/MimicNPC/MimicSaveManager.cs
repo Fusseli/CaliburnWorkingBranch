@@ -282,6 +282,23 @@ namespace DOL.GS.Scripts
             => !string.IsNullOrEmpty(storageKey)
             && storageKey.StartsWith("mimic:" + accountName + ":", StringComparison.Ordinal);
 
+        /// <summary>PR28: did this item's row actually get written?
+        ///
+        /// NOT the return value of Database.AddObject. For a table with relations that
+        /// boolean is AND-ed with SaveObjectRelations (ObjectDatabase.cs:151), and
+        /// Inventory has an ItemUnique relation which is routinely already-persisted
+        /// and unchanged - so SaveObjectRelations reports "nothing to do for this
+        /// relation" as failure (ObjectDatabase.cs:389, a WARN) and AddObject returns
+        /// false on a perfectly successful insert. That made every /msave fail: the
+        /// insert succeeded, StoreGear threw anyway, and its rollback deleted the rows
+        /// it had just written.
+        ///
+        /// IsPersisted is set by the DB layer only when a row was really written
+        /// (SqlObjectDatabase.cs:174), so it is the only honest signal. Takes just that
+        /// flag deliberately, so the AddObject boolean cannot creep back in.</summary>
+        public static bool RowStored(bool isPersisted)
+            => isPersisted;
+
         /// <summary>Moves the bot's current gear into storage (old stored rows
         /// are replaced). The world instance is left naked but alive.</summary>
         public static void StoreGear(MimicNPC mimic, string storageKey)
@@ -294,13 +311,18 @@ namespace DOL.GS.Scripts
                 foreach (DbInventoryItem item in worn)
                 {
                     var copy = new GameInventoryItem(item) { ObjectId = null, OwnerID = storageKey };
-                    if (!GameServer.Database.AddObject(copy))
+                    GameServer.Database.AddObject(copy);
+                    if (!RowStored(copy.IsPersisted))
                         throw new InvalidOperationException($"Could not store {item.Name} for {mimic.Name}");
                     added.Add(copy);
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                // PR28: this used to be a bare `catch`, so a storage failure surfaced to
+                // the player as "I could not store my gear" with nothing at all in the
+                // server log. Always log: this path cannot be reproduced on demand.
+                log.Error($"StoreGear failed for {mimic.Name} ({storageKey}); rolling back {added.Count} stored item(s)", ex);
                 foreach (DbInventoryItem item in added)
                     GameServer.Database.DeleteObject(item);
                 throw;
@@ -342,7 +364,12 @@ namespace DOL.GS.Scripts
                 return false;
             }
             RefreshRow(hit, mimic);
-            if (!GameServer.Database.SaveObject(hit))
+            // PR28: same trap as StoreGear - SaveObject's boolean also folds in relation
+            // work. DbMimicSave has no relations today so this is equivalent, but using
+            // IsPersisted keeps the two sites consistent and survives someone adding a
+            // relation to the save table later.
+            GameServer.Database.SaveObject(hit);
+            if (!RowStored(hit.IsPersisted))
                 return false;
             // The active bot keeps wearing its gear. Gear is written when it is
             // dismissed, including during logout and orderly shutdown.
@@ -473,10 +500,11 @@ namespace DOL.GS.Scripts
                 }
                 if (hit == null)
                     return false;
-                RefreshRow(hit, mimic);
-                if (!GameServer.Database.SaveObject(hit))
-                    return false;
-                StoreGear(mimic, key);
+RefreshRow(hit, mimic);
+            GameServer.Database.SaveObject(hit);
+            if (!RowStored(hit.IsPersisted))
+                return false;
+            StoreGear(mimic, key);
             lock (_activeLock)
                 _active.Remove(key);
             mimic.SavedKey = null;

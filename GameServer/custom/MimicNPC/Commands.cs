@@ -555,6 +555,10 @@ namespace DOL.GS.Scripts
     "/msave [newname] - Save a targeted mimic bot into your realm stable (10 per realm)")]
     public class MimicSaveCommandHandler : AbstractCommandHandler, ICommandHandler
     {
+        // PR28: AbstractCommandHandler.log is private, so this handler needs its own -
+        // same declaration the other handlers in this file already use.
+        public static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public void OnCommand(GameClient client, string[] args)
         {
             if (client.Player.TargetObject is not MimicNPC mimic)
@@ -627,6 +631,10 @@ namespace DOL.GS.Scripts
             }
             string key = MimicSaveManager.StorageKey(account, mimic.Realm, slot);
             var save = MimicSaveManager.Snapshot(mimic, account, mimic.Realm, slot, name);
+            // PR28: this boolean IS trustworthy here, unlike the gear inserts below.
+            // DbMimicSave declares no Relation attributes, so SaveObjectRelations is never
+            // consulted and AddObject only reports whether the row landed. Kept as-is on
+            // purpose - noted so it does not look like an oversight next to RowStored.
             if (!GameServer.Database.AddObject(save))
             {
                 mimic.Whisper(client.Player, "I could not be saved. Please try again.");
@@ -637,8 +645,12 @@ namespace DOL.GS.Scripts
             {
                 MimicSaveManager.StoreGear(mimic, key);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                // PR28: this was a bare `catch`, so the player got a generic message and
+                // the server log nothing at all. StoreGear logs its own failure too, but a
+                // rollback can also fail, so log here as well.
+                log.Error($"MimicSaveCommand: storing gear for {name} into slot {slot} failed", ex);
                 GameServer.Database.DeleteObject(save);
                 mimic.Whisper(client.Player, "I could not store my gear. Please try again.");
                 return;
@@ -829,6 +841,10 @@ namespace DOL.GS.Scripts
     "/mdismiss - Send a targeted saved bot back into storage")]
     public class MimicDismissCommandHandler : AbstractCommandHandler, ICommandHandler
     {
+        // PR28: AbstractCommandHandler.log is private, so this handler needs its own -
+        // same declaration the other handlers in this file already use.
+        public static readonly log4net.ILog log = log4net.LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+
         public void OnCommand(GameClient client, string[] args)
         {
             if (client.Player.TargetObject is not MimicNPC mimic)
@@ -844,7 +860,9 @@ namespace DOL.GS.Scripts
             string name = mimic.Name;
             bool dismissed;
             try { dismissed = MimicSaveManager.DismissBot(mimic); }
-            catch (Exception) { dismissed = false; }
+            // PR28: log it. This swallow gave the player "Dismissing failed." and the
+            // server nothing, so a storage fault here was undiagnosable.
+            catch (Exception ex) { log.Error($"MimicDismissCommand: dismissing {name} failed", ex); dismissed = false; }
             if (!dismissed)
             {
                 client.Player.Out.SendMessage("Dismissing failed.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
