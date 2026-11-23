@@ -119,7 +119,7 @@ namespace DOL.GS.Scripts
             _dummyClient = new DummyClient(GameServer.Instance);
             _dummyLib = new DummyPacketLib();
 
-            Inventory = new MimicNPCInventory();
+            Inventory = new MimicNPCInventory(this);
             MaxSpeedBase = PLAYER_BASE_SPEED;
 
             MimicSpec = MimicSpec.GetSpec(cClass, spec);
@@ -3139,6 +3139,54 @@ namespace DOL.GS.Scripts
         /// </summary>
         public const int MIMIC_CORPSE_WINDOW_SECONDS = 60;
 
+        /// <summary>
+        /// PR24: the model/size this bot had before it became a corpse, so a revive can
+        /// put the correct appearance back. Captured once, at the moment of death.
+        /// </summary>
+        private ushort m_preCorpseModel;
+        private byte m_preCorpseSize;
+        private bool m_corpseModelApplied;
+
+        /// <summary>
+        /// PR24: a slain mob looks dead only because the client plays its fall animation
+        /// when the object is removed, and a lingering PR16 corpse is deliberately never
+        /// removed - so it stands upright. There is no server-side death animation for a
+        /// persistent NPC, so the corpse is drawn with a dedicated model instead.
+        /// GameNPC.Model's setter broadcasts the change to every client in range, so this
+        /// is one assignment. Gated on a server property so the model and size can be
+        /// tuned live without a rebuild.
+        /// </summary>
+        public void ApplyCorpseModel()
+        {
+            if (m_corpseModelApplied)
+                return;
+            if (ServerProperties.Properties.MIMIC_CORPSE_MODEL == 0)
+                return;
+            m_preCorpseModel = Model;
+            m_preCorpseSize = Size;
+            m_corpseModelApplied = true;
+            // Both setters broadcast: Size sends (Model, Size) and Model sends (Model, Size).
+            // Size first means the client gets the size immediately, and the second packet
+            // carries both new values either way.
+            if (ServerProperties.Properties.MIMIC_CORPSE_SIZE > 0)
+                Size = ServerProperties.Properties.MIMIC_CORPSE_SIZE;
+            Model = ServerProperties.Properties.MIMIC_CORPSE_MODEL;
+        }
+
+        /// <summary>
+        /// PR24: put the bot's own appearance back after a successful resurrect, so it
+        /// does not come back wearing a skeleton. No-op if the corpse model was never
+        /// applied, or if it is somehow still applied after the restore.
+        /// </summary>
+        public void RestoreLivingModel()
+        {
+            if (!m_corpseModelApplied)
+                return;
+            m_corpseModelApplied = false;
+            Size = m_preCorpseSize;
+            Model = m_preCorpseModel;
+        }
+
         /// <summary>Non-duel deaths linger as a rezzable corpse; duels keep legacy instant delete.</summary>
         public static bool ShouldLingerAsCorpse(eReleaseType releaseType) => releaseType != eReleaseType.Duel;
 
@@ -3308,6 +3356,11 @@ namespace DOL.GS.Scripts
 
             foreach (GamePlayer viewer in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
                 viewer.Out.SendPlayerRevive(this);
+
+            // PR24: the corpse model is live again, so the bot stands up looking like
+            // itself. Must happen after m_isDead is cleared so the equipment toggle in
+            // MimicNPCInventory.VisibleItems also restores.
+            RestoreLivingModel();
         }
 
         /// <summary>
@@ -7761,8 +7814,17 @@ namespace DOL.GS.Scripts
             m_deathtype = ResolveMimicDeathType(killer?.Realm ?? eRealm.None, Realm, GameServer.Instance.Configuration.ServerType);
 
             // Let nearby clients render the corpse lying down (needs eyes on live server).
+            // PR24: SendPlayerDied is a *player* packet (0xAE) - the client resolves that
+            // OID in its player list and the mimic is an NPC, so this alone does nothing.
+            // A corpse model is what actually changes the picture: GameNPC.Model's setter
+            // broadcasts to every client in range. Keep the SendPlayerDied call, it is
+            // harmless and starts working for free on any client that does honour it.
             foreach (GamePlayer corpseViewer in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
                 corpseViewer.Out.SendPlayerDied(this, killer);
+
+            // PR24: only on the lingering path. Duel deaths delete immediately, so
+            // swapping the model there would just flash for a frame.
+            ApplyCorpseModel();
 
             // Corpse lingers targetable for the rez window, then despawns via ReleaseCorpse.
             StopReleaseTimer();

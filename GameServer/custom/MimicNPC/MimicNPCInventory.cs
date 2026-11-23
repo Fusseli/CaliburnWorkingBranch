@@ -9,14 +9,49 @@ namespace DOL.GS.Scripts
 {
     class MimicNPCInventory : GameLivingInventory
     {
-        public MimicNPCInventory()
+        /// <summary>PR24: the mimic this inventory belongs to, so VisibleItems can ask
+        /// whether it is lying dead. GameLivingInventory exposes no owner of its own.</summary>
+        private readonly MimicNPC _owner;
+
+        public MimicNPCInventory(MimicNPC owner)
         {
+            _owner = owner;
         }
 
         // Mimic gear is moved into stable storage without deleting the item row.
         public override bool RemoveItemWithoutDbDeletion(global::DOL.Database.DbInventoryItem item)
         {
             return base.RemoveItem(item);
+        }
+
+        /// <summary>
+        /// PR24: a dead mimic is drawn with a corpse model, so optionally strip its
+        /// visible equipment while it lies there.
+        ///
+        /// Why this is needed: the model change packet (0xDB) carries only OID, model
+        /// and size - no equipment at all. Every equipment packet in the codebase is
+        /// rebuilt from living.Inventory.VisibleItems at send time, so swapping the
+        /// model does not stop the client being told about the armour and weapons: it
+        /// keeps its equipment state and re-applies it to the new mesh. Whether that
+        /// looks right on a skeleton is client behaviour, so it is a live toggle rather
+        /// than an assumption.
+        ///
+        /// Safe by construction: VisibleItems is recomputed per packet and nothing
+        /// caches it (EffectiveOverallAF sums over it on every access), so the gear
+        /// returns by itself the moment m_isDead goes false on revive. Off by default
+        /// so the honest result is visible first.
+        /// </summary>
+        public override ICollection<global::DOL.Database.DbInventoryItem> VisibleItems
+        {
+            get
+            {
+                if (ServerProperties.Properties.MIMIC_CORPSE_HIDE_EQUIPMENT
+                    && _owner != null && !_owner.IsAlive)
+                {
+                    return Array.Empty<global::DOL.Database.DbInventoryItem>();
+                }
+                return base.VisibleItems;
+            }
         }
 
         protected override eInventorySlot GetValidInventorySlot(eInventorySlot slot)

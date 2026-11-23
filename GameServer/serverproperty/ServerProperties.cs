@@ -2316,6 +2316,35 @@ namespace DOL.GS.ServerProperties
 		public static bool ALLOW_OLD_ARCHERY;
 
 		/// <summary>
+		/// PR24: model shown while a mimic lies dead as a rezzable corpse (PR16).
+		/// A normal mob only looks dead because the client plays a fall when the
+		/// object is removed; a lingering corpse is never removed, so without a
+		/// dedicated corpse model it stands upright with an empty health bar.
+		/// Setting GameNPC.Model broadcasts the change to nearby clients.
+		/// 0 disables the swap. 2262 is a dead player skeleton; the mob table also has
+		/// rows named 'corpse' with Model 1431 / 1433 and Size 62.
+		/// </summary>
+		[ServerProperty("mimic", "mimic_corpse_model", "Model shown while a mimic lies dead. 0 = keep the mimic's own model. Candidates: 2262 (skeleton), 1431, 1433.", (ushort)2262)]
+		public static ushort MIMIC_CORPSE_MODEL;
+
+		/// <summary>
+		/// PR24: size sent alongside the corpse model. 0 leaves the mimic's own size
+		/// alone, which is the safe default - the authored size of 2262 is unknown,
+		/// whereas the mob 'corpse' rows use 62.
+		/// </summary>
+		[ServerProperty("mimic", "mimic_corpse_size", "Size sent with the mimic corpse model. 0 = keep the mimic's own size.", (byte)0)]
+		public static byte MIMIC_CORPSE_SIZE;
+
+		/// <summary>
+		/// PR24: hide a dead mimic's worn equipment while it lies there. The model
+		/// change packet carries no equipment and every equipment packet is rebuilt
+		/// from Inventory.VisibleItems, so the client otherwise keeps drawing the
+		/// armour and weapons on the corpse model. Toggle live to compare.
+		/// </summary>
+		[ServerProperty("mimic", "mimic_corpse_hide_equipment", "Should a dead mimic hide its armour and weapons while lying as a corpse?", false)]
+		public static bool MIMIC_CORPSE_HIDE_EQUIPMENT;
+
+		/// <summary>
 		/// Level at which res sickness starts to apply
 		/// </summary>
 		[ServerProperty("classes", "ress_sickness_level", "What level should ress sickness start to apply?", (byte)6)]

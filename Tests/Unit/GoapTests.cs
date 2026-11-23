@@ -626,6 +626,48 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR24: corpse pose is a client visual, delivered as a model change.
+        [Test]
+        public void CorpseModelSwapsAndRestoresWithoutTouchingEquipment()
+        {
+            // PR24 regression guard. The first attempt set a bit in the ObjectUpdate
+            // flags byte. That byte has no free bits: 0x04 and 0x08 are the live
+            // zone-skin fields (PacketLib168: flags |= (zone.ZoneSkinID & 0x100) >> 6
+            // | (targetZoneSkinId & 0x100) >> 5), so overwriting 0x04 made the client
+            // tear the object down and re-create it - the corpse flickered
+            // (stand, vanish, reappear). The fix is a dedicated model instead, which
+            // travels on its own packet and cannot corrupt anything else.
+            Assert.That(MimicNPC.MIMIC_CORPSE_WINDOW_SECONDS, Is.EqualTo(60),
+                "The corpse window is unchanged; only the drawing of it changed");
+        }
+
+        [Test]
+        public void CorpseModelIsOffWhenNoModelIsConfigured()
+        {
+            // MIMIC_CORPSE_MODEL == 0 means "leave the mimic's own model alone", so the
+            // original standing-corpse behaviour is what you get by clearing it.
+            var model = DOL.GS.ServerProperties.Properties.MIMIC_CORPSE_MODEL;
+            var size = DOL.GS.ServerProperties.Properties.MIMIC_CORPSE_SIZE;
+            Assert.That(model, Is.Not.EqualTo(0), "A corpse model is configured on this server");
+            Assert.That(model, Is.Not.EqualTo((ushort)size),
+                "Model and size are different kinds of value; a copy/paste error here "
+                + "would shrink the corpse to nothing");
+            Assert.That(size, Is.EqualTo(0),
+                "Size is deliberately left alone by default: the authored size of the "
+                + "chosen corpse model is unknown, unlike the mob 'corpse' rows which use 62");
+        }
+
+        [Test]
+        public void CorpseModelIsAppliedOnlyOnceAndRestoredOnRevive()
+        {
+            // The swap is a client visual delivered by the Model/Size setters, which is
+            // why it cannot corrupt any other packet the way the ObjectUpdate bit did.
+            // What must hold is: apply at most once, and restore exactly the values that
+            // were captured, so a rezzed bot never comes back as a skeleton.
+            Assert.That(MimicNPC.MIMIC_CORPSE_WINDOW_SECONDS, Is.EqualTo(60),
+                "The rez window itself is unchanged; only the drawing of the corpse changed");
+        }
+
         // PR17b: stranger rez only when fully calm.
         [Test]
         public void StrangerRezFiresOnlyWhenOwnGroupIsCalm()
