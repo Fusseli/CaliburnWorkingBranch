@@ -626,6 +626,40 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR29: stored gear only restores if the DbItemUnique behind it exists.
+        [Test]
+        public void GeneratedUniqueTemplateMustBePersistedBeforeStoring()
+        {
+            // PR29 root cause. MimicEquipment builds armour as
+            // `new GeneratedUniqueItem(false, ...)`, whose constructor ends with
+            // `AllowAdd = false` and the comment "don't add to database implicitly, must
+            // be done explicitly" (GeneratedUniqueItem.cs:164). Nothing does it
+            // explicitly, so no DbItemUnique row exists and the item only carries a
+            // UTemplate_Id pointing at nothing.
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, false), Is.True,
+                "A generated unique that was never written must be persisted before the item is stored");
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, true), Is.False,
+                "Already persisted: re-saving a bot must not duplicate the unique");
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(false, false), Is.False,
+                "A plain DbItemTemplate needs no extra row - that is why weapons and shields always came back");
+        }
+
+        [Test]
+        public void UnresolvableStoredGearIsSkippedRatherThanAddedInvisible()
+        {
+            // The recall symptom this fixes: worn armour came back as an invisible husk
+            // while the weapon (a plain template) rendered fine. Items whose Template is
+            // null are now skipped and logged instead of being added silently.
+            //
+            // Deliberately not a source-text assertion: this path needs a live database,
+            // and the round trip in README_PR29.md is the real test. What is pinned here
+            // is the decision the write path makes.
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, false), Is.True,
+                "Unpersisted unique: write path must fix it before storing");
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, true), Is.False,
+                "Persisted unique: nothing to write, item will restore fully");
+        }
+
         // PR28: the storage check must trust IsPersisted, not AddObject's boolean.
         [Test]
         public void RowStoredTrustsIsPersistedOnly()

@@ -299,6 +299,58 @@ namespace DOL.GS.Scripts
         public static bool RowStored(bool isPersisted)
             => isPersisted;
 
+        /// <summary>PR29: does this item's template need writing to the database before the
+        /// item itself can be stored?
+        ///
+        /// Mimic armour is built by MimicEquipment as
+        /// <c>new GeneratedUniqueItem(false, ...)</c>, and that constructor ends with
+        ///
+        ///     //don't add to database implicitly, must be done explicitly
+        ///     this.AllowAdd = false;
+        ///
+        /// (GeneratedUniqueItem.cs:164). MimicEquipment never does it explicitly, so no
+        /// DbItemUnique row is ever written - the worn item just carries a UTemplate_Id
+        /// pointing at a row that does not exist.
+        ///
+        /// Storing that reference verbatim produces a dangling foreign key. On recall,
+        /// DbInventoryItem declares
+        /// <c>[Relation(LocalField = "UTemplate_Id", AutoLoad = true, AutoDelete = true)]</c>
+        /// so AutoLoad cannot resolve it, Template stays null, and the restored item is an
+        /// invisible husk: no model, no stats. Plain-template gear (weapons and shields,
+        /// slots 10/11/12) resolves fine, which is why only those came back.
+        ///
+        /// Pure so it is unit-testable; the database call lives in
+        /// EnsureTemplatePersisted. An already-persisted template must not be re-added.</summary>
+        public static bool NeedsTemplatePersist(bool templateIsUnique, bool templateIsPersisted)
+            => templateIsUnique && !templateIsPersisted;
+
+        /// <summary>
+        /// PR29: persist the generated unique backing an item's template, when it is not
+        /// already in the database. This carries out the "must be done explicitly"
+        /// contract that GeneratedUniqueItem opts out of, at the only moment it matters:
+        /// when a player actually stores a bot.
+        ///
+        /// Deliberately not done at spawn time - MimicSpawner would write ~14 rows per
+        /// wild mimic. AllowAdd is restored in a finally block so the object keeps its
+        /// "never add implicitly" contract after this call.
+        /// </summary>
+        public static void EnsureTemplatePersisted(DbInventoryItem item)
+        {
+            if (item?.Template is not DbItemUnique unique)
+                return;
+            if (!NeedsTemplatePersist(true, unique.IsPersisted))
+                return;
+            unique.AllowAdd = true;
+            try
+            {
+                GameServer.Database.AddObject(unique);
+            }
+            finally
+            {
+                unique.AllowAdd = false;
+            }
+        }
+
         /// <summary>Moves the bot's current gear into storage (old stored rows
         /// are replaced). The world instance is left naked but alive.</summary>
         public static void StoreGear(MimicNPC mimic, string storageKey)
@@ -310,12 +362,17 @@ namespace DOL.GS.Scripts
             {
                 foreach (DbInventoryItem item in worn)
                 {
+                    // PR29: the generated unique behind this item must exist before the
+                    // item is stored, otherwise the stored UTemplate_Id dangles and the
+                    // item comes back on recall as an invisible husk.
+                    EnsureTemplatePersisted(item);
                     var copy = new GameInventoryItem(item) { ObjectId = null, OwnerID = storageKey };
                     GameServer.Database.AddObject(copy);
                     if (!RowStored(copy.IsPersisted))
                         throw new InvalidOperationException($"Could not store {item.Name} for {mimic.Name}");
                     added.Add(copy);
                 }
+                log.Info($"StoreGear: {mimic.Name} -> {storageKey}, stored {added.Count} of {worn.Length} item(s)");
             }
             catch (Exception ex)
             {
@@ -428,23 +485,37 @@ namespace DOL.GS.Scripts
             RestoreSpecs(mimic, row.SerializedSpecs);
             RestoreRealmAbilities(mimic, row.SerializedRealmAbilities);
 
-            var stored = SelectStoredItems(key);
-            if (stored.Count > 0)
-            {
-                foreach (var old in mimic.Inventory.AllItems.ToArray())
-                    mimic.Inventory.RemoveItemWithoutDbDeletion(old);
-                foreach (var item in stored)
+var stored = SelectStoredItems(key);
+                if (stored.Count > 0)
                 {
-                    var copy = new GameInventoryItem(item) { ObjectId = null, OwnerID = null };
-                    if (!mimic.Inventory.AddItem((eInventorySlot)item.SlotPosition, copy) &&
-                        !mimic.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, copy))
+                    foreach (var old in mimic.Inventory.AllItems.ToArray())
+                        mimic.Inventory.RemoveItemWithoutDbDeletion(old);
+                    // PR29: a stored item whose template cannot be resolved is a husk -
+                    // it would add silently and render nothing. That happens for gear
+                    // saved before this patch, because the DbItemUnique behind it was
+                    // never written. Skip it and say so, rather than filling the bot
+                    // with invisible items.
+                    int restored = 0, skipped = 0;
+                    foreach (var item in stored)
                     {
-                        error = "inventory";
-                        return null;
+                        var copy = new GameInventoryItem(item) { ObjectId = null, OwnerID = null };
+                        if (copy.Template == null)
+                        {
+                            skipped++;
+                            log.Warn($"Instantiate: stored gear {item.ObjectId} for {key} has no resolvable template; skipping. Re-save the bot to repair it.");
+                            continue;
+                        }
+                        if (!mimic.Inventory.AddItem((eInventorySlot)item.SlotPosition, copy) &&
+                            !mimic.Inventory.AddItem(eInventorySlot.FirstEmptyBackpack, copy))
+                        {
+                            error = "inventory";
+                            return null;
+                        }
+                        restored++;
                     }
+                    log.Info($"Instantiate: {key} restored {restored} of {stored.Count} item(s)" + (skipped > 0 ? $", skipped {skipped} without a template" : ""));
+                    mimic.RefreshItemBonuses();
                 }
-                mimic.RefreshItemBonuses();
-            }
             mimic.Health = mimic.MaxHealth;
             mimic.Mana = mimic.MaxMana;
             mimic.Endurance = mimic.MaxEndurance;
