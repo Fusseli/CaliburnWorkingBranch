@@ -1,6 +1,7 @@
 ﻿using DOL.GS.PlayerClass;
 using static DOL.GS.WarMapMgr;
 using System.Collections.Generic;
+using DOL.GS.ServerProperties;
 
 namespace DOL.GS.Scripts
 {
@@ -12,6 +13,7 @@ namespace DOL.GS.Scripts
 
     public class ScoutSpec : MimicSpec
     {
+        private static string BowSpec => Properties.ALLOW_OLD_ARCHERY ? Specs.Longbow : Specs.Archery;
         public ScoutSpec()
         {
             SpecName = "ScoutSpec";
@@ -32,7 +34,7 @@ namespace DOL.GS.Scripts
                 case 0:
                 SpecType = eSpecType.OneHandAndShield;
                 Add(ObjToSpec(WeaponOneType), 29, 0.6f);
-                Add(Specs.Longbow, 44, 0.8f);
+                Add(BowSpec, 44, 0.8f);
                 Add(Specs.Shields, 42, 0.7f);
                 Add(Specs.Stealth, 35, 0.1f);
                 break;
@@ -40,7 +42,7 @@ namespace DOL.GS.Scripts
                 case 1:
                 SpecType = eSpecType.OneHandAndShield;
                 Add(ObjToSpec(WeaponOneType), 29, 0.7f);
-                Add(Specs.Longbow, 50, 0.8f);
+                Add(BowSpec, 50, 0.8f);
                 Add(Specs.Shields, 35, 0.6f);
                 Add(Specs.Stealth, 35, 0.1f);
                 break;
@@ -48,7 +50,7 @@ namespace DOL.GS.Scripts
                 case 2:
                 SpecType = eSpecType.OneHandAndShield;
                 Add(ObjToSpec(WeaponOneType), 39, 0.7f);
-                Add(Specs.Longbow, 35, 0.8f);
+                Add(BowSpec, 35, 0.8f);
                 Add(Specs.Shields, 42, 0.6f);
                 Add(Specs.Stealth, 36, 0.1f);
                 break;
@@ -56,7 +58,7 @@ namespace DOL.GS.Scripts
                 case 3:
                 SpecType = eSpecType.OneHandAndShield;
                 Add(ObjToSpec(WeaponOneType), 44, 0.7f);
-                Add(Specs.Longbow, 35, 0.8f);
+                Add(BowSpec, 35, 0.8f);
                 Add(Specs.Shields, 35, 0.6f);
                 Add(Specs.Stealth, 36, 0.1f);
                 break;

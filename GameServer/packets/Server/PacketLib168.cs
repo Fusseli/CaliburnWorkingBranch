@@ -2015,11 +2015,11 @@ namespace DOL.GS.PacketHandler
 			}
 		}
 
-		public virtual void SendPlayerDied(GamePlayer killedPlayer, GameObject killer)
+		public virtual void SendPlayerDied(GameLiving killedLiving, GameObject killer)
 		{
 			using (var pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.PlayerDeath)))
 			{
-				pak.WriteShort((ushort) killedPlayer.ObjectID);
+				pak.WriteShort((ushort) killedLiving.ObjectID);
 				if (killer != null)
 					pak.WriteShort((ushort) killer.ObjectID);
 				else
@@ -2029,11 +2029,11 @@ namespace DOL.GS.PacketHandler
 			}
 		}
 
-		public virtual void SendPlayerRevive(GamePlayer revivedPlayer)
+		public virtual void SendPlayerRevive(GameLiving revivedLiving)
 		{
 			using (var pak = new GSTCPPacketOut(GetPacketCode(eServerPackets.PlayerRevive)))
 			{
-				pak.WriteShort((ushort) revivedPlayer.ObjectID);
+				pak.WriteShort((ushort) revivedLiving.ObjectID);
 				pak.WriteShort(0x00);
 				SendTCP(pak);
 			}

@@ -1149,6 +1149,7 @@ namespace DOL.GS
             {
                 Notify(GamePlayerEvent.Quit, this);
                 AuditMgr.AddAuditEntry(Client, AuditType.Character, AuditSubtype.CharacterLogout, "", Name);
+                DOL.GS.Scripts.MimicSaveManager.DismissOwnerBots(this);
                 Delete();
             }
 

@@ -1,5 +1,10 @@
 # ReGoap Library
 
+For the live mimic integration, registered behaviors, fallback rules and GM
+diagnostics, see [Mimic tactical GOAP](../custom/MimicNPC/ReGoap/README.md).
+Mimics plan synchronously on their owning AI thread; they do not use the optional
+planner manager queue described below.
+
 ## Overview
 
 This is a pure C# implementation of the ReGoap (Reactive Goal-Oriented Action Planning) library, ported from Unity to .NET 8.0 for the Caliburn project. ReGoap provides AI agents with goal-driven planning capabilities using A* pathfinding to generate optimal action sequences.

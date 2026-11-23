@@ -13,6 +13,12 @@ namespace DOL.GS.Scripts
         {
         }
 
+        // Mimic gear is moved into stable storage without deleting the item row.
+        public override bool RemoveItemWithoutDbDeletion(global::DOL.Database.DbInventoryItem item)
+        {
+            return base.RemoveItem(item);
+        }
+
         protected override eInventorySlot GetValidInventorySlot(eInventorySlot slot)
         {
             switch (slot)

@@ -428,7 +428,7 @@ namespace DOL.GS.Scripts
         {
         }
 
-        public void SendPlayerDied(GamePlayer killedPlayer, GameObject killer)
+        public void SendPlayerDied(GameLiving killedPlayer, GameObject killer)
         {
         }
 
@@ -460,9 +460,10 @@ namespace DOL.GS.Scripts
         {
         }
 
-        public void SendPlayerRevive(GamePlayer revivedPlayer)
+        public void SendPlayerRevive(GameLiving revivedPlayer)
         {
         }
+
 
         public void SendPlayerTitles()
         {

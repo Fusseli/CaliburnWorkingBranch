@@ -251,6 +251,20 @@ namespace DOL.GS.Scripts
                     case GS.Abilities.Weapon_RecurvedBows: MimicEquipment.SetRangedWeapon(this, eObjectType.RecurvedBow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
                     case GS.Abilities.Weapon_Longbows: MimicEquipment.SetRangedWeapon(this, eObjectType.Longbow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
                     case GS.Abilities.Weapon_CompositeBows: MimicEquipment.SetRangedWeapon(this, eObjectType.CompositeBow); SwitchWeapon(eActiveWeaponSlot.Distance); break;
+                    case GS.Abilities.Weapon_Archery when !ServerProperties.Properties.ALLOW_OLD_ARCHERY:
+                        eObjectType bow = CharacterClass.ID switch
+                        {
+                            (int)eCharacterClass.Scout => eObjectType.Longbow,
+                            (int)eCharacterClass.Hunter => eObjectType.CompositeBow,
+                            (int)eCharacterClass.Ranger => eObjectType.RecurvedBow,
+                            _ => eObjectType.GenericItem
+                        };
+                        if (bow != eObjectType.GenericItem)
+                        {
+                            MimicEquipment.SetRangedWeapon(this, bow);
+                            SwitchWeapon(eActiveWeaponSlot.Distance);
+                        }
+                        break;
                 }
             }
         }
@@ -412,10 +426,10 @@ namespace DOL.GS.Scripts
                 }
 
                 case "Leader": Group?.MimicGroup.SetLeader(this); break;
-                case "MainPuller": Group?.MimicGroup.SetMainPuller(this); break;
-                case "MainCC": Group?.MimicGroup.SetMainCC(this); break;
-                case "MainTank": Group?.MimicGroup.SetMainTank(this); break;
-                case "MainAssist": Group?.MimicGroup.SetMainAssist(this); break;
+                case "MainPuller": Group?.MimicGroup.SetMainPuller(this); Group?.MimicGroup.LockRole(MimicGroup.RolePuller); break;
+                case "MainCC": Group?.MimicGroup.SetMainCC(this); Group?.MimicGroup.LockRole(MimicGroup.RoleCC); break;
+                case "MainTank": Group?.MimicGroup.SetMainTank(this); Group?.MimicGroup.LockRole(MimicGroup.RoleTank); break;
+                case "MainAssist": Group?.MimicGroup.SetMainAssist(this); Group?.MimicGroup.LockRole(MimicGroup.RoleAssist); break;
 
                 case "Guard":
                 {
@@ -432,11 +446,17 @@ namespace DOL.GS.Scripts
                     }
 
                     if (MimicBrain.SetGuard(player, out bool foundOurEffect))
+                    {
+                        MimicBrain.SetManualGuard(player);
                         message = "I will guard you.";
+                    }
                     else
                     {
                         if (foundOurEffect)
+                        {
+                            MimicBrain.ClearManualGuard();
                             message = "I will no longer guard you.";
+                        }
                         else
                             message = "I cannot guard you.";
                     }
@@ -1935,6 +1955,7 @@ namespace DOL.GS.Scripts
 
         public override void Delete()
         {
+            StopReleaseTimer();
             Group?.RemoveMember(this);
             base.Delete();
         }
@@ -1956,6 +1977,10 @@ namespace DOL.GS.Scripts
 
         public double SpecLock { get; set; }
         public long LastWorldUpdate { get; set; }
+
+        /// <summary>Storage key of this bot when it is a summoned saved bot
+        /// (PR20). Null for wild bots. Set at summon, cleared at dismiss.</summary>
+        public string SavedKey { get; set; }
 
         private PlayerDeck _randomNumberDeck;
 
@@ -3110,6 +3135,67 @@ namespace DOL.GS.Scripts
         }
 
         /// <summary>
+        /// How long a dead mimic lingers as a targetable corpse for resurrection (seconds). PR16.
+        /// </summary>
+        public const int MIMIC_CORPSE_WINDOW_SECONDS = 60;
+
+        /// <summary>Non-duel deaths linger as a rezzable corpse; duels keep legacy instant delete.</summary>
+        public static bool ShouldLingerAsCorpse(eReleaseType releaseType) => releaseType != eReleaseType.Duel;
+
+        /// <summary>Classify death for rez sickness (mirrors GamePlayer.Die, simplified for mimics).</summary>
+        public static eDeathType ResolveMimicDeathType(eRealm killerRealm, eRealm ownRealm, EGameServerType serverType)
+        {
+            if (killerRealm == eRealm.None || killerRealm == ownRealm)
+                return eDeathType.PvE;
+            return serverType == EGameServerType.GST_PvP ? eDeathType.PvP : eDeathType.RvR;
+        }
+
+        /// <summary>Corpse timer tick: despawn once the rez window expires.</summary>
+        protected virtual int CorpseTimerCallback(ECSGameTimer callingTimer)
+        {
+            if (IsAlive)
+                return 0;
+            if (GameLoop.GameLoopTime - m_deathTick >= MIMIC_CORPSE_WINDOW_SECONDS * 1000)
+            {
+                ReleaseCorpse();
+                return 0;
+            }
+            return 1000;
+        }
+
+        /// <summary>
+        /// Rez window expired: wild bots leave group, free the spawner slot and
+        /// despawn (the spawner replaces them). Saved bots (PR20c) are written
+        /// back to storage instead — no loot farm, no replacement.
+        /// </summary>
+        public virtual void ReleaseCorpse()
+        {
+            StopReleaseTimer();
+            if (!string.IsNullOrEmpty(SavedKey))
+            {
+                try
+                {
+                    if (MimicSaveManager.DismissBot(this))
+                        return;
+                }
+                catch (Exception ex)
+                {
+                    log.Error($"Could not store expired mimic corpse {Name}", ex);
+                }
+                // Storage is temporarily unavailable; keep the corpse and retry.
+                m_releaseTimer = new ECSGameTimer(this);
+                m_releaseTimer.Callback = new ECSGameTimer.ECSTimerCallback(CorpseTimerCallback);
+                m_releaseTimer.Start(10000);
+                return;
+            }
+            Group?.RemoveMember(this);
+            MimicSpawner?.Remove(this);
+            MimicSpawnerPersistent?.Remove(this);
+            if (ObjectState == eObjectState.Active)
+                Delete();
+        }
+
+        /// <summary>
         /// The current death type
         /// </summary>
         protected eDeathType m_deathtype;
@@ -3174,6 +3260,53 @@ namespace DOL.GS.Scripts
             LastDeathPvP = false;
             //UpdatePlayerStatus();
             //Out.SendPlayerRevive(this);
+        }
+
+        /// <summary>
+        /// Completes a resurrection received through ResurrectLiving (PR17).
+        /// The engine restores Health/Mana/Endurance and pulls the corpse to the
+        /// rezzer; this clears the corpse state, stops the expiry timer, applies
+        /// rez sickness and resets the brain so the bot resumes cleanly.
+        /// </summary>
+        public virtual void OnMimicRevived(GameLiving rezzer, Spell spell)
+        {
+            StopReleaseTimer();
+            m_isDead = false;
+            Group?.UpdateMember(this, false, false);
+            StartHealthRegeneration();
+            StartPowerRegeneration();
+            StartEnduranceRegeneration();
+
+            if (Level >= ServerProperties.Properties.RESS_SICKNESS_LEVEL)
+            {
+                switch (m_deathtype)
+                {
+                    case eDeathType.RvR:
+                    {
+                        Spell rvrIllness = SkillBase.GetSpellByID(8181);
+                        CastSpell(rvrIllness, SkillBase.GetSpellLine(GlobalSpellsLines.Realm_Spells));
+                        break;
+                    }
+                    case eDeathType.PvP:
+                    case eDeathType.PvE:
+                    {
+                        Spell pveIllness = SkillBase.GetSpellByID(2435);
+                        CastSpell(pveIllness, SkillBase.GetSpellLine(GlobalSpellsLines.Realm_Spells));
+                        break;
+                    }
+                }
+            }
+            m_deathtype = eDeathType.None;
+            LastDeathPvP = false;
+
+            if (MimicBrain != null)
+            {
+                MimicBrain.ClearAggroList();
+                MimicBrain.FSM.SetCurrentState(eFSMStateType.WAKING_UP);
+            }
+
+            foreach (GamePlayer viewer in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                viewer.Out.SendPlayerRevive(this);
         }
 
         /// <summary>
@@ -4544,6 +4677,16 @@ namespace DOL.GS.Scripts
             {
                 m_spellLines.Clear();
             }
+        }
+
+        /// <summary>
+        /// Spends the bot's earned realm rank on class RAs (PR19a). Idempotent:
+        /// re-running with an unchanged rank buys nothing. Called throttled from
+        /// the brain so spawn seeds and earned ranks are both picked up.
+        /// </summary>
+        public virtual void CheckRealmAbilities()
+        {
+            MimicRABuyer.CheckRealmAbilities(this);
         }
 
         /// <summary>
@@ -7489,8 +7632,11 @@ namespace DOL.GS.Scripts
             }
 
             Duel?.Stop();
-            MimicSpawner?.Remove(this);
-            MimicSpawnerPersistent?.Remove(this);
+            if (!ShouldLingerAsCorpse(m_releaseType))
+            {
+                MimicSpawner?.Remove(this);
+                MimicSpawnerPersistent?.Remove(this);
+            }
 
             eChatType messageType;
 
@@ -7537,16 +7683,14 @@ namespace DOL.GS.Scripts
             IsSitting = false;
             IsSwimming = false;
 
-            // then buffs drop messages
-            //GameLivingProcessDeath(killer);
-
-            if (ControlledBrain != null)
-                CommandNpcRelease();
-
-            base.ProcessDeath(killer);
-
-            if (m_releaseType == eReleaseType.Duel)
+            if (!ShouldLingerAsCorpse(m_releaseType))
             {
+                // Duel deaths keep the legacy instant-delete behavior.
+                if (ControlledBrain != null)
+                    CommandNpcRelease();
+
+                base.ProcessDeath(killer);
+
                 foreach (GamePlayer player in killer.GetPlayersInRadius(WorldMgr.INFO_DISTANCE))
                 {
                     if (player != killer)
@@ -7557,7 +7701,74 @@ namespace DOL.GS.Scripts
                 //Message.SystemToOthers(Client, LanguageMgr.GetTranslation(this, "GamePlayer.Duel.Die.KillerWinsDuel", killer.Name), eChatType.CT_Emote);
 
                 Release(m_releaseType, false);
+                return;
             }
+
+            if (ControlledBrain != null)
+                CommandNpcRelease();
+
+            // Kill credit, loot and RP/XP exactly like GameNPC.ProcessDeath, but without
+            // Delete/StartRespawn/RemoveMember: the corpse lingers targetable for rez (PR16).
+            // Owned saved bots (PR20c) grant credit but drop no loot — else kill/resummon farms.
+            if (killer != null)
+            {
+                if (killer is GameNPC pet && pet.Brain is IControlledBrain petBrain)
+                    killer = petBrain.GetLivingOwner();
+
+                if (IsWorthReward && string.IsNullOrEmpty(SavedKey))
+                    DropLoot(killer);
+            }
+
+            StopMoving();
+
+            if (killer != null)
+            {
+                // Handle faction alignement changes.
+                if (Faction != null && killer is IGamePlayer)
+                {
+                    lock (m_xpGainers.SyncRoot)
+                    {
+                        foreach (GameLiving xpGainer in m_xpGainers.Keys)
+                        {
+                            GamePlayer playerXpGainer = xpGainer as GamePlayer;
+
+                            if (playerXpGainer != null && playerXpGainer.IsObjectGreyCon(this))
+                                continue;
+
+                            if (playerXpGainer != null &&
+                                playerXpGainer.ObjectState == eObjectState.Active &&
+                                playerXpGainer.IsAlive &&
+                                playerXpGainer.IsWithinRadius(this, WorldMgr.MAX_EXPFORKILL_DISTANCE))
+                                Faction.OnMemberKilled(playerXpGainer);
+                        }
+                    }
+                }
+
+                // Deal out exp and realm points based on server rules.
+                GameServer.ServerRules.OnNPCKilled(this, killer);
+            }
+
+            // Player-style death mechanics: stop attacks, drop buffs, clear targets/regen, Health=0.
+            GameLivingProcessDeath(killer);
+
+            lock (XPGainers.SyncRoot)
+            {
+                XPGainers.Clear();
+            }
+
+            // Death classification for rez sickness (consumed by PR17 revive).
+            m_deathtype = ResolveMimicDeathType(killer?.Realm ?? eRealm.None, Realm, GameServer.Instance.Configuration.ServerType);
+
+            // Let nearby clients render the corpse lying down (needs eyes on live server).
+            foreach (GamePlayer corpseViewer in GetPlayersInRadius(WorldMgr.VISIBILITY_DISTANCE))
+                corpseViewer.Out.SendPlayerDied(this, killer);
+
+            // Corpse lingers targetable for the rez window, then despawns via ReleaseCorpse.
+            StopReleaseTimer();
+            m_deathTick = GameLoop.GameLoopTime;
+            m_releaseTimer = new ECSGameTimer(this);
+            m_releaseTimer.Callback = new ECSGameTimer.ECSTimerCallback(CorpseTimerCallback);
+            m_releaseTimer.Start(1000);
 
             //lock (m_LockObject)
             //{

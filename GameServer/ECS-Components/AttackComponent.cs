@@ -190,9 +190,40 @@ namespace DOL.GS
                 }
             }
             else if (owner is GameNPC)
+            {
+                // Mimic archers choose damage type via the new-archery chooser buffs
+                // (Blunt/Thrusting/Slashing Arrows), mirroring the Archery spell path
+                // read. Without a buff the legacy MeleeDamageType applies unchanged;
+                // non-mimics never reach this branch differently than before.
+                if (owner is MimicNPC archer)
+                {
+                    eDamageType chosen = GetMimicArrowType(archer);
+                    if (chosen != eDamageType.Natural)
+                        return chosen;
+                }
                 return (owner as GameNPC).MeleeDamageType;
+            }
             else
                 return eDamageType.Natural;
+        }
+
+        /// <summary>Active new-archery chooser buff (Blunt/Thrusting/Slashing Arrows)
+        /// on a mimic, or Natural when none is present. Reads the buff's own damage
+        /// type so custom chooser buffs work the same way.</summary>
+        public static eDamageType GetMimicArrowType(GameLiving archer)
+        {
+            var effects = archer?.effectListComponent?.GetAllEffects();
+            if (effects == null)
+                return eDamageType.Natural;
+            foreach (var effect in effects)
+            {
+                var spell = (effect as ECSGameSpellEffect)?.SpellHandler?.Spell;
+                if (spell == null)
+                    continue;
+                if (spell.ID == 7397 || spell.ID == 7398 || spell.ID == 7399)
+                    return spell.DamageType;
+            }
+            return eDamageType.Natural;
         }
 
         /// <summary>

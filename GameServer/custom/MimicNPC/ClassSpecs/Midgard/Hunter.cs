@@ -10,6 +10,7 @@ namespace DOL.GS.Scripts
 
     public class HunterSpec : MimicSpec
     {
+        private static string BowSpec => ServerProperties.Properties.ALLOW_OLD_ARCHERY ? Specs.CompositeBow : Specs.Archery;
         public HunterSpec()
         {
             SpecName = "HunterSpec";
@@ -34,7 +35,7 @@ namespace DOL.GS.Scripts
                 case 0:
                 case 1:
                 Add(ObjToSpec(WeaponOneType), 39, 0.8f);
-                Add(Specs.CompositeBow, 35, 0.9f);
+                Add(BowSpec, 35, 0.9f);
                 Add(Specs.Beastcraft, 40, 0.6f);
                 Add(Specs.Stealth, 38, 0.3f);
                 break;
@@ -42,7 +43,7 @@ namespace DOL.GS.Scripts
                 case 2:
                 case 3:
                 Add(ObjToSpec(WeaponOneType), 39, 0.8f);
-                Add(Specs.CompositeBow, 45, 0.9f);
+                Add(BowSpec, 45, 0.9f);
                 Add(Specs.Beastcraft, 32, 0.6f);
                 Add(Specs.Stealth, 38, 0.3f);
                 break;

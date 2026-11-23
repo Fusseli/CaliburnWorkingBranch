@@ -121,8 +121,8 @@ namespace DOLGameServerConsole
 		public void SendMerchantWindow(MerchantTradeItems itemlist, eMerchantWindowType windowType) { }
 		public void SendTradeWindow() { }
 		public void SendCloseTradeWindow() { }
-		public void SendPlayerDied(GamePlayer killedPlayer, GameObject killer) { }
-		public void SendPlayerRevive(GamePlayer revivedPlayer) { }
+		public void SendPlayerDied(GameLiving killedLiving, GameObject killer) { }
+		public void SendPlayerRevive(GameLiving revivedLiving) { }
 		public void SendUpdatePlayer() { }
 		public void SendUpdatePlayerSkills() { }
 		public void SendUpdateWeaponAndArmorStats() { }

@@ -116,25 +116,15 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
         {
             if (_worldState == null)
             {
-                // Log error but don't crash - sensor may be in initialization
-                Console.WriteLine($"[MimicSensor] Cannot set world state '{key}' - world state is null");
-                return;
+                throw new InvalidOperationException("Sensor memory has not been initialized");
             }
 
             if (string.IsNullOrEmpty(key))
             {
-                Console.WriteLine("[MimicSensor] Cannot set world state - key is null or empty");
-                return;
+                throw new ArgumentException("Sensor key is required", nameof(key));
             }
 
-            try
-            {
-                _worldState.Set(key, value);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[MimicSensor] Error setting world state '{key}': {ex.Message}");
-            }
+            _worldState.Set(key, value);
         }
 
         /// <summary>

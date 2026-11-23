@@ -5,6 +5,7 @@ using DOL.Events;
 using DOL.GS.Effects;
 using DOL.GS.PacketHandler;
 using DOL.GS.RealmAbilities;
+using DOL.GS.Scripts;
 
 namespace DOL.GS.Spells
 {
@@ -203,6 +204,12 @@ namespace DOL.GS.Spells
 						playerCaster.Out.SendMessage("You thus get no realm points for the resurrect.", eChatType.CT_Important, eChatLoc.CL_SystemWindow);
 					}
 				}
+			}
+			else if (living is MimicNPC mimic)
+			{
+				// PR17: mimic corpses take the instant NPC path; complete the revive
+				// (corpse state, timer, sickness, brain reset) like players do.
+				mimic.OnMimicRevived(m_caster, m_spell);
 			}
 		}
 

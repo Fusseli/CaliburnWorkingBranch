@@ -11,6 +11,7 @@ using DOL.GS.SkillHandler;
 using DOL.GS.Spells;
 using DOL.GS.Styles;
 using DOL.Language;
+using DOL.GS.ReGoap.Mimic;
 using log4net;
 using Microsoft.VisualBasic;
 using System;
@@ -33,6 +34,744 @@ namespace DOL.AI.Brain
         public override bool IsActive => Body != null && Body.IsAlive && Body.ObjectState == GameObject.eObjectState.Active;
 
         public bool IsHealer = false;
+
+        /// <summary>Set by /mheal. Election auto-flags untouched heal-capable bots only.</summary>
+        public bool HealerManual = false;
+
+        public MimicReGoapAgent GoapAgent { get; private set; }
+        public volatile bool GoapEnabled = true;
+        private bool _goapSelectingSpell;
+        private string _roleSnapshot;
+
+        public virtual bool TryGoap(MimicDecisionContext context)
+        {
+            if (!IsActive || MimicBody == null)
+                return false;
+            MaybeElectRoles();
+            GoapAgent ??= new MimicReGoapAgent(MimicBody, this);
+            // Commands only change the flag; all agent mutations stay on this thread.
+            if (GoapEnabled != GoapAgent.IsEnabled())
+            {
+                if (GoapEnabled) GoapAgent.Enable();
+                else GoapAgent.Disable();
+            }
+            return GoapAgent.TryThink(context);
+        }
+
+        /// <summary>Class-aware role defaults, evaluated only when group membership
+        /// actually changes (cheap snapshot string). Runs on the owning AI thread,
+        /// same as every other agent mutation.</summary>
+        private void MaybeElectRoles()
+        {
+            var group = Body.Group;
+            var mg = group?.MimicGroup;
+            if (mg == null)
+                return;
+            var members = group.GetMembersInTheGroup();
+            string snap = members.Count + "|" + string.Join(",", members.Select(m => m?.Name ?? "?").OrderBy(n => n));
+            if (snap == _roleSnapshot)
+                return;
+            _roleSnapshot = snap;
+            mg.ElectRoles(members);
+        }
+
+        public virtual void SelectGoapAttackTarget()
+        {
+            // A finished point flight leaves stale flee flags behind when GOAP handled
+            // combat: clear them on arrival so spell selection sees a free caster again.
+            // Follow-driven kite runs (mate converges) carry no point: clear those once
+            // standing still, and stop trailing the mate.
+            if (IsFleeing && TargetFleePosition != null && !Body.IsDestinationValid)
+            {
+                IsFleeing = false;
+                TargetFleePosition = null;
+            }
+            else if (IsFleeing && TargetFleePosition == null && !Body.IsMoving)
+            {
+                IsFleeing = false;
+                Body.StopFollowing();
+            }
+            var previousTarget = Body.TargetObject;
+            if (!CheckMainTankTarget() && !CheckGoapAssistTarget() && !CheckGoapCallTarget())
+                Body.TargetObject = CalculateNextAttackTarget();
+            if (Body.TargetObject != previousTarget)
+                ResetFlanking();
+        }
+
+        private bool CheckGoapAssistTarget()
+        {
+            // Restores the intent of the legacy CheckAssist helper (now dead code):
+            // grouped non-assist members open on the main assist target when it is valid.
+            // Tanks keep CheckMainTankTarget priority; the assist itself keeps its own selection.
+            if (IsMainAssist)
+                return false;
+            var group = Body.Group?.MimicGroup;
+            var mainAssist = group?.MainAssist;
+            if (mainAssist == null || !mainAssist.InCombat)
+                return false;
+            var assistTarget = group.CurrentTarget as GameLiving;
+            if (assistTarget == null || !CanAggroTarget(assistTarget))
+                return false;
+            Body.TargetObject = assistTarget;
+            return true;
+        }
+
+        private bool CheckGoapCallTarget()
+        {
+            // Caller side of the assist train: the main assist opens on the highest-value
+            // valid enemy instead of the highest-threat one, so the train focuses fire.
+            // Everyone else follows via CheckGoapAssistTarget; tanks keep threat duty.
+            if (!IsMainAssist)
+                return false;
+            var focus = FindFocusTarget();
+            if (focus == null)
+                return false;
+            Body.TargetObject = focus;
+            return true;
+        }
+
+        /// <summary>Highest-value valid enemy: actively casting enemies first (shut down
+        /// the cast by focus), then weakest valid targets (secure kills, snowball the
+        /// fight). CC'd, invalid and unattackable enemies are never called. A small
+        /// stickiness bonus keeps the train from flip-flopping between equal targets.</summary>
+        public GameLiving FindFocusTarget()
+        {
+            GameLiving best = null;
+            int bestScore = int.MinValue;
+            foreach (var entry in GetOrderedAggroList())
+            {
+                var enemy = entry.Item1;
+                if (enemy == null || !enemy.IsAlive || enemy.ObjectState != GameObject.eObjectState.Active
+                    || enemy.CurrentRegion != Body.CurrentRegion || enemy.IsMezzed || enemy.IsStunned || enemy.IsRooted)
+                    continue;
+                if (!CanAggroTarget(enemy))
+                    continue;
+                int score = 100 - enemy.HealthPercent;
+                if (enemy.IsCasting)
+                    score += 50;
+                if (enemy == Body.TargetObject)
+                    score += 5;
+                if (score > bestScore) { bestScore = score; best = enemy; }
+            }
+            return best;
+        }
+
+        public bool ExecuteGoapCallTarget()
+        {
+            // Planner-visible safety net for focus switches that selection missed.
+            // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
+            var focus = FindFocusTarget();
+            if (focus == null)
+                return false;
+            Body.TargetObject = focus;
+            return true;
+        }
+
+        public bool ExecuteGoapFlank()
+        {
+            // Mirrors the FSM flank loop one tick at a time: compute the style point,
+            // walk it, latch arrival. A running walk is left alone so movement does
+            // not stutter; a victim that turned or moved resets the flank instead of
+            // dancing for nothing. Fails closed to let damage handle it.
+            var victim = Body.TargetObject as GameLiving;
+            if (victim == null || victim.IsMoving || victim.TargetObject == Body)
+            {
+                ResetFlanking();
+                return false;
+            }
+            if (IsFlanking)
+                return true;
+            if (TargetFlankPosition != null)
+            {
+                if (Body.IsDestinationValid)
+                    return true;
+                if (Body.GetDistance(TargetFlankPosition) < 5)
+                {
+                    IsFlanking = true;
+                    TargetFlankPosition = null;
+                    return true;
+                }
+            }
+            IsFlanking = false;
+            var point = GetStylePositionPoint(victim, GetPositional());
+            if (point == null)
+                return false;
+            TargetFlankPosition = point;
+            Body.StopFollowing();
+            Body.StopAttack();
+            Body.WalkTo(new Point3D(point.X, point.Y, victim.Z), Body.MaxSpeed);
+            return true;
+        }
+
+        public bool ExecuteGoapDebuff()
+        {
+            // Cast the first applicable debuff from the harmful pool, skipping targets
+            // that already carry it. Instant debuffs already flow through the normal
+            // offensive path with recast guards, so only cast-time spells are picked here.
+            // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
+            _goapSelectingSpell = true;
+            try
+            {
+                var spells = Body.HarmfulSpells;
+                if (spells != null)
+                {
+                    foreach (var spell in spells)
+                    {
+                        if (spell == null || !spell.IsDebuff)
+                            continue;
+                        if (!CanCastOffensiveSpell(spell))
+                            continue;
+                        var target = Body.TargetObject as GameLiving;
+                        if (target == null || LivingHasEffect(target, spell))
+                            continue;
+                        if (CheckOffensiveSpells(spell))
+                            return true;
+                    }
+                }
+                return Body.IsCasting;
+            }
+            finally { _goapSelectingSpell = false; }
+        }
+
+        /// <summary>Rank melee damage types by total target mitigation (resist +
+        /// worn-armor resist). Pure logic for unit tests; Slash wins ties as the
+        /// game default, current type kept within a small margin (no flapping).</summary>
+        public static eDamageType BestArrowType(int crushR, int slashR, int thrustR, eDamageType current)
+        {
+            eDamageType best = eDamageType.Slash;
+            int bestScore = slashR;
+            if (crushR < bestScore) { bestScore = crushR; best = eDamageType.Crush; }
+            if (thrustR < bestScore) { bestScore = thrustR; best = eDamageType.Thrust; }
+            int currentScore = current == eDamageType.Crush ? crushR
+                : current == eDamageType.Thrust ? thrustR : slashR;
+            if (currentScore <= bestScore + 5)
+                return current;
+            return best;
+        }
+
+        /// <summary>Best arrow type for a live target, or Natural when no choice applies.</summary>
+        public eDamageType FindBestArrowType(GameLiving target)
+        {
+            if (target == null || !target.IsAlive)
+                return eDamageType.Natural;
+            int crushR = target.GetResist(eDamageType.Crush);
+            int slashR = target.GetResist(eDamageType.Slash);
+            int thrustR = target.GetResist(eDamageType.Thrust);
+            var armor = target.Inventory?.GetItem(eInventorySlot.TorsoArmor);
+            if (armor != null)
+            {
+                crushR += SkillBase.GetArmorResist(armor, eDamageType.Crush);
+                slashR += SkillBase.GetArmorResist(armor, eDamageType.Slash);
+                thrustR += SkillBase.GetArmorResist(armor, eDamageType.Thrust);
+            }
+            return BestArrowType(crushR, slashR, thrustR, GetActiveArrowType());
+        }
+
+        /// <summary>Currently applied chooser buff type, or Natural when none.
+        /// Slash is the game default and needs no buff.</summary>
+        public eDamageType GetActiveArrowType()
+        {
+            return AttackComponent.GetMimicArrowType(Body);
+        }
+
+        public bool ExecuteGoapArrowType()
+        {
+            // Apply the chosen damage-type buff directly by spell ID (Blunt 7397,
+            // Thrusting 7398, Slashing 7399). Plain handler, no NPC gate, stealth-safe,
+            // near-permanent until replaced. Fails closed to let damage handle it.
+            if (Body.IsCasting)
+                return true;
+            var best = FindBestArrowType(Body.TargetObject as GameLiving);
+            if (best == eDamageType.Natural || best == GetActiveArrowType())
+                return false;
+            int spellId = best == eDamageType.Crush ? 7397 : best == eDamageType.Thrust ? 7398 : 7399;
+            var spell = SkillBase.GetSpellByID(spellId);
+            var line = SkillBase.GetSpellLine(GlobalSpellsLines.Mob_Spells);
+            if (spell == null || line == null)
+                return false;
+            Body.CastSpell(spell, line);
+            return true;
+        }
+
+        public bool ExecuteGoapAssist()
+        {
+            // Planner-visible safety net for mid-fight assist switches that selection missed.
+            // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
+            var assistTarget = Body.Group?.MimicGroup.CurrentTarget as GameLiving;
+            if (assistTarget == null || !assistTarget.IsAlive)
+                return false;
+            Body.TargetObject = assistTarget;
+            return true;
+        }
+
+        public bool ExecuteGoapPeel()
+        {
+            // Take the first aggroed enemy off an attacked group member. CC'd enemies
+            // are skipped so a peel can never break the group's own control.
+            // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
+            if (Body.Group == null)
+                return false;
+            foreach (var entry in GetOrderedAggroList())
+            {
+                var enemy = entry.Item1;
+                if (enemy == null || !enemy.IsAlive || enemy.ObjectState != GameObject.eObjectState.Active
+                    || enemy.CurrentRegion != Body.CurrentRegion || enemy.IsMezzed || enemy.IsStunned || enemy.IsRooted)
+                    continue;
+                var enemyTarget = enemy.TargetObject as GameLiving;
+                if (enemyTarget == null || enemyTarget == Body || !enemyTarget.IsAlive)
+                    continue;
+                if (!Body.Group.IsInTheGroup(enemyTarget))
+                    continue;
+                if (!CanAggroTarget(enemy))
+                    continue;
+                Body.TargetObject = enemy;
+                AttackSelectedTarget(false);
+                return Body.IsAttacking || Body.IsMoving || Body.IsCasting;
+            }
+            return false;
+        }
+
+        /// <summary>Manual guard target set via /mguard or whisper. While it stands
+        /// (alive, same region, still grouped) the agent leaves guard alone.</summary>
+        public GameLiving ManualGuardTarget { get; private set; }
+        public void SetManualGuard(GameLiving target) { ManualGuardTarget = target; }
+        public void ClearManualGuard() { ManualGuardTarget = null; }
+
+        public GameLiving GetOwnGuardee()
+        {
+            var group = Body.Group;
+            if (group == null) return null;
+            foreach (GameLiving m in group.GetMembersInTheGroup())
+            {
+                if (m == null || m == Body || !m.IsAlive || m.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                var fx = EffectListService.GetAbilityEffectOnTarget(m, eEffect.Guard) as GuardECSGameEffect;
+                if (fx != null && fx.Source == Body)
+                    return m;
+            }
+            return null;
+        }
+
+        private static int ScoreGuardCandidate(GameLiving m)
+        {
+            bool isHealer = m is MimicNPC mn && mn.MimicBrain != null && mn.MimicBrain.IsHealer;
+            bool isCaster = (m as GamePlayer)?.CharacterClass?.ClassType == eClassType.ListCaster
+                || (m as MimicNPC)?.CharacterClass?.ClassType == eClassType.ListCaster;
+            int score = isHealer ? 6 : isCaster ? 4 : 2;
+            if (m.attackComponent?.Attackers?.Count > 0) score += 3;
+            if (m.HealthPercent < 50) score += 2;
+            return score;
+        }
+
+        /// <summary>Neediest group member for guard, or null when no action is wanted:
+        /// no Guard ability, solo, manual lock standing, or current assignment optimal
+        /// (switches only to a clearly needier target, no flapping).</summary>
+        public GameLiving FindGuardCandidate()
+        {
+            if (Body == null || !Body.HasAbility(Abilities.Guard) || Body.Group == null)
+                return null;
+            if (ManualGuardTarget != null)
+            {
+                if (ManualGuardTarget.IsAlive && ManualGuardTarget.CurrentRegion == Body.CurrentRegion
+                    && Body.Group.IsInTheGroup(ManualGuardTarget))
+                    return null;
+                ManualGuardTarget = null;
+            }
+            GameLiving current = GetOwnGuardee();
+            GameLiving best = null;
+            int bestScore = 0;
+            foreach (GameLiving m in Body.Group.GetMembersInTheGroup())
+            {
+                if (m == null || m == Body || !m.IsAlive || m.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                int score = ScoreGuardCandidate(m);
+                if (score > bestScore) { bestScore = score; best = m; }
+            }
+            if (best == null || best == current)
+                return null;
+            if (current != null && bestScore <= ScoreGuardCandidate(current) + 2)
+                return null;
+            return best;
+        }
+
+        public bool ExecuteGoapGuard()
+        {
+            // One tick of guard assignment; the engine holds the effect afterwards.
+            // No FSM calls, no recursive GOAP entry; fails closed to let other work run.
+            var candidate = FindGuardCandidate();
+            if (candidate == null)
+                return false;
+            return SetGuard(candidate, out _);
+        }
+
+        /// <summary>Manual rez opt-out via /mrez. While set, neither GOAP nor the
+        /// legacy defensive path will cast resurrection spells on this bot.</summary>
+        public bool RezDisabled;
+
+        /// <summary>Opt-in via "/mrez outside": rez nearby same-realm strangers,
+        /// but only when the own group is fully calm (PR17b). Default off.</summary>
+        public bool RezOutside;
+
+        /// <summary>Standard rez range: all realm rez spells use 1500 units.</summary>
+        public const int REZ_RANGE = 1500;
+
+        /// <summary>True when any misc spell is a resurrection spell.</summary>
+        public bool HasRezSpell()
+        {
+            if (Body == null)
+                return false;
+            if (Body.MiscSpells != null)
+            {
+                foreach (var spell in Body.MiscSpells)
+                {
+                    if (spell != null && spell.SpellType == eSpellType.Resurrect)
+                        return true;
+                }
+            }
+            if (Body.InstantMiscSpells != null)
+            {
+                foreach (var spell in Body.InstantMiscSpells)
+                {
+                    if (spell != null && spell.SpellType == eSpellType.Resurrect)
+                        return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>Nearest dead group member that may be rezzed (PR16 corpse):
+        /// grouped, same region, same realm per server rules (engine re-validates
+        /// at cast). Shared by the sensor and both cast paths so they agree.</summary>
+        public GameLiving FindRezTarget()
+        {
+            if (Body == null || Body.Group == null || RezDisabled || !HasRezSpell())
+                return null;
+            GameLiving best = null;
+            int bestDist = int.MaxValue;
+            foreach (GameLiving m in Body.Group.GetMembersInTheGroup())
+            {
+                if (m == null || m == Body || m.IsAlive)
+                    continue;
+                if (m.ObjectState != GameObject.eObjectState.Active || m.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                if (!GameServer.ServerRules.IsSameRealm(Body, m, true))
+                    continue;
+                int d = Body.GetDistanceTo(m);
+                if (d > REZ_RANGE || d >= bestDist)
+                    continue;
+                best = m;
+                bestDist = d;
+            }
+            return best;
+        }
+
+        public bool ExecuteGoapRez()
+        {
+            // One tick of rez casting through the existing defensive-spell path;
+            // the ResurrectSpellHandler enforces range, LoS and realm at cast.
+            // An interrupted caster yields (Quickcast/kite handle pressure).
+            // No FSM calls, no recursive GOAP entry; fails closed to let healing run.
+            if (Body.IsBeingInterrupted)
+                return false;
+            var corpse = FindRezTarget();
+            if (corpse == null)
+                return false;
+            var group = Body.Group?.MimicGroup;
+            if (group != null && group.AlreadyCastingRez)
+                return false;
+            _goapSelectingSpell = true;
+            try
+            {
+                if (Body.MiscSpells != null)
+                {
+                    foreach (var spell in Body.MiscSpells)
+                    {
+                        if (spell == null || spell.SpellType != eSpellType.Resurrect)
+                            continue;
+                        if (!CanCastDefensiveSpell(spell))
+                            continue;
+                        if (!Body.IsWithinRadius(corpse, spell.Range))
+                            continue;
+                        Body.TargetObject = corpse;
+                        if (Body.CastSpell(spell, m_mobSpellLine))
+                        {
+                            if (group != null)
+                                group.AlreadyCastingRez = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+                if (Body.InstantMiscSpells != null)
+                {
+                    foreach (var spell in Body.InstantMiscSpells)
+                    {
+                        if (spell == null || spell.SpellType != eSpellType.Resurrect)
+                            continue;
+                        if (!CanCastDefensiveSpell(spell))
+                            continue;
+                        if (!Body.IsWithinRadius(corpse, spell.Range))
+                            continue;
+                        Body.TargetObject = corpse;
+                        if (Body.CastSpell(spell, m_mobSpellLine))
+                        {
+                            if (group != null)
+                                group.AlreadyCastingRez = true;
+                            return true;
+                        }
+                        return false;
+                    }
+                }
+            }
+            finally { _goapSelectingSpell = false; }
+            return false;
+        }
+
+        /// <summary>Nearest dead stranger (non-group player or foreign mimic corpse)
+        /// that may be rezzed, or null. Only when fully calm: no combat, no aggro,
+        /// own group has no dead. Never chases: the corpse must already be in rez
+        /// range. Opt-in via RezOutside; the engine re-validates realm at cast.</summary>
+        public GameLiving FindOutsiderRezTarget()
+        {
+            if (Body == null || RezDisabled || !RezOutside || !HasRezSpell())
+                return null;
+            if (Body.InCombat || HasAggro)
+                return null;
+            GameLiving best = null;
+            int bestDist = int.MaxValue;
+            // Dead players linger Active and targetable like our own corpses.
+            foreach (GamePlayer p in Body.GetPlayersInRadius((ushort)REZ_RANGE))
+            {
+                if (p == null || ReferenceEquals(p, Body) || p.IsAlive)
+                    continue;
+                if (p.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                if (Body.Group != null && Body.Group.IsInTheGroup(p))
+                    continue;
+                if (!GameServer.ServerRules.IsSameRealm(Body, p, true))
+                    continue;
+                int d = Body.GetDistanceTo(p);
+                if (d >= bestDist)
+                    continue;
+                best = p;
+                bestDist = d;
+            }
+            // Dead mimics of other groups linger Active too (PR16 corpses).
+            foreach (GameNPC n in Body.GetNPCsInRadius((ushort)REZ_RANGE))
+            {
+                if (n is not MimicNPC m || m == Body || m.IsAlive)
+                    continue;
+                if (m.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                if (Body.Group != null && Body.Group.IsInTheGroup(m))
+                    continue;
+                if (!GameServer.ServerRules.IsSameRealm(Body, m, true))
+                    continue;
+                int d = Body.GetDistanceTo(m);
+                if (d >= bestDist)
+                    continue;
+                best = m;
+                bestDist = d;
+            }
+            return best;
+        }
+
+        public bool ExecuteGoapRezOutside()
+        {
+            // One tick of stranger rez through the existing defensive-spell path.
+            // No group coordination flag: other groups may race us, the first
+            // completed cast wins and late casts fizzle safe on a living target.
+            // No FSM calls, no recursive GOAP entry; fails closed to let other work run.
+            var corpse = FindOutsiderRezTarget();
+            if (corpse == null)
+                return false;
+            _goapSelectingSpell = true;
+            try
+            {
+                if (Body.MiscSpells != null)
+                {
+                    foreach (var spell in Body.MiscSpells)
+                    {
+                        if (spell == null || spell.SpellType != eSpellType.Resurrect)
+                            continue;
+                        if (!CanCastDefensiveSpell(spell))
+                            continue;
+                        if (!Body.IsWithinRadius(corpse, spell.Range))
+                            continue;
+                        Body.TargetObject = corpse;
+                        if (Body.CastSpell(spell, m_mobSpellLine))
+                            return true;
+                        return false;
+                    }
+                }
+                if (Body.InstantMiscSpells != null)
+                {
+                    foreach (var spell in Body.InstantMiscSpells)
+                    {
+                        if (spell == null || spell.SpellType != eSpellType.Resurrect)
+                            continue;
+                        if (!CanCastDefensiveSpell(spell))
+                            continue;
+                        if (!Body.IsWithinRadius(corpse, spell.Range))
+                            continue;
+                        Body.TargetObject = corpse;
+                        if (Body.CastSpell(spell, m_mobSpellLine))
+                            return true;
+                        return false;
+                    }
+                }
+            }
+            finally { _goapSelectingSpell = false; }
+            return false;
+        }
+
+        /// <summary>Owned Purge RA, or null. Purge is bought by the auto-buyer
+        /// (PR19a) like any class RA.</summary>
+        public PurgeAbility GetPurgeAbility()
+        {
+            if (MimicBody == null)
+                return null;
+            foreach (var ab in MimicBody.GetRealmAbilities())
+            {
+                if (ab is PurgeAbility purge)
+                    return purge;
+            }
+            return null;
+        }
+
+        public bool ExecuteGoapPurge()
+        {
+            // One tick of self-purge through the RA's own Execute (reuse timing
+            // included). No FSM calls, no recursive GOAP entry; fails closed.
+            var purge = GetPurgeAbility();
+            if (purge == null)
+                return false;
+            if (Body.GetSkillDisabledDuration(purge) > 0)
+                return false;
+            purge.Execute(Body);
+            return true;
+        }
+
+        public bool ExecuteGoapKite()
+        {
+            // Solo: FSM-parity long flight, never restart a running one.
+            // Grouped (non-tank): fall back to a kite mate so peel/guard take over
+            // instead of fleeing across the map; hold there while pressured.
+            // No FSM calls, no recursive GOAP entry; fails closed to let damage handle it.
+            if (Body.Group == null)
+            {
+                if (IsFleeing && Body.IsDestinationValid)
+                    return true;
+                IsFleeing = false;
+                TargetFleePosition = null;
+                int dist = Body.TargetObject != null ? 2000 - Body.GetDistance(Body.TargetObject) : 1200;
+                if (dist < 400)
+                    dist = 400;
+                Flee(dist);
+                return IsFleeing || Body.IsMoving;
+            }
+            if (IsMainTank)
+                return false;
+            var mate = FindKiteMate();
+            if (mate == null)
+            {
+                if (IsFleeing && Body.IsDestinationValid)
+                    return true;
+                IsFleeing = false;
+                TargetFleePosition = null;
+                Flee(600);
+                return IsFleeing || Body.IsMoving;
+            }
+            IsFleeing = true;
+            TargetFleePosition = null;
+            Body.Follow(mate, 150, 5000);
+            return true;
+        }
+
+        /// <summary>Keep fleeing while pressured, or while a pursuer stays inside the
+        /// hold ring. Pure logic for unit tests; arrival alone never ends a kite that
+        /// something is still glued to.</summary>
+        public static bool ShouldKeepKiting(bool pressured, bool fleeing, bool pursuerInsideRing)
+            => pressured || (fleeing && pursuerInsideRing);
+
+        /// <summary>Nearest converge point for a grouped kite: the main tank first
+        /// (peel/guard take over on arrival), else the nearest living member in region.
+        /// Nobody within 1500, nobody to run to.</summary>
+        public GameLiving FindKiteMate()
+        {
+            var group = Body.Group;
+            if (group == null)
+                return null;
+            GameLiving tank = null, near = null;
+            int nearDist = int.MaxValue;
+            foreach (GameLiving m in group.GetMembersInTheGroup())
+            {
+                if (m == null || m == Body || !m.IsAlive || m.CurrentRegion != Body.CurrentRegion)
+                    continue;
+                int d = Body.GetDistance(m);
+                if (d > 1500)
+                    continue;
+                if (group.MimicGroup != null && group.MimicGroup.MainTank == m)
+                    tank = m;
+                if (d < nearDist) { nearDist = d; near = m; }
+            }
+            return tank ?? near;
+        }
+
+        public bool ExecuteGoapQuickcast()
+        {
+            // Pop Quickcast so the pressured cast goes through uninterruptible.
+            // Mirrors the FSM's own quickcast handling; the next tick casts normally.
+            // No FSM calls, no recursive GOAP entry; fails closed to let kite handle it.
+            Ability quickCast = Body.GetAbility(Abilities.Quickcast);
+            if (quickCast == null || Body.GetSkillDisabledDuration(quickCast) > 0)
+                return false;
+            if (EffectListService.GetAbilityEffectOnTarget(Body, eEffect.QuickCast) != null)
+                return true;
+            new QuickCastECSGameEffect(new ECSGameEffectInitParams(Body, QuickCastECSGameEffect.DURATION + 1000, 1));
+            Body.DisableSkill(quickCast, 180000);
+            return true;
+        }
+
+        public bool ExecuteGoapSpell(eCheckSpellType type)
+        {
+            // Preserve derived class overrides, but let GOAP choose when to heal.
+            _goapSelectingSpell = true;
+            try
+            {
+                if (type == eCheckSpellType.CrowdControl)
+                {
+                    var group = Body.Group?.MimicGroup;
+                    if (group == null) return false;
+                    group.CCTargets.RemoveAll(t => t == null || !t.IsAlive || t.IsMezzed || t.IsStunned
+                        || t.IsRooted || t == group.CurrentTarget || t.CurrentRegion != Body.CurrentRegion || !CanAggroTarget(t));
+                    if (group.CCTargets.Count == 0) return false;
+                }
+                if (type == eCheckSpellType.Offensive)
+                    Body.ControlledBrain?.Attack(Body.TargetObject);
+                bool result = CheckSpells(type);
+                if (result && type == eCheckSpellType.Offensive)
+                    Body.StopAttack();
+                return result || Body.IsCasting;
+            }
+            finally { _goapSelectingSpell = false; }
+        }
+
+        public bool ExecuteGoapEngagement()
+        {
+            AttackSelectedTarget(false);
+            return Body.IsAttacking || Body.IsMoving || Body.IsCasting;
+        }
+
+        public bool ExecuteGoapInterrupt()
+        {
+            // Damage interrupts: melee pressure first, else an instant offensive tick.
+            // No FSM calls, no recursive GOAP entry; fails closed to let the planner try damage.
+            AttackSelectedTarget(false);
+            if (Body.IsAttacking || Body.IsMoving)
+                return true;
+            return ExecuteGoapSpell(eCheckSpellType.Offensive);
+        }
 
         public bool IsMainPuller { get { return Body.Group?.MimicGroup.MainPuller == Body; } }
 
@@ -106,6 +845,7 @@ namespace DOL.AI.Brain
             // tolakram - when the brain stops, due to either death or no players in the vicinity, clear the aggro list
             if (base.Stop())
             {
+                GoapAgent?.ClearPlan();
                 ClearAggroList();
                 return true;
             }
@@ -115,6 +855,7 @@ namespace DOL.AI.Brain
 
         public override void KillFSM()
         {
+            GoapAgent?.Disable();
             FSM.KillFSM();
         }
 
@@ -122,7 +863,27 @@ namespace DOL.AI.Brain
 
         public override void Think()
         {
+            CheckRealmAbilitiesThrottled();
             FSM.Think();
+        }
+
+        private long _nextRACheck;
+        private int _lastRACheckedRealmLevel = -1;
+
+        /// <summary>Spends earned realm ranks on class RAs (PR19a): immediately
+        /// at spawn, then only when the rank changed or every 10s. One int
+        /// compare per think otherwise.</summary>
+        private void CheckRealmAbilitiesThrottled()
+        {
+            var body = MimicBody;
+            if (body == null || !body.IsAlive)
+                return;
+            long now = GameLoop.GameLoopTime;
+            if (body.RealmLevel == _lastRACheckedRealmLevel && now < _nextRACheck)
+                return;
+            _nextRACheck = now + 10000;
+            _lastRACheckedRealmLevel = body.RealmLevel;
+            body.CheckRealmAbilities();
         }
 
         public virtual void OnLeaderAggro()
@@ -620,7 +1381,7 @@ namespace DOL.AI.Brain
             if (LastTargetObject != null && LastTargetObject.ObjectState == GameObject.eObjectState.Active)
                 return true;
 
-            if (CheckSpells(eCheckSpellType.Defensive) || MimicBody.Sit(CheckStats(75)))
+            if (TryGoap(MimicDecisionContext.Support) || CheckSpells(eCheckSpellType.Defensive) || MimicBody.Sit(CheckStats(75)))
                 return true;
 
             if (Body.Group != null &&
@@ -707,7 +1468,7 @@ namespace DOL.AI.Brain
 
         public bool CheckDelayRoam()
         {
-            if (Body.IsCasting || CheckSpells(eCheckSpellType.Defensive) || MimicBody.Sit(CheckStats(75)))
+            if (Body.IsCasting || TryGoap(MimicDecisionContext.Support) || CheckSpells(eCheckSpellType.Defensive) || MimicBody.Sit(CheckStats(75)))
                 return true;
 
             if (Body.Group != null &&
@@ -941,12 +1702,17 @@ namespace DOL.AI.Brain
             if (!CheckMainTankTarget())
                 Body.TargetObject = CalculateNextAttackTarget();
 
+            AttackSelectedTarget(true);
+        }
+
+        private void AttackSelectedTarget(bool allowSpellSelection)
+        {
             if (Body.TargetObject != null)
             {
                 if (Body.ControlledBrain != null)
                     Body.ControlledBrain.Attack(Body.TargetObject);
 
-                if (!IsFleeing && CheckSpells(eCheckSpellType.Offensive))
+                if (allowSpellSelection && !IsFleeing && CheckSpells(eCheckSpellType.Offensive))
                 {
                     Body.StopAttack();
                 }
@@ -1454,7 +2220,7 @@ namespace DOL.AI.Brain
             List<Spell> spellsToCast = new();
 
             // Healers should heal whether in combat or out of it.
-            if (CheckHeals())
+            if (!_goapSelectingSpell && CheckHeals())
                 return true;
 
             if (!casted && type == eCheckSpellType.CrowdControl)
@@ -1616,6 +2382,11 @@ namespace DOL.AI.Brain
 
         protected bool CanCastOffensiveSpell(Spell spell)
         {
+            if (spell.SpellType == eSpellType.Archery &&
+                spell.LifeDrainReturn == (int)DOL.GS.Spells.Archery.eShotType.Critical &&
+                !Body.IsStealthed)
+                return false;
+
             if (Body.GetSkillDisabledDuration(spell) <= 0)
             {
                 if (spell.CastTime > 0)
@@ -2535,16 +3306,12 @@ namespace DOL.AI.Brain
 
                 case eSpellType.Resurrect:
 
-                if (Body.Group != null)
+                if (Body.Group != null && !RezDisabled
+                    && (Body.Group.MimicGroup == null || !Body.Group.MimicGroup.AlreadyCastingRez))
                 {
-                    foreach (GameLiving groupMember in Body.Group.GetMembersInTheGroup())
-                    {
-                        if (!groupMember.IsAlive && Body.IsWithinRadius(groupMember, spell.Range))
-                        {
-                            Body.TargetObject = groupMember;
-                            break;
-                        }
-                    }
+                    var corpse = FindRezTarget();
+                    if (corpse != null && Body.IsWithinRadius(corpse, spell.Range))
+                        Body.TargetObject = corpse;
                 }
                 break;
 
@@ -2884,17 +3651,8 @@ namespace DOL.AI.Brain
 
                 case eSpellType.Resurrect:
                 {
-                    if (Body.Group != null)
-                    {
-                        foreach (GameLiving groupMember in Body.Group.GetMembersInTheGroup())
-                        {
-                            if (!groupMember.IsAlive)
-                            {
-                                target = groupMember;
-                                break;
-                            }
-                        }
-                    }
+                    if (!RezDisabled && (Body.Group?.MimicGroup == null || !Body.Group.MimicGroup.AlreadyCastingRez))
+                        target = FindRezTarget();
 
                     break;
                 }
@@ -2949,6 +3707,10 @@ namespace DOL.AI.Brain
                 //Body.SwitchWeapon(eActiveWeaponSlot.Distance);
 
             bool casted = false;
+
+            if (spell.SpellType == eSpellType.Archery &&
+                Body.ActiveWeaponSlot != eActiveWeaponSlot.Distance)
+                Body.SwitchWeapon(eActiveWeaponSlot.Distance);
 
             if (Body.TargetObject is GameLiving living && (spell.Duration == 0 || !LivingHasEffect(living, spell) || spell.SpellType == eSpellType.DirectDamageWithDebuff || spell.SpellType == eSpellType.DamageSpeedDecrease))
             {

@@ -1,5 +1,6 @@
 ﻿using DOL.AI;
 using DOL.AI.Brain;
+using DOL.Database;
 using DOL.GS.Commands;
 using DOL.GS.PacketHandler;
 using System;
@@ -13,7 +14,7 @@ namespace DOL.GS.Scripts
 
     [CmdAttribute(
     "&mcreate",
-    ePrivLevel.Player,
+    ePrivLevel.GM,
     "/mcreate class [level] [class] [spec] [inv] - Create a mimic of a certain level, class, and weapon handedness at your position or ground target, and invite them if desired.")]
     public class MimicCreateCommandHandler : AbstractCommandHandler, ICommandHandler
     {
@@ -93,7 +94,7 @@ namespace DOL.GS.Scripts
 
     [CmdAttribute(
     "&mspawner",
-    ePrivLevel.Player,
+    ePrivLevel.GM,
     "/mspawner - Spawns mimics at regular intervals at the groundset position. Args: realm, levelMin, levelMax, max amount")]
 
     public class MimicSpawnerCommandHandler : AbstractCommandHandler, ICommandHandler
@@ -155,7 +156,7 @@ namespace DOL.GS.Scripts
 
     [CmdAttribute(
     "&mgroup",
-    ePrivLevel.Player,
+    ePrivLevel.GM,
     "/mgroup - To summon a group of mimics from a realm. Args: realm, amount, level")]
 
     public class MimicSummonMimicGroupCommandHandler : AbstractCommandHandler, ICommandHandler
@@ -385,6 +386,11 @@ namespace DOL.GS.Scripts
 
                 if (mimic != null)
                 {
+                    if (client.Account.PrivLevel < (uint)ePrivLevel.GM && mimic.Group != client.Player.Group)
+                    {
+                        client.Player.Out.SendMessage("You can only direct mimics in your group.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                        return;
+                    }
                     if (args.Length > 2 && args[2].Equals("group", StringComparison.OrdinalIgnoreCase)
                         && mimic.Group != null)
                     {
@@ -429,6 +435,11 @@ namespace DOL.GS.Scripts
         {
             if (client.Player.TargetObject is MimicNPC mimic)
             {
+                if (client.Account.PrivLevel < (uint)ePrivLevel.GM && (mimic.Group == null || mimic.Group != client.Player.Group))
+                {
+                    mimic.Whisper(client.Player, "I only take orders from my group.");
+                    return;
+                }
                 if (mimic.Group == null)
                     mimic.Whisper(client.Player, "I need to be a in a group");
                 else if (!mimic.CanCastHealSpells && !mimic.CanCastInstantHealSpells)
@@ -436,6 +447,7 @@ namespace DOL.GS.Scripts
                 else
                 {
                     mimic.MimicBrain.IsHealer = !mimic.MimicBrain.IsHealer;
+                    mimic.MimicBrain.HealerManual = true;
                     if (mimic.MimicBrain.IsHealer)
                         mimic.Group.SendMessageToGroupMembers(mimic, "I will stay out of combat and focus on healing", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
                     else
@@ -446,8 +458,418 @@ namespace DOL.GS.Scripts
     }
 
     [CmdAttribute(
-    "&mbattle",
+    "&mrez",
     ePrivLevel.Player,
+    "/mrez - Toggle whether a mimic will resurrect dead group members")]
+    public class MimicRezCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (client.Player.TargetObject is MimicNPC mimic)
+            {
+                if (client.Account.PrivLevel < (uint)ePrivLevel.GM && (mimic.Group == null || mimic.Group != client.Player.Group))
+                {
+                    mimic.Whisper(client.Player, "I only take orders from my group.");
+                    return;
+                }
+                if (mimic.Group == null)
+                    mimic.Whisper(client.Player, "I need to be a in a group");
+                else if (mimic.MimicBrain == null || !mimic.MimicBrain.HasRezSpell())
+                    mimic.Whisper(client.Player, "I cannot cast resurrection spells");
+                else if (args.Length > 1 && args[1].ToLower() == "outside")
+                {
+                    mimic.MimicBrain.RezOutside = !mimic.MimicBrain.RezOutside;
+                    if (mimic.MimicBrain.RezOutside)
+                        mimic.Group.SendMessageToGroupMembers(mimic, "I will resurrect fallen strangers when all is calm", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                    else
+                        mimic.Group.SendMessageToGroupMembers(mimic, "I will only resurrect our own group", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                }
+                else
+                {
+                    mimic.MimicBrain.RezDisabled = !mimic.MimicBrain.RezDisabled;
+                    if (mimic.MimicBrain.RezDisabled)
+                        mimic.Group.SendMessageToGroupMembers(mimic, "I will not resurrect the dead", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                    else
+                        mimic.Group.SendMessageToGroupMembers(mimic, "I will resurrect fallen group members", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                }
+            }
+        }
+    }
+
+    [CmdAttribute(
+    "&mra",
+    ePrivLevel.Player,
+    "/mra - Show a mimic's realm rank and realm abilities")]
+    public class MimicRealmAbilityCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (client.Player.TargetObject is MimicNPC mimic)
+            {
+                var owned = mimic.GetRealmAbilities();
+                int budget = MimicRABuyer.RealmPointBudget(mimic.Level, mimic.RealmLevel);
+                int spent = 0;
+                var ownedLevels = new Dictionary<string, int>();
+                foreach (var ab in owned)
+                {
+                    if (ab == null || string.IsNullOrEmpty(ab.KeyName))
+                        continue;
+                    ownedLevels[ab.KeyName] = ab.Level;
+                }
+                var classRAs = SkillBase.GetClassRealmAbilities(mimic.CharacterClass.ID);
+                if (classRAs != null)
+                {
+                    var offers = new List<MimicRABuyer.Offer>();
+                    foreach (var ab in classRAs)
+                    {
+                        if (ab == null)
+                            continue;
+                        var inst = ab;
+                        offers.Add(new MimicRABuyer.Offer
+                        {
+                            KeyName = inst.KeyName,
+                            MaxLevel = inst.MaxLevel,
+                            CostForUpgrade = lvl => inst.CostForUpgrade(lvl),
+                        });
+                    }
+                    spent = MimicRABuyer.SpentPoints(ownedLevels, offers);
+                }
+                mimic.Whisper(client.Player, $"Realm rank {mimic.RealmRankTitle} (RL {mimic.RealmLevel}), {spent}/{budget} points spent, {owned.Count} abilities");
+                int shown = 0;
+                foreach (var ab in owned.OrderBy(a => a.KeyName))
+                {
+                    if (shown >= 12)
+                        break;
+                    mimic.Whisper(client.Player, $"{ab.Name} {ab.Level}");
+                    shown++;
+                }
+                if (owned.Count > shown)
+                    mimic.Whisper(client.Player, $"...and {owned.Count - shown} more");
+            }
+        }
+    }
+
+    [CmdAttribute(
+    "&msave",
+    ePrivLevel.Player,
+    "/msave [newname] - Save a targeted mimic bot into your realm stable (10 per realm)")]
+    public class MimicSaveCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (client.Player.TargetObject is not MimicNPC mimic)
+            {
+                client.Player.Out.SendMessage("Target a mimic bot first.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            if (!mimic.IsAlive)
+            {
+                mimic.Whisper(client.Player, "You cannot save a corpse. Resurrect me first.");
+                return;
+            }
+            string account = client.Account.Name;
+            // Your own active bot: refresh its snapshot (new gear, new levels).
+            if (!string.IsNullOrEmpty(mimic.SavedKey))
+            {
+                if (!MimicSaveManager.OwnsKey(account, mimic.SavedKey))
+                {
+                    mimic.Whisper(client.Player, "I belong to someone else.");
+                    return;
+                }
+                if (!mimic.IsAlive)
+                {
+                    mimic.Whisper(client.Player, "You cannot save a corpse. Resurrect me first.");
+                    return;
+                }
+                if (MimicSaveManager.RefreshActive(mimic))
+                    mimic.Whisper(client.Player, "My progress is written down.");
+                else
+                    mimic.Whisper(client.Player, "My stable row is gone. I am free again.");
+                return;
+            }
+            bool regionIsRvR = client.Player.CurrentRegion != null && client.Player.CurrentRegion.IsRvR
+                || client.Player.CurrentZone != null && client.Player.CurrentZone.IsRvR;
+            if (!MimicSaveManager.MayKeepBotInRegion(mimic.Realm, client.Player.Realm, regionIsRvR))
+            {
+                mimic.Whisper(client.Player, "You cannot keep a bot of another realm in RvR lands.");
+                return;
+            }
+            string name = args.Length > 1 ? args[1] : mimic.Name;
+            if (!MimicSaveManager.IsValidBotName(name))
+            {
+                mimic.Whisper(client.Player, "That name is not allowed. Use 3-20 letters, apostrophe or hyphen.");
+                return;
+            }
+            var rows = MimicSaveManager.SelectAccountRows(account);
+            var realmRows = new List<DbMimicSave>();
+            foreach (var row in rows)
+            {
+                if (row.Realm == (int)mimic.Realm)
+                    realmRows.Add(row);
+            }
+            var names = new List<string>();
+            var used = new List<int>();
+            foreach (var row in realmRows)
+            {
+                names.Add(row.Name);
+                used.Add(row.Slot);
+            }
+            if (MimicSaveManager.NameTaken(names, name))
+            {
+                mimic.Whisper(client.Player, $"You already keep a bot named {name} in this realm.");
+                return;
+            }
+            int slot = MimicSaveManager.FindFreeSlot(used);
+            if (slot < 0)
+            {
+                mimic.Whisper(client.Player, "Your realm stable is full (10 bots). Delete one first.");
+                return;
+            }
+            string key = MimicSaveManager.StorageKey(account, mimic.Realm, slot);
+            var save = MimicSaveManager.Snapshot(mimic, account, mimic.Realm, slot, name);
+            if (!GameServer.Database.AddObject(save))
+            {
+                mimic.Whisper(client.Player, "I could not be saved. Please try again.");
+                return;
+            }
+            // Tame: gear moves into storage, the wild bot leaves the world.
+            try
+            {
+                MimicSaveManager.StoreGear(mimic, key);
+            }
+            catch (Exception)
+            {
+                GameServer.Database.DeleteObject(save);
+                mimic.Whisper(client.Player, "I could not store my gear. Please try again.");
+                return;
+            }
+            string savedName = name;
+            mimic.Delete();
+            client.Player.Out.SendMessage($"Saved {savedName} into your {mimic.Realm} stable (slot {slot + 1}/10).",
+                eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    [CmdAttribute(
+    "&mbots",
+    ePrivLevel.Player,
+    "/mbots - List your saved mimic bots")]
+    public class MimicBotsCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            string account = client.Account.Name;
+            var rows = MimicSaveManager.SelectAccountRows(account);
+            var byRealm = new Dictionary<int, List<DbMimicSave>>();
+            foreach (var row in rows)
+            {
+                if (!byRealm.TryGetValue(row.Realm, out var list))
+                {
+                    list = new List<DbMimicSave>();
+                    byRealm[row.Realm] = list;
+                }
+                list.Add(row);
+            }
+            foreach (eRealm realm in new[] { eRealm.Albion, eRealm.Midgard, eRealm.Hibernia })
+            {
+                if (!byRealm.TryGetValue((int)realm, out var list) || list.Count == 0)
+                {
+                    client.Player.Out.SendMessage($"{realm}: empty (0/10).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                    continue;
+                }
+                list.Sort((a, b) => a.Slot.CompareTo(b.Slot));
+                foreach (var row in list)
+                    client.Player.Out.SendMessage($"{realm} slot {row.Slot + 1}: {row.Name} ({(eCharacterClass)row.CharacterClass} {row.Level}, RL {row.RealmLevel}).",
+                        eChatType.CT_System, eChatLoc.CL_SystemWindow);
+            }
+        }
+    }
+
+    [CmdAttribute(
+    "&mdelete",
+    ePrivLevel.Player,
+    "/mdelete <slot|name> - Destroy a saved mimic bot and its stored gear")]
+    public class MimicDeleteCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (args.Length < 2)
+            {
+                client.Player.Out.SendMessage("Use: /mdelete <slot|name> (see /mbots).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            string account = client.Account.Name;
+            var rows = MimicSaveManager.SelectAccountRows(account);
+            DbMimicSave hit = null;
+            if (int.TryParse(args[1], out int slot))
+            {
+                foreach (var row in rows)
+                {
+                    if (row.Realm == (int)client.Player.Realm && row.Slot == slot - 1)
+                    {
+                        hit = row;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var row in rows)
+                {
+                    if (string.Equals(row.Name, args[1], StringComparison.OrdinalIgnoreCase))
+                    {
+                        hit = row;
+                        break;
+                    }
+                }
+            }
+            if (hit == null)
+            {
+                client.Player.Out.SendMessage("No saved bot found. See /mbots.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            string key = MimicSaveManager.StorageKey(hit);
+            if (MimicSaveManager.TryGetActive(key, out _))
+            {
+                client.Player.Out.SendMessage($"{hit.Name} is out with you. Dismiss first, then delete.",
+                    eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            MimicSaveManager.DeleteStoredItems(key);
+            GameServer.Database.DeleteObject(hit);
+            client.Player.Out.SendMessage($"Destroyed saved bot {hit.Name} and its stored gear.",
+                eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    [CmdAttribute(
+    "&mcall",
+    ePrivLevel.Player,
+    "/mcall <slot|name> - Summon a saved mimic bot to your side")]
+    public class MimicCallCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (args.Length < 2)
+            {
+                client.Player.Out.SendMessage("Use: /mcall <slot|name> (see /mbots).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            string account = client.Account.Name;
+            var rows = MimicSaveManager.SelectAccountRows(account);
+            DbMimicSave hit = null;
+            if (int.TryParse(args[1], out int slot))
+            {
+                foreach (var row in rows)
+                {
+                    if (row.Realm == (int)client.Player.Realm && row.Slot == slot - 1)
+                    {
+                        hit = row;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                foreach (var row in rows)
+                {
+                    if (string.Equals(row.Name, args[1], StringComparison.OrdinalIgnoreCase))
+                    {
+                        hit = row;
+                        break;
+                    }
+                }
+            }
+            if (hit == null)
+            {
+                client.Player.Out.SendMessage("No saved bot found. See /mbots.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            string key = MimicSaveManager.StorageKey(hit);
+            bool regionIsRvR = client.Player.CurrentRegion != null && client.Player.CurrentRegion.IsRvR
+                || client.Player.CurrentZone != null && client.Player.CurrentZone.IsRvR;
+            if (!MimicSaveManager.MayKeepBotInRegion((eRealm)hit.Realm, client.Player.Realm, regionIsRvR))
+            {
+                client.Player.Out.SendMessage($"Bots of {(eRealm)hit.Realm} cannot follow you into RvR lands.",
+                    eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            if (MimicSaveManager.TryGetActive(key, out MimicNPC active))
+            {
+                if (!active.IsAlive)
+                {
+                    client.Player.Out.SendMessage($"{hit.Name} must be resurrected before returning to you.",
+                        eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                    return;
+                }
+                active.MoveTo(client.Player.CurrentRegionID, client.Player.X, client.Player.Y, client.Player.Z, client.Player.Heading);
+                client.Player.Out.SendMessage($"{hit.Name} is already with you and hurries over.",
+                    eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            if (MimicSaveManager.ActiveCountForAccount(account) >= MimicSaveManager.MaxActivePerAccount)
+            {
+                client.Player.Out.SendMessage($"You already lead {MimicSaveManager.MaxActivePerAccount} saved bots.",
+                    eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            var mimic = MimicSaveManager.Instantiate(hit, client.Player, out string error);
+            if (mimic == null)
+            {
+                client.Player.Out.SendMessage($"Summoning failed ({error}).", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            client.Player.Out.SendMessage($"{hit.Name} answers your call.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    [CmdAttribute(
+    "&mdismiss",
+    ePrivLevel.Player,
+    "/mdismiss - Send a targeted saved bot back into storage")]
+    public class MimicDismissCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            if (client.Player.TargetObject is not MimicNPC mimic)
+            {
+                client.Player.Out.SendMessage("Target one of your saved bots first.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            if (string.IsNullOrEmpty(mimic.SavedKey) || !MimicSaveManager.OwnsKey(client.Account.Name, mimic.SavedKey))
+            {
+                mimic.Whisper(client.Player, "I am not one of your saved bots.");
+                return;
+            }
+            string name = mimic.Name;
+            bool dismissed;
+            try { dismissed = MimicSaveManager.DismissBot(mimic); }
+            catch (Exception) { dismissed = false; }
+            if (!dismissed)
+            {
+                client.Player.Out.SendMessage("Dismissing failed.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+                return;
+            }
+            client.Player.Out.SendMessage($"{name} returns to your stable.", eChatType.CT_System, eChatLoc.CL_SystemWindow);
+        }
+    }
+
+    [CmdAttribute(
+    "&mimic",
+    ePrivLevel.Player,
+    "/mimic - List all mimic bot commands available to you")]
+    public class MimicHelpCommandHandler : AbstractCommandHandler, ICommandHandler
+    {
+        public void OnCommand(GameClient client, string[] args)
+        {
+            bool isGM = client.Account.PrivLevel >= (uint)ePrivLevel.GM;
+            client.Out.SendCustomTextWindow("Mimic commands", MimicHelpBuilder.BuildText(isGM));
+        }
+    }
+
+    [CmdAttribute(
+    "&mbattle",
+    ePrivLevel.GM,
     "/mbattle [Region] (Start/Stop/Clear>)",
     "Regions: Thid. Start - Start spawning. Stop - Stop spawning. Clear - Stop and remove mimics.")]
     public class MimicBattleCommandHandler : AbstractCommandHandler, ICommandHandler
@@ -641,6 +1063,9 @@ namespace DOL.GS.Scripts
                     case "cc": success = player.Group.MimicGroup.SetMainCC(target); break;
                     case "puller": success = player.Group.MimicGroup.SetMainPuller(target); break;
                 }
+
+                if (success && args[1] != "leader")
+                    player.Group.MimicGroup.LockRole(args[1]);
 
                 if (!success)
                     player.Out.SendMessage("Failed to set " + args[1], eChatType.CT_Say, eChatLoc.CL_SystemWindow);
@@ -990,11 +1415,17 @@ namespace DOL.GS.Scripts
                 if (targetGroupMember != null)
                 {
                     if (target.MimicBrain.SetGuard(targetGroupMember, out bool ourEffect))
+                    {
+                        target.MimicBrain.SetManualGuard(targetGroupMember);
                         target.Group.SendMessageToGroupMembers(target, "I will guard " + targetGroupMember.Name, eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                    }
                     else
                     {
                         if (ourEffect)
+                        {
+                            target.MimicBrain.ClearManualGuard();
                             target.Group.SendMessageToGroupMembers(target, "I will stop guarding " + targetGroupMember.Name, eChatType.CT_Group, eChatLoc.CL_ChatWindow);
+                        }
                         else
                             target.Group.SendMessageToGroupMembers(targetGroupMember.Name + " is already being guarded.", eChatType.CT_Group, eChatLoc.CL_ChatWindow);
                     }
@@ -1068,8 +1499,7 @@ namespace DOL.GS.Scripts
       "&mbstats",
       ePrivLevel.Player,
       "/mbstats [Battleground] - Get stats on a battleground.",
-      "[Battleground] - Thid")]
-    public class MimicBattleStatsCommandHandler : AbstractCommandHandler, ICommandHandler
+      "[Battleground] - Thid")]    public class MimicBattleStatsCommandHandler : AbstractCommandHandler, ICommandHandler
     {
         public void OnCommand(GameClient client, string[] args)
         {
