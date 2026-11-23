@@ -320,26 +320,39 @@ namespace DOL.GS.Scripts
         /// slots 10/11/12) resolves fine, which is why only those came back.
         ///
         /// Pure so it is unit-testable; the database call lives in
-        /// EnsureTemplatePersisted. An already-persisted template must not be re-added.</summary>
-        public static bool NeedsTemplatePersist(bool templateIsUnique, bool templateIsPersisted)
-            => templateIsUnique && !templateIsPersisted;
+        /// EnsureTemplatePersisted. The second argument is whether the template's row
+        /// still EXISTS in the database - deliberately not IsPersisted, which lies after
+        /// an auto-delete (see EnsureTemplatePersisted).</summary>
+        public static bool NeedsTemplatePersist(bool templateIsUnique, bool templateRowExists)
+            => templateIsUnique && !templateRowExists;
 
         /// <summary>
-        /// PR29: persist the generated unique backing an item's template, when it is not
-        /// already in the database. This carries out the "must be done explicitly"
-        /// contract that GeneratedUniqueItem opts out of, at the only moment it matters:
-        /// when a player actually stores a bot.
+        /// PR29/PR30: persist the generated unique backing an item's template, when its row
+        /// is not in the database. This carries out the "must be done explicitly" contract
+        /// that GeneratedUniqueItem opts out of, at the only moment it matters: when a
+        /// player actually stores a bot.
         ///
         /// Deliberately not done at spawn time - MimicSpawner would write ~14 rows per
         /// wild mimic. AllowAdd is restored in a finally block so the object keeps its
         /// "never add implicitly" contract after this call.
-        /// </summary>
-        public static void EnsureTemplatePersisted(DbInventoryItem item)
+        ///
+        /// PR30: the test is whether the row EXISTS, not IsPersisted. Re-saving a bot over
+        /// an occupied slot ends in StoreGear deleting the previously stored rows, and
+        /// DbInventoryItem declares
+        /// <c>[Relation(LocalField = "UTemplate_Id", AutoLoad = true, AutoDelete = true)]</c>
+        /// - so that delete removes the DbItemUnique rows the rows just written still
+        /// point at. DeleteObject does not clear IsPersisted on the in-memory object, so a
+        /// flag check would skip precisely the unique that needs rewriting, and the bot
+        /// would lose its armour on every dismiss/recall cycle.
+        ///
+        /// <returns>true if a unique row was actually written.</returns>
+        public static bool EnsureTemplatePersisted(DbInventoryItem item)
         {
             if (item?.Template is not DbItemUnique unique)
-                return;
-            if (!NeedsTemplatePersist(true, unique.IsPersisted))
-                return;
+                return false;
+            bool rowExists = GameServer.Database.FindObjectByKey<DbItemUnique>(unique.Id_nb) != null;
+            if (!NeedsTemplatePersist(true, rowExists))
+                return false;
             unique.AllowAdd = true;
             try
             {
@@ -349,6 +362,7 @@ namespace DOL.GS.Scripts
             {
                 unique.AllowAdd = false;
             }
+            return true;
         }
 
         /// <summary>Moves the bot's current gear into storage (old stored rows
@@ -358,6 +372,7 @@ namespace DOL.GS.Scripts
             string[] oldItemIds = SelectStoredItems(storageKey).Select(item => item.ObjectId).ToArray();
             DbInventoryItem[] worn = mimic.Inventory.AllItems.ToArray();
             var added = new List<DbInventoryItem>();
+            int uniquesPersisted = 0;
             try
             {
                 foreach (DbInventoryItem item in worn)
@@ -365,14 +380,14 @@ namespace DOL.GS.Scripts
                     // PR29: the generated unique behind this item must exist before the
                     // item is stored, otherwise the stored UTemplate_Id dangles and the
                     // item comes back on recall as an invisible husk.
-                    EnsureTemplatePersisted(item);
+                    if (EnsureTemplatePersisted(item))
+                        uniquesPersisted++;
                     var copy = new GameInventoryItem(item) { ObjectId = null, OwnerID = storageKey };
                     GameServer.Database.AddObject(copy);
                     if (!RowStored(copy.IsPersisted))
                         throw new InvalidOperationException($"Could not store {item.Name} for {mimic.Name}");
                     added.Add(copy);
                 }
-                log.Info($"StoreGear: {mimic.Name} -> {storageKey}, stored {added.Count} of {worn.Length} item(s)");
             }
             catch (Exception ex)
             {
@@ -392,6 +407,29 @@ namespace DOL.GS.Scripts
                 if (oldItem != null)
                     GameServer.Database.DeleteObject(oldItem);
             }
+
+            // PR30: deleting the rows above also deletes the DbItemUnique rows they
+            // reference - DbInventoryItem.UTemplate_Id is declared AutoDelete = true. The
+            // rows just written point at those same uniques, so re-persist whatever the
+            // delete took. The write-then-delete order is kept deliberately: if a write
+            // failed partway above, the previous gear is still on disk. This pass is
+            // idempotent (it tests whether the row exists), so it only rewrites what is
+            // genuinely missing.
+            int rewritten = 0;
+            foreach (DbInventoryItem item in worn)
+            {
+                if (EnsureTemplatePersisted(item))
+                    rewritten++;
+            }
+            if (rewritten > 0)
+            {
+                log.Warn($"StoreGear: {storageKey} - deleting the previous stored rows auto-deleted "
+                    + $"{rewritten} generated unique(s) that the rows just written still reference; "
+                    + "they have been rewritten. If this appears on every save, the AutoDelete "
+                    + "setting on DbInventoryItem.UTemplate_Id is the cause.");
+            }
+            log.Info($"StoreGear: {mimic.Name} -> {storageKey}, stored {added.Count} of {worn.Length} item(s), "
+                + $"{uniquesPersisted} unique(s) written, {rewritten} rewritten after cleanup");
             foreach (DbInventoryItem item in worn)
                 mimic.Inventory.RemoveItemWithoutDbDeletion(item);
             mimic.RefreshItemBonuses();

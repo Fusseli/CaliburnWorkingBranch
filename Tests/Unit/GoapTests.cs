@@ -636,28 +636,38 @@ namespace DOL.Tests.Unit
             // be done explicitly" (GeneratedUniqueItem.cs:164). Nothing does it
             // explicitly, so no DbItemUnique row exists and the item only carries a
             // UTemplate_Id pointing at nothing.
+            //
+            // PR30: the second argument is "does the row still exist in the database",
+            // NOT IsPersisted - see the auto-delete note below.
             Assert.That(MimicSaveManager.NeedsTemplatePersist(true, false), Is.True,
-                "A generated unique that was never written must be persisted before the item is stored");
+                "A generated unique with no row in the database must be written before the item is stored");
             Assert.That(MimicSaveManager.NeedsTemplatePersist(true, true), Is.False,
-                "Already persisted: re-saving a bot must not duplicate the unique");
+                "Row already present: re-saving must not duplicate the unique");
             Assert.That(MimicSaveManager.NeedsTemplatePersist(false, false), Is.False,
                 "A plain DbItemTemplate needs no extra row - that is why weapons and shields always came back");
         }
 
         [Test]
-        public void UnresolvableStoredGearIsSkippedRatherThanAddedInvisible()
+        public void AutoDeletedUniqueIsRewrittenEvenThoughTheFlagSaysPersisted()
         {
-            // The recall symptom this fixes: worn armour came back as an invisible husk
-            // while the weapon (a plain template) rendered fine. Items whose Template is
-            // null are now skipped and logged instead of being added silently.
+            // PR30. Re-saving a bot over an occupied slot ends in StoreGear deleting the
+            // previously stored rows, and DbInventoryItem declares
+            // [Relation(LocalField = "UTemplate_Id", AutoLoad = true, AutoDelete = true)].
+            // That delete removes the DbItemUnique rows the rows just written still point
+            // at - but DeleteObject does NOT clear IsPersisted on the in-memory object.
             //
-            // Deliberately not a source-text assertion: this path needs a live database,
-            // and the round trip in README_PR29.md is the real test. What is pinned here
-            // is the decision the write path makes.
-            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, false), Is.True,
-                "Unpersisted unique: write path must fix it before storing");
-            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, true), Is.False,
-                "Persisted unique: nothing to write, item will restore fully");
+            // Symptom before this fix: /msave then /mcall gave full armour, but every
+            // /dismiss then /mcall cycle lost everything except the plain-template weapon.
+            // Testing IsPersisted instead of row existence skipped exactly the one unique
+            // that needed rewriting. The decision must therefore be driven by whether the
+            // row is really there.
+            bool rowDeletedBehindOurBack = false;   // DB lookup says missing...
+            bool staleInMemoryFlag = true;          // ...while IsPersisted still says yes
+            Assert.That(staleInMemoryFlag, Is.True, "This is the trap: the flag is not cleared by DeleteObject");
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, rowDeletedBehindOurBack), Is.True,
+                "A unique whose row was auto-deleted must be rewritten despite the flag");
+            Assert.That(MimicSaveManager.NeedsTemplatePersist(true, !rowDeletedBehindOurBack), Is.False,
+                "A unique whose row survived the cleanup is left alone");
         }
 
         // PR28: the storage check must trust IsPersisted, not AddObject's boolean.
