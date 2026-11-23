@@ -626,6 +626,56 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR25: realm-ability archetype detection.
+        [Test]
+        public void ArchetypeFollowsTheRangedWeaponSlot()
+        {
+            Assert.That(MimicRABuyer.ClassifyArchetype(false, false, true),
+                Is.EqualTo(MimicRABuyer.Archetype.Archer),
+                "A bow in the distance slot makes an archer");
+            Assert.That(MimicRABuyer.ClassifyArchetype(false, false, false),
+                Is.EqualTo(MimicRABuyer.Archetype.Melee),
+                "A melee slot is a melee archetype");
+        }
+
+        [Test]
+        public void HealerAndCasterWinOverTheRangedSlot()
+        {
+            // Precedence matters: a healer or a list caster must keep its own ability set
+            // even when it happens to be holding a bow.
+            Assert.That(MimicRABuyer.ClassifyArchetype(true, false, true),
+                Is.EqualTo(MimicRABuyer.Archetype.Healer));
+            Assert.That(MimicRABuyer.ClassifyArchetype(true, true, true),
+                Is.EqualTo(MimicRABuyer.Archetype.Healer),
+                "Healer outranks caster");
+            Assert.That(MimicRABuyer.ClassifyArchetype(false, true, true),
+                Is.EqualTo(MimicRABuyer.Archetype.Caster),
+                "Caster outranks archer");
+            Assert.That(MimicRABuyer.ClassifyArchetype(false, true, false),
+                Is.EqualTo(MimicRABuyer.Archetype.Caster));
+            Assert.That(MimicRABuyer.ClassifyArchetype(true, false, false),
+                Is.EqualTo(MimicRABuyer.Archetype.Healer));
+        }
+
+        [Test]
+        public void RangedCheckCannotBeConfusedWithAnObjectTypeAgain()
+        {
+            // PR25 regression guard. The old check compared DbInventoryItem.Item_Type (an
+            // eObjectType) against (int)eInventorySlot.DistanceWeapon. Those are different
+            // enums and their numberings collide: both are 13, for Axe and DistanceWeapon.
+            // That made the test ask "is this an axe?", so real bows (Longbow 9,
+            // CompositeBow 15) never matched and every archer bought tank abilities.
+            Assert.That((int)eObjectType.Axe, Is.Not.EqualTo((int)eActiveWeaponSlot.Distance),
+                "If these ever collide the old bug is back - keep the slot comparison");
+            Assert.That((int)eObjectType.Longbow, Is.Not.EqualTo((int)eActiveWeaponSlot.Distance));
+            Assert.That((int)eObjectType.CompositeBow, Is.Not.EqualTo((int)eActiveWeaponSlot.Distance));
+            Assert.That((int)eObjectType.RecurvedBow, Is.Not.EqualTo((int)eActiveWeaponSlot.Distance));
+            // The reason it slipped through: the two enums shared a value.
+            Assert.That((int)eInventorySlot.DistanceWeapon, Is.EqualTo(13));
+            Assert.That((int)eObjectType.Axe, Is.EqualTo(13),
+                "This is the collision that made archers undetectable - do not reintroduce it");
+        }
+
         // PR24: corpse pose is a client visual, delivered as a model change.
         [Test]
         public void CorpseModelSwapsAndRestoresWithoutTouchingEquipment()

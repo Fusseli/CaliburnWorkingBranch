@@ -148,16 +148,37 @@ namespace DOL.GS.Scripts
         public static int RealmPointBudget(int level, int realmLevel)
             => level > 19 ? Math.Max(1, realmLevel) : realmLevel;
 
-        public static Archetype ArchetypeOf(MimicNPC mimic, bool isHealer)
+        /// <summary>Pure archetype decision so it can be unit-tested. Precedence is fixed
+        /// and deliberate: a healer wins over everything, then a list caster, then anything
+        /// holding a ranged weapon. Everything else is melee.
+        ///
+        /// PR25: the ranged test used to be
+        /// <c>ActiveWeapon.Item_Type == (int)eInventorySlot.DistanceWeapon</c>. Item_Type is
+        /// an <see cref="eObjectType"/> (a byte) while DistanceWeapon is an
+        /// <see cref="eInventorySlot"/> (an int), and the two numberings collide - both are
+        /// 13, for Axe and DistanceWeapon. So the test really asked "is this an axe?", a
+        /// Scout/Hunter/Ranger holding a Longbow (9) or CompositeBow (15) never matched,
+        /// and every archer fell through to Melee and bought Mastery of Pain / Blocking /
+        /// Parrying / Physical Defense / Dual Threat instead of Falcon's Eye and Augmented
+        /// Dexterity. The active weapon *slot* is the thing that actually means "ranged".
+        /// The check takes a plain bool so it cannot be confused with a type again.</summary>
+        public static Archetype ClassifyArchetype(bool isHealer, bool isListCaster, bool isRangedSlot)
         {
             if (isHealer)
                 return Archetype.Healer;
-            if (mimic.CharacterClass != null && mimic.CharacterClass.ClassType == eClassType.ListCaster)
+            if (isListCaster)
                 return Archetype.Caster;
-            var weapon = mimic.ActiveWeapon;
-            if (weapon != null && weapon.Item_Type == (int)eInventorySlot.DistanceWeapon)
-                return Archetype.Archer;
-            return Archetype.Melee;
+            return isRangedSlot ? Archetype.Archer : Archetype.Melee;
+        }
+
+        public static Archetype ArchetypeOf(MimicNPC mimic, bool isHealer)
+        {
+            if (mimic == null)
+                return Archetype.Melee;
+            bool isListCaster = mimic.CharacterClass != null
+                && mimic.CharacterClass.ClassType == eClassType.ListCaster;
+            bool isRangedSlot = mimic.ActiveWeaponSlot == eActiveWeaponSlot.Distance;
+            return ClassifyArchetype(isHealer, isListCaster, isRangedSlot);
         }
 
         /// <summary>Spends the bot's rank budget. Idempotent: re-running with an
