@@ -603,6 +603,13 @@ namespace DOL.AI.Brain
         ///     over-time, never a substitute for a real heal, so it must never outrank
         ///     HealGroupGoal. It is ranked below every real heal on purpose.
         ///
+        /// PR39: a song that is on cooldown is not a candidate. The goal used to pick the
+        /// best song by value and never look at the recast, so a Bard whose long speed song
+        /// had a multi-minute recast was offered that same song on every single tick. The
+        /// action then failed on the cooldown check, the goal fell back to the FSM, the FSM
+        /// put the instrument away, and the next tick stepped onto it again - an endless
+        /// weapon flip that cancelled the in-flight cast and the pulse every time.
+        ///
         /// Pure decision, so it is unit-testable without a live body.</summary>
         public Spell GetBestSong(bool canBuffUpGroup, bool groupNeedsMana,
             bool groupNeedsEndurance, bool groupNeedsHealth)
@@ -610,6 +617,9 @@ namespace DOL.AI.Brain
             Spell speed = null, endur = null, mana = null, heal = null;
             foreach (var song in GetSongs())
             {
+                if (song == null || IsSongOnCooldown(song))
+                    continue;
+
                 switch (song.SpellType)
                 {
                     case eSpellType.SpeedEnhancement:
@@ -644,6 +654,18 @@ namespace DOL.AI.Brain
                 }
             }
             return speed ?? endur ?? mana ?? heal;
+        }
+
+        /// <summary>
+        /// PR39: is this song still on cooldown? A song with a multi-minute recast was
+        /// offered on every tick, the cast failed on every tick, and the fallback to the
+        /// FSM flipped the instrument away and back in a loop.
+        /// </summary>
+        public bool IsSongOnCooldown(Spell song)
+        {
+            if (song == null || Body == null)
+                return false;
+            return Body.GetSkillDisabledDuration(song) > 0;
         }
 
         /// <summary>Songs come in five tiers (Bard_Speed_Song runs Clear Path 144% through
@@ -747,6 +769,7 @@ namespace DOL.AI.Brain
             if (Body == null || !CanPlaySongs)
             {
                 _pendingSong = null;
+                _stanceCommitted = false;
                 return false;
             }
 
@@ -767,9 +790,13 @@ namespace DOL.AI.Brain
                 {
                     StopPulsingSong(running);
                     _pendingSong = wanted;
+                    // PR39: the new song is committed too - the instrument must survive the
+                    // tick between stopping the old song and starting the new one.
+                    _stanceCommitted = true;
                     return true;
                 }
                 _pendingSong = null;
+                _stanceCommitted = false;
                 return false;
             }
 
@@ -777,7 +804,18 @@ namespace DOL.AI.Brain
             var stance = GetInstrumentStance();
             if (Body.ActiveWeaponSlot != stance)
             {
-                _pendingSong = null;
+                // PR39: the song that is about to be played is chosen HERE and remembered,
+                // not nulled. It used to be nulled, so the song was re-derived on the cast
+                // tick from whatever the group needed at that moment - and the two ticks
+                // were not atomic, so a different goal could step in between and the
+                // instrument would be put away again. Remembering it also means the melee
+                // stance knows a cast is pending and leaves the instrument alone.
+                _pendingSong = GetBestSong(canBuffUpGroup, GroupNeedsMana(),
+                    GroupNeedsEndurance(), GroupNeedsHealth());
+                if (_pendingSong == null)
+                    return false;
+
+                _stanceCommitted = true;
                 Body.SwitchWeapon(stance);
                 log.Debug($"Song: switching to {stance} to play {MimicBody.Name}'s next song");
                 return true;
@@ -785,11 +823,12 @@ namespace DOL.AI.Brain
 
             var song = _pendingSong;
             _pendingSong = null;
+            _stanceCommitted = false;
             song ??= GetBestSong(canBuffUpGroup, GroupNeedsMana(),
                 GroupNeedsEndurance(), GroupNeedsHealth());
             if (song == null)
                 return false;
-            if (Body.GetSkillDisabledDuration(song) > 0)
+            if (IsSongOnCooldown(song))
             {
                 log.Debug($"Song: {song.Name} still on cooldown for {MimicBody.Name}");
                 return false;
@@ -812,10 +851,19 @@ namespace DOL.AI.Brain
         /// instrument away is holding it, and hitting with it is both weak and wrong-looking.
         /// Bards and Minstrels keep their melee weapon precisely for rupts and for playing
         /// solo, so they switch to it before swinging and back to the instrument to sing.
+        ///
+        /// PR39: a committed song cast keeps the instrument. The song is two ticks - step
+        /// onto the instrument, then cast - and anything that ran in between would put the
+        /// instrument away again. Every flip cancels the in-flight cast AND the running
+        /// pulse (MimicNPC.SwitchWeapon), so a Bard that was flipped back and forth could
+        /// never finish a song: the weapon flip and the song fought each other.
         /// </summary>
         private bool PrepareMeleeStance()
         {
             if (Body?.Inventory == null || IsSongPulsing)
+                return false;
+            // PR39: a song cast is already committed - the instrument stays.
+            if (_stanceCommitted)
                 return false;
             if (Body.ActiveWeaponSlot == eActiveWeaponSlot.Standard)
                 return false;
@@ -827,6 +875,11 @@ namespace DOL.AI.Brain
             log.Debug($"Melee stance: {MimicBody.Name} putting the instrument away");
             return true;
         }
+
+        /// <summary>PR39: is a song cast committed? Set when the bot steps onto the
+        /// instrument, cleared when the song is cast or abandoned. While it is set, the
+        /// melee stance leaves the instrument alone.</summary>
+        private bool _stanceCommitted;
 
         /// <summary>PR31: while a song is pulsing the bot must stay on the instrument.
         /// Every caller that would switch to a melee weapon has to ask this first.</summary>
@@ -2702,10 +2755,14 @@ namespace DOL.AI.Brain
                     // MimicNPC.SwitchWeapon cancels every active pulse that needs an
                     // instrument, so doing this mid-song killed the song every tick and is
                     // why songs were unusable before.
+                    //
+                    // PR39: and never switch off the instrument while a song cast is
+                    // COMMITTED but not yet started - the song is two ticks, and this
+                    // block is what used to undo the first one.
                     if ((MimicBody.CharacterClass.ID == (int)eCharacterClass.Minstrel ||
                         (MimicBody.CharacterClass.ID == (int)eCharacterClass.Bard && Body.Group == null)) &&
                         Body.ActiveWeaponSlot != eActiveWeaponSlot.Standard &&
-                        !ShouldHoldSongStance)
+                        !ShouldHoldSongStance && !_stanceCommitted)
                         Body.SwitchWeapon(eActiveWeaponSlot.Standard);
 
                     Body.StartAttack(Body.TargetObject);

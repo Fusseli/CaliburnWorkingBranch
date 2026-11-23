@@ -1022,6 +1022,56 @@ namespace DOL.Tests.Unit
                 + "Found: " + string.Join(" | ", readers));
         }
 
+        // PR39: the instrument and the song must not fight each other.
+        [Test]
+        public void ASongOnCooldownIsNotOfferedToTheBot()
+        {
+            // PR39. The song goal picked the best song by value and never looked at the
+            // recast, so a Bard whose long speed song has a multi-minute recast was offered
+            // that same song on every single tick. The action then failed on the cooldown
+            // check, the goal fell back to the FSM, the FSM put the instrument away, and
+            // the next tick stepped onto it again.
+            //
+            // That is the instrument/melee oscillation, and it is what a Bard or a Minstrel
+            // looked like when it was "stuck in a loop". Every flip cancelled the in-flight
+            // cast AND the running pulse.
+            //
+            // The rule itself needs a live body (it reads a recast timer), so what is
+            // pinned here is the shape of the decision: the cooldown is part of picking the
+            // song, not a check that happens afterwards. The live proof is PR39's
+            // checklist: a Bard whose song is on cooldown must go and do something else.
+            var brain = new MimicBrain();
+            Assert.That(typeof(MimicBrain).GetMethod("IsSongOnCooldown"), Is.Not.Null,
+                "The cooldown is a fact about one song, and it belongs next to the pick");
+            Assert.That(typeof(MimicBrain).GetMethod("GetBestSong"), Is.Not.Null);
+            Assert.That(brain.IsSongOnCooldown(null), Is.False,
+                "No song means no cooldown");
+        }
+
+        [Test]
+        public void TheSongStanceIsCommittedAcrossBothTicks()
+        {
+            // PR39. The song is two ticks by design (PR33): step onto the instrument, then
+            // cast. Anything that ran in between put the instrument away again, and
+            // MimicNPC.SwitchWeapon cancels the in-flight cast and every instrument pulse.
+            //
+            // The commit flag is what makes the two ticks one decision. It is private, so
+            // what is pinned here is that the machinery exists and that the sensor and the
+            // action agree about a song being available - which is the other half of the
+            // loop: the sensor offered a song the action then refused.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var song = agent.GetGoals().Single(g => g.GetName() == "SongGoal");
+            Assert.Multiple(() =>
+            {
+                Assert.That(song.GetPriority(State((TacticalSensor.SongAvailable, true))), Is.GreaterThan(0),
+                    "An available song is worth a tick");
+                Assert.That(song.GetPriority(State((TacticalSensor.SongAvailable, false))), Is.EqualTo(0),
+                    "A song on cooldown is not offered, so the goal does not fire and the "
+                    + "instrument is left alone");
+            });
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

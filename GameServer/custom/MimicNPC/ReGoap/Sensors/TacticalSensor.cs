@@ -258,7 +258,13 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                     _brain.GroupNeedsMana(), _brain.GroupNeedsEndurance(), _brain.GroupNeedsHealth());
             }
             SetObject(SONG_TYPE, songToPlay == null ? null : songToPlay.SpellType.ToString());
-            SetBool(SongAvailable, songToPlay != null);
+            // PR39: the sensor and the action must agree. The action refuses a song that
+            // is on cooldown, but the sensor did not test that - so a Bard whose long song
+            // had a multi-minute recast was offered it on every tick, the cast failed on
+            // every tick, and the fallback to the FSM put the instrument away again. The
+            // weapon flip and the song fought each other, and every flip cancelled the
+            // in-flight cast and the running pulse.
+            SetBool(SongAvailable, songToPlay != null && !_brain.IsSongOnCooldown(songToPlay));
             // Self-purge (PR19b): hard CC with a ready Purge RA. Yield while
             // interrupted (Quickcast/kite own that tick).
             var purge = _brain.GetPurgeAbility();
