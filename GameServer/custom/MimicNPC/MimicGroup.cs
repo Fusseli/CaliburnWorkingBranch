@@ -291,6 +291,9 @@ namespace DOL.GS.Scripts
         /// <summary>Is a group member already casting a resurrection spell? Set in CheckGroupHealth/ExecuteGoapRez.</summary>
         public bool AlreadyCastingRez;
         private int m_healthPercent;
+        /// <summary>PR43: how far away the current heal target is - the tie-break when two
+        /// members are equally hurt.</summary>
+        private int m_healthDistance;
         private int m_diseasePercent;
         private int m_poisonPercent;
         private int m_percentCurrent;
@@ -328,8 +331,14 @@ namespace DOL.GS.Scripts
                 AlreadyCastingRez = false;
 
                 m_healthPercent = 100;
+                m_healthDistance = int.MaxValue;
                 m_diseasePercent = 100;
                 m_poisonPercent = 100;
+
+                // PR43: how far this healer can reach with any of its heals. 0 means it has
+                // no heal spells, in which case the reach test is skipped rather than
+                // excluding everybody.
+                int healReach = checker.MimicBrain?.GetHealSpellRange() ?? 0;
 
                 foreach (GameLiving groupMember in checker.Group.GetMembersInTheGroup())
                 {
@@ -357,9 +366,26 @@ namespace DOL.GS.Scripts
                             AmountToHeal += groupMember.MaxHealth - groupMember.Health;
                         }
 
-                        if (m_percentCurrent < m_healthPercent)
+                        // PR43: the heal target must be reachable.
+                        //
+                        // It used to be simply the member with the lowest health percent,
+                        // with NO distance test at all. So a healer could be sent to a member
+                        // it has no way of healing - and since PR42 lets the walk-to a heal
+                        // target actually happen (the follow no longer overwrites it), the
+                        // healer would walk off after it and leave the group, taking the
+                        // group's speed and its position with it.
+                        //
+                        // Most injured first, nearest as the tie-break, and only members
+                        // within the healer's reach are candidates. The reach comes from
+                        // the healer's own heal spells, so it is data-driven and not a
+                        // magic number.
+                        if (m_percentCurrent < 100
+                            && (healReach <= 0 || checker.GetDistanceTo(groupMember) <= healReach)
+                            && MimicBrain.IsBetterHealTarget(m_percentCurrent, checker.GetDistanceTo(groupMember),
+                                                              m_healthPercent, m_healthDistance))
                         {
                             m_healthPercent = m_percentCurrent;
+                            m_healthDistance = checker.GetDistanceTo(groupMember);
                             MemberToHeal = groupMember;
                         }
 

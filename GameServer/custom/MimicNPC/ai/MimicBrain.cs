@@ -1057,7 +1057,12 @@ namespace DOL.AI.Brain
             if (corpse == null)
                 return false;
             var group = Body.Group?.MimicGroup;
-            if (group != null && group.AlreadyCastingRez)
+            // PR43: ask the LIVE cast state, not the cached flag. The cached flag was set
+            // when a rez was REQUESTED and was only ever cleared by CheckGroupHealth -
+            // which is reached only through CheckHeals, which only runs on a living bot
+            // that can heal. So if the group's only heal-capable member died, the flag
+            // stuck true and no corpse was ever rezzed again.
+            if (IsGroupCastingRez())
                 return false;
             _goapSelectingSpell = true;
             try
@@ -1075,8 +1080,12 @@ namespace DOL.AI.Brain
                     Body.TargetObject = corpse;
                     if (Body.CastSpell(spell, m_mobSpellLine))
                     {
-                        if (group != null)
-                            group.AlreadyCastingRez = true;
+                        // PR43: the cached flag is no longer set here. It was set when the
+                        // REQUEST was made, and the only thing that ever cleared it was
+                        // CheckGroupHealth - which is reached only through CheckHeals, and
+                        // that only runs on a living bot that can heal. So it could stick
+                        // true forever and no corpse would ever be rezzed again. The live
+                        // cast state is the truth, and it cannot get stuck.
                         return true;
                     }
                     // One spell refusing (mana, GCD, a cast still finishing) must not
@@ -1097,8 +1106,12 @@ namespace DOL.AI.Brain
                     Body.TargetObject = corpse;
                     if (Body.CastSpell(spell, m_mobSpellLine))
                     {
-                        if (group != null)
-                            group.AlreadyCastingRez = true;
+                        // PR43: the cached flag is no longer set here. It was set when the
+                        // REQUEST was made, and the only thing that ever cleared it was
+                        // CheckGroupHealth - which is reached only through CheckHeals, and
+                        // that only runs on a living bot that can heal. So it could stick
+                        // true forever and no corpse would ever be rezzed again. The live
+                        // cast state is the truth, and it cannot get stuck.
                         return true;
                     }
                     continue;
@@ -1513,7 +1526,39 @@ namespace DOL.AI.Brain
         public override void Think()
         {
             CheckRealmAbilitiesThrottled();
+            // PR43: prune the aggro list every decision, whoever this bot is.
+            //
+            // The only pruner used to be SelectGoapAttackTarget -> CalculateNextAttackTarget
+            // -> CleanUpAggroListAndGetHighestModifiedThreat, and the agent SKIPS target
+            // selection for healers (MimicReGoapAgent: "if (context == Combat && !PreventCombat
+            // && !IsHealer) SelectGoapAttackTarget()"). So a healer's aggro list was never
+            // pruned at all - and a stale entry keeps HasAggro true, and HasAggro is:
+            //
+            //   - MimicNPC.InCombat, which is what MimicNPC.Interact checks. So the status
+            //     window was refused SILENTLY, for as long as the stale entry survived.
+            //   - CanBuffUpGroup, which returns false if ANY group member has aggro. So one
+            //     stale entry blocked the whole group's speed song.
+            //
+            // The cleanup is the same one a fighter already runs every combat tick, and it
+            // does not order the list - it only drops the entries that no longer apply.
+            PruneAggroList();
             FSM.Think();
+        }
+
+        /// <summary>
+        /// PR43: drop the aggro entries that no longer apply, without picking a target.
+        ///
+        /// The full cleanup also returns the highest-threat enemy, which is only wanted by
+        /// a bot that is going to attack something. This is the pruning half on its own, so
+        /// that a bot which never attacks - a healer - still gets a truthful aggro list.
+        /// </summary>
+        public void PruneAggroList()
+        {
+            // The cleanup reads Body.attackComponent, and a brain can exist without a body
+            // (the test doubles do exactly that), so this has to be safe without one.
+            if (Body == null)
+                return;
+            CleanUpAggroListAndGetHighestModifiedThreat();
         }
 
         private long _nextRACheck;
@@ -3421,6 +3466,84 @@ namespace DOL.AI.Brain
         /// Pure, so the rule can be pinned without a body.</summary>
         public static bool CanEngineStartCast(bool isInterruptLocked, bool isInstantCast)
             => isInstantCast || !isInterruptLocked;
+
+        /// <summary>
+        /// PR43: is this member a better heal target than the one we have?
+        ///
+        /// Most injured first, nearest as the tie-break. Pure, so the rule can be pinned
+        /// without a body. The reach test is separate - see IsWithinHealReach.
+        /// </summary>
+        public static bool IsBetterHealTarget(int newHealthPercent, int newDistance,
+            int currentHealthPercent, int currentDistance)
+            => newHealthPercent < currentHealthPercent
+            || (newHealthPercent == currentHealthPercent && newDistance < currentDistance);
+
+        /// <summary>
+        /// PR43: can the healer reach this member? A reach of 0 means the healer has no
+        /// heal spells at all, in which case the reach test is skipped rather than
+        /// excluding everybody.
+        /// </summary>
+        public static bool IsWithinHealReach(int distance, int reach)
+            => reach <= 0 || distance <= reach;
+
+        /// <summary>
+        /// PR43: the widest reach this bot has with any of its heals.
+        ///
+        /// The same shape as GetRezSpellRange: the widest range over the heal pools, so the
+        /// reach test is data-driven and not a magic number. The widest is the right
+        /// conservative answer - if a member is out of reach of every heal the bot owns,
+        /// then no heal it will pick can reach it either.
+        /// </summary>
+        public int GetHealSpellRange()
+        {
+            if (Body == null)
+                return 0;
+            int best = 0;
+            ConsiderPool(Body.HealSpells);
+            ConsiderPool(Body.InstantHealSpells);
+            return best;
+
+            void ConsiderPool(IEnumerable<Spell> pool)
+            {
+                if (pool == null)
+                    return;
+                foreach (var spell in pool)
+                    if (spell != null && spell.Range > best)
+                        best = spell.Range;
+            }
+        }
+
+        /// <summary>
+        /// PR43: is any group member already casting - or about to cast - a resurrection?
+        ///
+        /// PR43: this used to read MimicGroup.AlreadyCastingRez, a CACHED flag. It was set
+        /// when a rez was REQUESTED, and the only thing that ever cleared it was
+        /// MimicGroup.CheckGroupHealth - which is reached from exactly one place,
+        /// MimicBrain.CheckHeals - and that only runs on a living bot that can HEAL. So if
+        /// the group's only heal-capable member died, the flag stayed true forever: one rez
+        /// was requested, and no corpse was ever rezzed again.
+        ///
+        /// The live cast state cannot get stuck, so ask it directly. The QUEUED handler is
+        /// included, because a request that has not started yet is still a rez in flight.
+        /// </summary>
+        public bool IsGroupCastingRez()
+        {
+            var group = Body?.Group;
+            if (group == null)
+                return false;
+
+            foreach (GameLiving member in group.GetMembersInTheGroup())
+            {
+                if (member == null || !member.IsAlive)
+                    continue;
+
+                var casting = member.castingComponent;
+                var spell = casting?.SpellHandler?.Spell ?? casting?.QueuedSpellHandler?.Spell;
+                if (spell != null && spell.SpellType == eSpellType.Resurrect)
+                    return true;
+            }
+            return false;
+        }
 
         /// <summary>Check for healing and cure spells</summary>
         /// <returns>True if trying to heal, including moving to get into range</returns>

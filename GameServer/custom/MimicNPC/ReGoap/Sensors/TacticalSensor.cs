@@ -199,7 +199,16 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             }
             SetInt(MimicWorldStateKeys.NUM_DEAD, numDead);
             var rezGroup = _body.Group?.MimicGroup;
-            bool alreadyRezzing = rezGroup != null && rezGroup.AlreadyCastingRez;
+            // PR43: ask the LIVE cast state, not the cached flag. The cached flag was set
+            // when a rez was REQUESTED and was only ever cleared by CheckGroupHealth -
+            // which is reached only through CheckHeals, and that only runs on a living bot
+            // that can heal. So if the group's only heal-capable member died, the flag
+            // stuck true and no corpse was ever rezzed again. Writing the live value
+            // back keeps the two legacy readers (CheckDefensiveSpells and
+            // FindTargetForDefensiveSpell) in step with it.
+            bool alreadyRezzing = _brain.IsGroupCastingRez();
+            if (rezGroup != null)
+                rezGroup.AlreadyCastingRez = alreadyRezzing;
             SetBool(MimicWorldStateKeys.ALREADY_CASTING_REZ, alreadyRezzing);
             bool canRez = canAct && !_body.IsSilenced && _brain.HasRezSpell();
             SetBool(MimicWorldStateKeys.CAN_CAST_REZ, canRez);

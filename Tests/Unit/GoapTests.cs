@@ -1284,6 +1284,89 @@ namespace DOL.Tests.Unit
             });
         }
 
+        // PR43: the aggro list, the heal target, and the rez flag.
+        [Test]
+        public void TheHealTargetIsTheMostInjuredMemberTheHealerCanReach()
+        {
+            // PR43. The heal target used to be simply the member with the lowest health
+            // percent, with NO distance test - so a healer could be sent to a member it had
+            // no way of healing, and (since PR42 lets the walk-to a heal target actually
+            // happen) it would walk off after it and leave the group.
+            Assert.Multiple(() =>
+            {
+                // most injured wins
+                Assert.That(MimicBrain.IsBetterHealTarget(50, 1000, 60, 500), Is.True);
+                // equal damage - the nearer one wins
+                Assert.That(MimicBrain.IsBetterHealTarget(60, 500, 60, 1000), Is.True);
+                // less injured loses
+                Assert.That(MimicBrain.IsBetterHealTarget(60, 500, 50, 1000), Is.False);
+                // equal damage but further away loses
+                Assert.That(MimicBrain.IsBetterHealTarget(60, 1000, 60, 500), Is.False);
+
+                // the reach test
+                Assert.That(MimicBrain.IsWithinHealReach(1500, 2000), Is.True);
+                Assert.That(MimicBrain.IsWithinHealReach(2500, 2000), Is.False);
+                Assert.That(MimicBrain.IsWithinHealReach(2500, 0), Is.True,
+                    "A healer with no heal spells has no reach to test against, so nobody "
+                    + "is excluded on that account");
+            });
+        }
+
+        [Test]
+        public void EveryBotPrunesItsAggroListAndTheRezFlagIsNeverStuck()
+        {
+            // PR43. Two defects, both the same shape - a group decision that depended on
+            // state which nothing ever refreshed.
+            //
+            //  1. The only pruner of the aggro list was SelectGoapAttackTarget, and the
+            //     agent SKIPS target selection for healers. So a healer's list was never
+            //     pruned, and a stale entry keeps HasAggro true - and HasAggro is
+            //     MimicNPC.InCombat, which is what MimicNPC.Interact checks, so the status
+            //     window was refused SILENTLY, and CanBuffUpGroup, which blocked the whole
+            //     group's speed song.
+            //
+            //  2. AlreadyCastingRez was set when a rez was REQUESTED and was only ever
+            //     cleared by CheckGroupHealth - which is reached only through CheckHeals,
+            //     and that only runs on a living bot that can heal. So if the group's only
+            //     heal-capable member died, the flag stuck true and no corpse was ever
+            //     rezzed again.
+            string brain = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..",
+                "GameServer", "custom", "MimicNPC", "ai", "MimicBrain.cs");
+            string group = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..",
+                "GameServer", "custom", "MimicNPC", "MimicGroup.cs");
+            if (!File.Exists(brain) || !File.Exists(group))
+                Assert.Ignore("the mimic sources are not next to the test binary");
+
+            string brainText = File.ReadAllText(brain);
+            string groupText = File.ReadAllText(group);
+
+            int think = brainText.IndexOf("public override void Think()", StringComparison.Ordinal);
+            Assert.That(think, Is.GreaterThan(0), "MimicBrain.Think must exist");
+            int thinkEnd = brainText.IndexOf("public virtual void OnLeaderAggro", think, StringComparison.Ordinal);
+            Assert.That(thinkEnd, Is.GreaterThan(think));
+            string thinkBody = brainText.Substring(think, thinkEnd - think);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(thinkBody, Does.Contain("PruneAggroList();"),
+                    "Every bot must prune its aggro list - a healer never selected a target, "
+                    + "so its list was never pruned at all");
+
+                Assert.That(brainText, Does.Not.Contain("AlreadyCastingRez = true"),
+                    "The rez flag must not be set on the request - it is derived from the "
+                    + "live cast state now, and setting it on the request could stick true "
+                    + "forever when the only heal-capable member died");
+
+                Assert.That(brainText, Does.Contain("IsGroupCastingRez()"),
+                    "The rez decision must read the live cast state");
+
+                Assert.That(groupText, Does.Contain("IsBetterHealTarget"),
+                    "The heal target must be picked with the reach-aware rule");
+                Assert.That(groupText, Does.Contain("GetHealSpellRange"),
+                    "The heal reach must come from the healer's own spells");
+            });
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()
