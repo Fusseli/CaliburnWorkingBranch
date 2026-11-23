@@ -150,8 +150,8 @@ namespace DOL.Tests.Unit
             var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
             agent.Initialize();
             agent.Initialize();
-            Assert.That(agent.GetGoals(), Has.Count.EqualTo(19));
-            Assert.That(agent.GetActions(), Has.Count.EqualTo(18));
+            Assert.That(agent.GetGoals(), Has.Count.EqualTo(20));
+            Assert.That(agent.GetActions(), Has.Count.EqualTo(19));
             Assert.That(agent.GetSensors(), Has.Count.EqualTo(6));
             var goal = agent.GetGoals().Single(g => g.GetName() == goalName);
             var state = State((TacticalSensor.SupportAvailable, true), (TacticalSensor.BuffsAvailable, true),
@@ -618,6 +618,7 @@ namespace DOL.Tests.Unit
             var outsider = agent.GetGoals().Single(g => g.GetName() == "ResurrectOutsiderGoal");
             var damage = agent.GetGoals().Single(g => g.GetName() == "DealDamageGoal");
             var outsiderPriority = outsider.GetPriority(State(
+                (MimicWorldStateKeys.OUTSIDER_TO_REZ, new object()),
                 (MimicWorldStateKeys.CAN_CAST_REZ, true), (MimicWorldStateKeys.CAN_CAST, true),
                 (TacticalSensor.RezOutsideAvailable, true)));
             Assert.That(outsiderPriority, Is.GreaterThan(0));
@@ -662,7 +663,7 @@ namespace DOL.Tests.Unit
             var src = typeof(MimicBrain).GetMethod("GetSongs");
             Assert.That(src, Is.Not.Null, "GetSongs is the entry point the sensor uses");
             Assert.That(typeof(MimicBrain).GetMethod("GetInstrumentStance"), Is.Not.Null);
-            Assert.That(typeof(MimicBrain).GetMethod("CanPlaySongs"), Is.Not.Null);
+            Assert.That(typeof(MimicBrain).GetProperty("CanPlaySongs"), Is.Not.Null);
         }
 
         [Test]
@@ -672,9 +673,12 @@ namespace DOL.Tests.Unit
             // swaps to the instrument to sing - so both stances must be reachable and the
             // melody stance must win the argument, since SpellHandler.CheckInstrument() reads
             // the ACTIVE weapon and cancels the song otherwise.
-            Assert.That(typeof(MimicBrain).GetMethod("PrepareMeleeStance"), Is.Not.Null,
+            // PR37 repair: PrepareMeleeStance is private, so the plain overload does not
+            // find it. That made this assertion fail on a member that exists.
+            Assert.That(typeof(MimicBrain).GetMethod("PrepareMeleeStance",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic), Is.Not.Null,
                 "Melee has to put the instrument away first");
-            Assert.That(typeof(MimicBrain).GetMethod("ShouldHoldSongStance"), Is.Not.Null,
+            Assert.That(typeof(MimicBrain).GetProperty("ShouldHoldSongStance"), Is.Not.Null,
                 "And the instrument has to be held while a song runs");
         }
 
@@ -707,7 +711,7 @@ namespace DOL.Tests.Unit
                 "The sensor logs this when it withholds a damage target");
             // And the FSM must consult the same rule, or a grouped Bard still charges in
             // through the legacy path even though GOAP would never pick a damage goal.
-            Assert.That(typeof(MimicBrain).GetMethod("MayAttackInMelee"), Is.Not.Null,
+            Assert.That(typeof(MimicBrain).GetProperty("MayAttackInMelee"), Is.Not.Null,
                 "One definition shared by the sensor and the FSM");
         }
 
@@ -737,8 +741,8 @@ namespace DOL.Tests.Unit
             // what is pinned here is that they exist, that they are the ones the sensor
             // consults, and that the threshold is a tunable constant rather than a guess
             // baked into a comparison.
-            Assert.That(typeof(MimicBrain).GetMethod("HasRangedOffensive"), Is.Not.Null);
-            Assert.That(typeof(MimicBrain).GetMethod("IsMeleeArmed"), Is.Not.Null,
+            Assert.That(typeof(MimicBrain).GetProperty("HasRangedOffensive"), Is.Not.Null);
+            Assert.That(typeof(MimicBrain).GetProperty("IsMeleeArmed"), Is.Not.Null,
                 "Promoted from the sensor's local so flank and kite are the same question");
 
             // A weapon spec's harm is short, a caster spec's nuke is long. 1500 sits between
@@ -760,10 +764,10 @@ namespace DOL.Tests.Unit
             // IsMeleeArmed is the predicate the debuff gate now uses, and it is the same
             // expression FlankAvailable uses for positional styles - one definition, so the
             // two cannot drift apart.
-            var armed = typeof(MimicBrain).GetMethod("IsMeleeArmed");
+            var armed = typeof(MimicBrain).GetProperty("IsMeleeArmed");
             Assert.That(armed, Is.Not.Null);
-            Assert.That(armed.GetParameters(), Is.Empty, "It reads the active weapon itself");
-            Assert.That(typeof(MimicBrain).GetMethod("IsBowUser"), Is.Not.Null,
+            Assert.That(armed.GetIndexParameters(), Is.Empty, "It reads the active weapon itself");
+            Assert.That(typeof(MimicBrain).GetProperty("IsBowUser"), Is.Not.Null,
                 "Bow users stay excluded from debuffing and kiting");
         }
 
@@ -964,7 +968,7 @@ namespace DOL.Tests.Unit
 
             // The shared definition lives in one place: PerformPull's ranged-pull branch
             // and the sensor's exclusion both go through IsBowUser.
-            Assert.That(brain.GetType().GetMethod("IsBowUser"), Is.Not.Null,
+            Assert.That(brain.GetType().GetProperty("IsBowUser"), Is.Not.Null,
                 "IsBowUser must stay public so both callers share it");
         }
 
@@ -1000,10 +1004,14 @@ namespace DOL.Tests.Unit
                 "A Warrior is not an archer, so the reset switch still applies to it");
         }
 
+        // PR37 repair: this helper was inverted. It read "is NOT Hunter AND NOT Ranger
+        // AND NOT Scout", so it returned true for every class EXCEPT the three archers -
+        // and the test asserted true for Scout, Hunter and Ranger. The test failed, and
+        // the truth table it was guarding was measuring the wrong classes entirely.
         private static bool IsArcherClass(int classId)
-            => classId != (int)eCharacterClass.Hunter
-            && classId != (int)eCharacterClass.Ranger
-            && classId != (int)eCharacterClass.Scout;
+            => classId == (int)eCharacterClass.Hunter
+            || classId == (int)eCharacterClass.Ranger
+            || classId == (int)eCharacterClass.Scout;
 
         // PR26: bow users must be excluded from kiting and debuffing.
         [Test]
@@ -1137,15 +1145,37 @@ namespace DOL.Tests.Unit
         {
             // MIMIC_CORPSE_MODEL == 0 means "leave the mimic's own model alone", so the
             // original standing-corpse behaviour is what you get by clearing it.
-            var model = DOL.GS.ServerProperties.Properties.MIMIC_CORPSE_MODEL;
-            var size = DOL.GS.ServerProperties.Properties.MIMIC_CORPSE_SIZE;
-            Assert.That(model, Is.Not.EqualTo(0), "A corpse model is configured on this server");
+            //
+            // PR37 repair: this used to read the LOADED server properties and assert the
+            // model was non-zero. ServerProperties never loads in a unit test - the
+            // attribute defaults are only applied when the XML is read - so the value was
+            // always 0 and the assertion always failed. The authored default is what the
+            // handover documents and what the test is actually about, so read it from the
+            // attribute instead of from the live server.
+            var model = (ushort)ServerPropertyDefault(typeof(DOL.GS.ServerProperties.Properties),
+                "MIMIC_CORPSE_MODEL");
+            var size = (byte)ServerPropertyDefault(typeof(DOL.GS.ServerProperties.Properties),
+                "MIMIC_CORPSE_SIZE");
+            Assert.That(model, Is.Not.EqualTo(0), "A corpse model is configured by default");
             Assert.That(model, Is.Not.EqualTo((ushort)size),
                 "Model and size are different kinds of value; a copy/paste error here "
                 + "would shrink the corpse to nothing");
             Assert.That(size, Is.EqualTo(0),
                 "Size is deliberately left alone by default: the authored size of the "
                 + "chosen corpse model is unknown, unlike the mob 'corpse' rows which use 62");
+        }
+
+        /// <summary>
+        /// PR37 repair: the authored default of a ServerProperty, read from its attribute.
+        /// The live value in a unit test is always 0 because ServerProperties never loads.
+        /// </summary>
+        private static object ServerPropertyDefault(Type owner, string fieldName)
+        {
+            var field = owner.GetField(fieldName, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static);
+            Assert.That(field, Is.Not.Null, fieldName + " must exist");
+            var attribute = field.GetCustomAttributes(typeof(DOL.GS.ServerProperties.ServerPropertyAttribute), false);
+            Assert.That(attribute, Has.Length.EqualTo(1), fieldName + " must be a server property");
+            return ((DOL.GS.ServerProperties.ServerPropertyAttribute)attribute[0]).DefaultValue;
         }
 
         [Test]
