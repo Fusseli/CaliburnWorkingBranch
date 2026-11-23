@@ -1207,6 +1207,83 @@ namespace DOL.Tests.Unit
                 "The debug status must report the missing buff count. Got:\n" + info);
         }
 
+        // PR42: the heal path.
+        [Test]
+        public void TheEngineGatesAreMirroredBeforeTheHealIsClaimed()
+        {
+            // PR42. SpellHandler.CheckBeginCast refuses a non-instant cast while the
+            // interrupt timer is live, and that timer is InterruptRemainingDuration -
+            // max(InterruptTime, SelfInterruptTime), so it covers the SELF interrupt too.
+            // CheckHeals used IsBeingInterruptedIgnoreSelfInterrupt, the damage-only half,
+            // so it asked for casts the engine would refuse - and then reported success,
+            // because CastSpell returns true as soon as the request is QUEUED.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicBrain.CanEngineStartCast(false, false), Is.True);
+                Assert.That(MimicBrain.CanEngineStartCast(false, true), Is.True);
+                Assert.That(MimicBrain.CanEngineStartCast(true, false), Is.False,
+                    "An interrupt lock stops a cast-time heal - a melee swing sets a three "
+                    + "second self-interrupt, and the brain used to ignore that half");
+                Assert.That(MimicBrain.CanEngineStartCast(true, true), Is.True,
+                    "An instant heal is exempt from the interrupt gate");
+            });
+        }
+
+        [Test]
+        public void AHealerStandsUpAndDropsTheFollowBeforeItCasts()
+        {
+            // PR42. Two ordering facts that cannot be pinned by a decision test, so this is
+            // a guard over the source:
+            //
+            //  - the engine refuses a cast from a sitting npc ("You can't cast while
+            //    sitting!"), and MimicState_Camp sits the bot and has no stand-up branch.
+            //    So a sitting healer could never cast again - and because the failed heal
+            //    still reported success, the FSM never reached the sit/stand logic to undo
+            //    it. Sitting made the heal fail, and the failed heal kept it sitting.
+            //
+            //  - FollowTick() overwrites the walk destination in the same movement tick, so
+            //    the healer has to drop the follow before it walks to its target, or it can
+            //    never get into range.
+            string source = Path.Combine(TestContext.CurrentContext.TestDirectory, "..", "..", "..", "..",
+                "GameServer", "custom", "MimicNPC", "ai", "MimicBrain.cs");
+            if (!File.Exists(source))
+                Assert.Ignore("MimicBrain.cs is not next to the test binary");
+
+            string text = File.ReadAllText(source);
+            int heals = text.IndexOf("public bool CheckHeals()", StringComparison.Ordinal);
+            Assert.That(heals, Is.GreaterThan(0), "CheckHeals must exist");
+
+            // The cast block lives inside the "#region Cast Spell" of CheckHeals, so the
+            // region is the boundary to slice on - the first #endregion in the method
+            // closes an earlier region.
+            int region = text.IndexOf("#region Cast Spell", heals, StringComparison.Ordinal);
+            Assert.That(region, Is.GreaterThan(heals), "CheckHeals must have a Cast Spell region");
+            int end = text.IndexOf("#endregion", region, StringComparison.Ordinal);
+            Assert.That(end, Is.GreaterThan(region), "the Cast Spell region must be closed");
+            string body = text.Substring(region, end - region);
+
+            int stand = body.IndexOf("MimicBody.Sit(false)", StringComparison.Ordinal);
+            int cast = body.IndexOf("MimicBody.CastSpell(spellToCast", StringComparison.Ordinal);
+            int dropFollow = body.IndexOf("MimicBody.StopFollowing()", StringComparison.Ordinal);
+            int walk = body.IndexOf("MimicBody.WalkTo(", StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(stand, Is.GreaterThan(-1),
+                    "The healer must stand up before casting - the engine refuses a cast "
+                    + "from a sitting npc and the camp state never stands up again");
+                Assert.That(cast, Is.GreaterThan(-1));
+                Assert.That(stand, Is.LessThan(cast),
+                    "Standing up has to happen BEFORE the cast is requested");
+                Assert.That(dropFollow, Is.GreaterThan(-1),
+                    "The healer must drop the follow before walking to its target");
+                Assert.That(walk, Is.GreaterThan(-1));
+                Assert.That(dropFollow, Is.LessThan(walk),
+                    "Dropping the follow has to happen BEFORE the walk, or FollowTick "
+                    + "overwrites the destination in the same movement tick");
+            });
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

@@ -3402,6 +3402,26 @@ namespace DOL.AI.Brain
         public bool AlreadyCheckedHeals;
         private long nextCureTime = 0;
 
+        /// <summary>PR42: will the engine let this cast start?
+        ///
+        /// <c>SpellHandler.CheckBeginCast</c> refuses a non-instant cast while the interrupt
+        /// timer is live, and that timer is <c>InterruptRemainingDuration</c> - which is
+        /// <c>max(InterruptTime, SelfInterruptTime)</c>, so it covers the SELF interrupt too
+        /// and not just damage. A melee swing sets a three second self-interrupt, so a
+        /// healer that had just swung was asking for casts the engine would refuse.
+        ///
+        /// <c>CheckHeals</c> used <c>IsBeingInterruptedIgnoreSelfInterrupt</c>, which is the
+        /// damage-only half, so it asked for casts the engine would refuse - and then
+        /// reported success, because <c>CastSpell</c> returns true as soon as the request is
+        /// QUEUED.
+        ///
+        /// An instant cast is exempt from the interrupt gate, and the sitting gate is handled
+        /// separately by standing up first.
+        ///
+        /// Pure, so the rule can be pinned without a body.</summary>
+        public static bool CanEngineStartCast(bool isInterruptLocked, bool isInstantCast)
+            => isInstantCast || !isInterruptLocked;
+
         /// <summary>Check for healing and cure spells</summary>
         /// <returns>True if trying to heal, including moving to get into range</returns>
         public bool CheckHeals()
@@ -3848,6 +3868,20 @@ namespace DOL.AI.Brain
                 {
                     if (!MimicBody.IsWithinRadius(spellTarget, new SpellHandler(MimicBody, spellToCast, m_mobSpellLine).CalculateSpellRange()))
                     {
+                        // PR42: the approach has to beat the follow. NpcMovementComponent.Tick
+                        // runs the movement REQUEST first and the FOLLOW second, and
+                        // FollowTick() then overwrites the walk destination in the same tick -
+                        // and WalkToInternal never clears the FOLLOW flag. So the healer
+                        // walked toward the injured member and was instantly redirected to
+                        // the leader, every 500 ms, and could never get into range. The heal
+                        // target is picked by health percent with no range consideration, so
+                        // being out of range is the normal case, not the exception.
+                        //
+                        // Dropping the follow is enough: MimicState_FollowLeader re-issues
+                        // it at lines 202 and 219, and both are AFTER the
+                        // "if (TryGoap(Healing) || CheckHeals()) return;" early return, so
+                        // the FSM never reaches them while the healer is closing.
+                        MimicBody.StopFollowing();
                         MimicBody.WalkTo(new(spellTarget.X, spellTarget.Y, spellTarget.Z), MimicBody.MaxSpeed);
                         return true;
                     }
@@ -3859,6 +3893,34 @@ namespace DOL.AI.Brain
                         else if (MimicBody.IsAttacking)
                             MimicBody.StopAttack();
                     }
+
+                    // PR42: ask the engine the question it will actually ask, instead of
+                    // asking a weaker one and then reporting success. SpellHandler's
+                    // CheckBeginCast refuses a non-instant cast while the interrupt timer
+                    // is live, and that timer is InterruptRemainingDuration - which covers
+                    // the SELF interrupt too, not just damage. CheckHeals used
+                    // IsBeingInterruptedIgnoreSelfInterrupt, which does not, so it asked for
+                    // casts the engine would refuse.
+                    //
+                    // And it must not claim success when it does not get one: CastSpell
+                    // returns true as soon as the request is QUEUED, so every later refusal
+                    // was invisible - the FSM early-returned, the follow was never
+                    // re-established, and the bot stood there "healing" forever.
+                    if (!CanEngineStartCast(MimicBody.InterruptRemainingDuration > 0, spellToCast.IsInstantCast))
+                        return false;
+
+                    // PR42: stand up to heal. The engine refuses a cast from a sitting npc
+                    // ("You can't cast while sitting!"), and MimicState_Camp sits the bot and
+                    // has no stand-up branch - unlike FollowLeader, which stands up. So a
+                    // healer that sat down could never cast again, and because the failed
+                    // heal still reported success, the FSM never reached the sit/stand logic
+                    // to undo it. Sitting made the heal fail, and the failed heal kept it
+                    // sitting.
+                    //
+                    // Sit(false) is free: the IsSitting setter only acts on the false -> true
+                    // transition, so standing up cannot cancel a cast.
+                    if (MimicBody.IsSitting)
+                        MimicBody.Sit(false);
 
                     oldTarget = MimicBody.TargetObject;
                     MimicBody.TargetObject = spellTarget;
