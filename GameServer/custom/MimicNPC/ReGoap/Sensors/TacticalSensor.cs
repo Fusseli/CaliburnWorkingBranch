@@ -176,8 +176,15 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                 combatSafe = casterClear && nearCorpse <= 2;
             }
             SetBool(MimicWorldStateKeys.REZ_COMBAT_SAFE, combatSafe);
+            // Range comes from the spells this bot actually holds, not the flat REZ_RANGE,
+            // and the interrupt gate mirrors the one ExecuteGoapRez applies. The old pair
+            // offered a goal the action was always going to refuse, and every refusal cost
+            // a replan plus a full resense, so a corpse just out of spell range taxed the
+            // caster every tick and pinned /mgoap status to "All eligible actions failed".
+            int rezReach = _brain.GetRezSpellRange();
             SetBool(RezAvailable, canRez && rezTarget != null && !_body.IsCasting
-                && !alreadyRezzing && _body.IsWithinRadius(rezTarget, DOL.AI.Brain.MimicBrain.REZ_RANGE)
+                && !_body.IsBeingInterrupted && !alreadyRezzing && rezReach > 0
+                && _body.IsWithinRadius(rezTarget, rezReach)
                 && (!inCombat || combatSafe));
             // Stranger rez (PR17b, opt-in): only when there is really nothing else
             // to do — own group has no dead, nobody needs emergency care, no combat

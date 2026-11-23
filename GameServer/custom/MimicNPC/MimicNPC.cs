@@ -3279,22 +3279,23 @@ namespace DOL.GS.Scripts
 
             if (Level >= ServerProperties.Properties.RESS_SICKNESS_LEVEL)
             {
+                // Sickness is cosmetic for a bot and must never be able to abort the revive:
+                // a throw here would skip the brain reset and the viewer notifications
+                // below, leaving a corpse-looking mimic that fights. Same guard the player's
+                // OnRevive still lacks.
+                Spell illness = null;
                 switch (m_deathtype)
                 {
                     case eDeathType.RvR:
-                    {
-                        Spell rvrIllness = SkillBase.GetSpellByID(8181);
-                        CastSpell(rvrIllness, SkillBase.GetSpellLine(GlobalSpellsLines.Realm_Spells));
+                        illness = SkillBase.GetSpellByID(8181);
                         break;
-                    }
                     case eDeathType.PvP:
                     case eDeathType.PvE:
-                    {
-                        Spell pveIllness = SkillBase.GetSpellByID(2435);
-                        CastSpell(pveIllness, SkillBase.GetSpellLine(GlobalSpellsLines.Realm_Spells));
+                        illness = SkillBase.GetSpellByID(2435);
                         break;
-                    }
                 }
+                if (illness != null)
+                    CastSpell(illness, SkillBase.GetSpellLine(GlobalSpellsLines.Realm_Spells));
             }
             m_deathtype = eDeathType.None;
             LastDeathPvP = false;

@@ -574,6 +574,58 @@ namespace DOL.Tests.Unit
             Assert.That(rezPriority, Is.LessThan(er), "A living emergency outranks a waiting corpse");
         }
 
+        // PR23: sensor and action must agree on when a rez is even possible.
+        [Test]
+        public void RezReachNeverExceedsTheSpellsTheBotHolds()
+        {
+            // The sensor used to gate on the flat REZ_RANGE (1500) while ExecuteGoapRez
+            // gated on the spell's own range, so any corpse in between was planned and
+            // then refused every tick.
+            Assert.That(MimicBrain.REZ_RANGE, Is.EqualTo(1500));
+            var brain = new MimicBrain();
+            // No spells at all: nothing to gate on, so the sensor must not offer the goal
+            // rather than offering a cast the action cannot make.
+            Assert.That(brain.GetRezSpellRange(), Is.EqualTo(0),
+                "A bot holding no rez spell must not advertise a rez reach");
+        }
+
+        [Test]
+        public void RezGoalNeedsBothSensorAndActionToAgree()
+        {
+            // RezAvailable is the sensor half of the contract; the goal still demands the
+            // other keys, so a stale true from a corpse out of reach cannot fire on its own.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var goal = agent.GetGoals().Single(g => g.GetName() == "ResurrectGoal");
+            Assert.That(goal.GetPriority(State((MimicWorldStateKeys.MEMBER_TO_REZ, new object()),
+                (MimicWorldStateKeys.CAN_CAST_REZ, true), (MimicWorldStateKeys.CAN_CAST, true),
+                (TacticalSensor.RezAvailable, true))), Is.EqualTo(15.0f),
+                "Reachable corpse: calm rez runs");
+            Assert.That(goal.GetPriority(State((MimicWorldStateKeys.MEMBER_TO_REZ, new object()),
+                (MimicWorldStateKeys.CAN_CAST_REZ, true), (MimicWorldStateKeys.CAN_CAST, true),
+                (TacticalSensor.RezAvailable, false))), Is.EqualTo(0),
+                "Out of reach: the sensor withdraws the goal instead of planning a doomed cast");
+        }
+
+        [Test]
+        public void StrangerRezStaysTheLowestPriorityThingABotCanDo()
+        {
+            // PR23: ExecuteGoapRezOutside now reads the corpse the sensor already picked.
+            // The goal must stay well below real work.
+            var agent = new MimicReGoapAgent(Identity(), new MimicBrain());
+            agent.Initialize();
+            var outsider = agent.GetGoals().Single(g => g.GetName() == "ResurrectOutsiderGoal");
+            var damage = agent.GetGoals().Single(g => g.GetName() == "DealDamageGoal");
+            var outsiderPriority = outsider.GetPriority(State(
+                (MimicWorldStateKeys.CAN_CAST_REZ, true), (MimicWorldStateKeys.CAN_CAST, true),
+                (TacticalSensor.RezOutsideAvailable, true)));
+            Assert.That(outsiderPriority, Is.GreaterThan(0));
+            Assert.That(outsiderPriority, Is.LessThan(damage.GetPriority(State(
+                (MimicWorldStateKeys.IN_COMBAT, true), (MimicWorldStateKeys.HAS_TARGET, true),
+                (MimicWorldStateKeys.IS_MAIN_ASSIST, true)))),
+                "A stranger corpse never outranks a live target");
+        }
+
         // PR17b: stranger rez only when fully calm.
         [Test]
         public void StrangerRezFiresOnlyWhenOwnGroupIsCalm()

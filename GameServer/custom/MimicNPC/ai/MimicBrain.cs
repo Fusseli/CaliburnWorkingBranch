@@ -415,6 +415,31 @@ namespace DOL.AI.Brain
         /// <summary>Standard rez range: all realm rez spells use 1500 units.</summary>
         public const int REZ_RANGE = 1500;
 
+        /// <summary>How far this bot can actually reach a corpse with the rez spells it
+        /// holds. The sensor used to gate on the flat REZ_RANGE while the action gated on
+        /// the spell's own range, so any corpse in between was planned every tick and then
+        /// refused - and each refusal costs a replan plus a full resense. The sensor now
+        /// asks this instead, so the two can never disagree. Never above REZ_RANGE, and 0
+        /// when the bot cannot rezz at all.</summary>
+        public int GetRezSpellRange()
+        {
+            if (Body == null)
+                return 0;
+            int best = 0;
+            ConsiderPool(Body.MiscSpells);
+            ConsiderPool(Body.InstantMiscSpells);
+            return Math.Min(REZ_RANGE, best);
+
+            void ConsiderPool(IEnumerable<Spell> pool)
+            {
+                if (pool == null)
+                    return;
+                foreach (var spell in pool)
+                    if (spell != null && spell.SpellType == eSpellType.Resurrect && spell.Range > best)
+                        best = spell.Range;
+            }
+        }
+
         /// <summary>True when any misc spell is a resurrection spell.</summary>
         public bool HasRezSpell()
         {
@@ -492,36 +517,38 @@ namespace DOL.AI.Brain
                             continue;
                         if (!Body.IsWithinRadius(corpse, spell.Range))
                             continue;
-                        Body.TargetObject = corpse;
-                        if (Body.CastSpell(spell, m_mobSpellLine))
-                        {
-                            if (group != null)
-                                group.AlreadyCastingRez = true;
-                            return true;
-                        }
-                        return false;
-                    }
-                }
-                if (Body.InstantMiscSpells != null)
-                {
-                    foreach (var spell in Body.InstantMiscSpells)
+                    Body.TargetObject = corpse;
+                    if (Body.CastSpell(spell, m_mobSpellLine))
                     {
-                        if (spell == null || spell.SpellType != eSpellType.Resurrect)
-                            continue;
-                        if (!CanCastDefensiveSpell(spell))
-                            continue;
-                        if (!Body.IsWithinRadius(corpse, spell.Range))
-                            continue;
-                        Body.TargetObject = corpse;
-                        if (Body.CastSpell(spell, m_mobSpellLine))
-                        {
-                            if (group != null)
-                                group.AlreadyCastingRez = true;
-                            return true;
-                        }
-                        return false;
+                        if (group != null)
+                            group.AlreadyCastingRez = true;
+                        return true;
                     }
+                    // One spell refusing (mana, GCD, a cast still finishing) must not
+                    // abandon the rest of the pool: keep looking for another rez.
+                    continue;
                 }
+            }
+            if (Body.InstantMiscSpells != null)
+            {
+                foreach (var spell in Body.InstantMiscSpells)
+                {
+                    if (spell == null || spell.SpellType != eSpellType.Resurrect)
+                        continue;
+                    if (!CanCastDefensiveSpell(spell))
+                        continue;
+                    if (!Body.IsWithinRadius(corpse, spell.Range))
+                        continue;
+                    Body.TargetObject = corpse;
+                    if (Body.CastSpell(spell, m_mobSpellLine))
+                    {
+                        if (group != null)
+                            group.AlreadyCastingRez = true;
+                        return true;
+                    }
+                    continue;
+                }
+            }
             }
             finally { _goapSelectingSpell = false; }
             return false;
@@ -537,10 +564,16 @@ namespace DOL.AI.Brain
                 return null;
             if (Body.InCombat || HasAggro)
                 return null;
+            // Scan radius is what this bot can actually reach, not the flat REZ_RANGE:
+            // otherwise the scan happily returns a stranger the action then refuses for
+            // being out of spell range, and the goal is planned and dropped every tick.
+            int reach = GetRezSpellRange();
+            if (reach <= 0)
+                return null;
             GameLiving best = null;
             int bestDist = int.MaxValue;
             // Dead players linger Active and targetable like our own corpses.
-            foreach (GamePlayer p in Body.GetPlayersInRadius((ushort)REZ_RANGE))
+            foreach (GamePlayer p in Body.GetPlayersInRadius((ushort)reach))
             {
                 if (p == null || ReferenceEquals(p, Body) || p.IsAlive)
                     continue;
@@ -557,7 +590,7 @@ namespace DOL.AI.Brain
                 bestDist = d;
             }
             // Dead mimics of other groups linger Active too (PR16 corpses).
-            foreach (GameNPC n in Body.GetNPCsInRadius((ushort)REZ_RANGE))
+            foreach (GameNPC n in Body.GetNPCsInRadius((ushort)reach))
             {
                 if (n is not MimicNPC m || m == Body || m.IsAlive)
                     continue;
@@ -576,13 +609,37 @@ namespace DOL.AI.Brain
             return best;
         }
 
+        /// <summary>Read an object the sensors already put in the live world state, or null.
+        /// Lets an action act on exactly what the goal was planned against instead of
+        /// re-deriving it. Reads the same state object the sensors write
+        /// (ReGoapAgent.memory.GetWorldState()).</summary>
+        public object GetGoapObject(string key)
+        {
+            var memory = GoapAgent?.GetMemory();
+            if (memory == null || string.IsNullOrEmpty(key))
+                return null;
+            try
+            {
+                return memory.GetWorldState()?.Get(key);
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
         public bool ExecuteGoapRezOutside()
         {
             // One tick of stranger rez through the existing defensive-spell path.
             // No group coordination flag: other groups may race us, the first
             // completed cast wins and late casts fizzle safe on a living target.
             // No FSM calls, no recursive GOAP entry; fails closed to let other work run.
-            var corpse = FindOutsiderRezTarget();
+            // The corpse comes from the world state the sensor already chose. Re-scanning
+            // here meant a second radius-wide player+NPC sweep every decision and let the
+            // action rez a different stranger than the goal was planned for.
+            GameLiving corpse = GetGoapObject(DOL.GS.Scripts.ReGoap.MimicWorldStateKeys.OUTSIDER_TO_REZ) as GameLiving;
+            if (corpse == null || !corpse.IsAlive)
+                corpse = FindOutsiderRezTarget();
             if (corpse == null)
                 return false;
             _goapSelectingSpell = true;
@@ -601,7 +658,7 @@ namespace DOL.AI.Brain
                         Body.TargetObject = corpse;
                         if (Body.CastSpell(spell, m_mobSpellLine))
                             return true;
-                        return false;
+                        continue;
                     }
                 }
                 if (Body.InstantMiscSpells != null)
@@ -617,7 +674,7 @@ namespace DOL.AI.Brain
                         Body.TargetObject = corpse;
                         if (Body.CastSpell(spell, m_mobSpellLine))
                             return true;
-                        return false;
+                        continue;
                     }
                 }
             }
