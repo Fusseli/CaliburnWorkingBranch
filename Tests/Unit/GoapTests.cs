@@ -727,20 +727,53 @@ namespace DOL.Tests.Unit
         [Test]
         public void SongRankingPutsSpeedFirstAndHealingLast()
         {
-            // PR31. The speed song is why bards and minstrels matter in a group - a
-            // group-wide buff wanted before every fight - so it outranks the resource
-            // songs. The health regen song is a slow over-time and never a substitute for
-            // a real heal, so it is the lowest-ranked song by construction.
-            Assert.That(SongGoal.SONG_PRIORITY_SUPPORT, Is.GreaterThan(40f),
-                "A bard's songs must outrank adds control (40) or they never fire");
-            Assert.That(SongGoal.SONG_PRIORITY_SUPPORT, Is.LessThan(50f),
+            // PR31/PR34. The speed song is why bards and minstrels matter in a group - a
+            // group-wide buff wanted before every fight - so it outranks the resource songs.
+            // The health regen song is a slow over-time and never a substitute for a real
+            // heal, so it is the lowest-ranked song by construction.
+            Assert.That(MimicBrain.SongRank(eSpellType.SpeedEnhancement), Is.EqualTo(0),
+                "Speed is the song a realm wants up between fights");
+            Assert.That(MimicBrain.SongRank(eSpellType.CombatSpeedBuff), Is.EqualTo(0));
+            Assert.That(MimicBrain.SongRank(eSpellType.CelerityBuff), Is.EqualTo(0));
+            Assert.That(MimicBrain.SongRank(eSpellType.EnduranceRegenBuff), Is.EqualTo(1));
+            Assert.That(MimicBrain.SongRank(eSpellType.PowerRegenBuff), Is.EqualTo(2));
+            Assert.That(MimicBrain.SongRank(eSpellType.HealthRegenBuff), Is.EqualTo(3),
+                "Health regen is a supplement and must rank last");
+            Assert.That(MimicBrain.SongRank(eSpellType.DirectDamage), Is.EqualTo(int.MaxValue),
+                "A non-song never gets a rank, so it can never be chosen or interrupt one");
+        }
+
+        [Test]
+        public void SongPriorityBeatsCalmRezButNeverHeals()
+        {
+            // PR34: the old split gave a minstrel 11, which sat below calm rez at 15 - and
+            // right after a fight there is almost always a corpse to rez, so a minstrel
+            // never sang at all. One priority for both now, because MinstrelSpec grants no
+            // Nurture, no Regrowth and no cure line, so there is no healing for it to
+            // displace. It still has to lose to real heals.
+            Assert.That(SongGoal.SONG_PRIORITY, Is.GreaterThan(25f),
+                "Songs must outrank cures (20) and resurrection (15), or they never fire");
+            Assert.That(SongGoal.SONG_PRIORITY, Is.LessThan(50f),
                 "Songs must never displace group heal (50)");
-            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.GreaterThan(2f),
-                "A minstrel's songs must outrank plain damage (2)");
-            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.LessThan(9f),
-                "A minstrel's songs must not displace interrupts (9)");
-            Assert.That(SongGoal.SONG_PRIORITY_DAMAGE, Is.LessThan(SongGoal.SONG_PRIORITY_SUPPORT),
-                "A damage-class singer treats songs as a supplement, not its job");
+            Assert.That(SongGoal.SONG_PRIORITY, Is.LessThan(100f),
+                "Emergency heal always wins");
+        }
+
+        [Test]
+        public void RunningSongOnlyYieldsToAStrictlyBetterOne()
+        {
+            // PR34: a pulsing song sustains itself on its own power, so a bot that started
+            // the wrong one used to hold it for the whole lull - a minstrel that took health
+            // regen after a wipe could keep it and never upgrade to speed. Yield only for a
+            // strictly better song so a good buff is never churned back and forth.
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 3, wantedRank: 0), Is.True,
+                "Health regen running, speed wanted: stop and switch");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 1, wantedRank: 0), Is.True,
+                "Endurance running, speed wanted: speed is better");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 0, wantedRank: 1), Is.False,
+                "Speed already running: never interrupt it for a weaker song");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 2, wantedRank: 2), Is.False,
+                "Equal rank must not churn the same song off and on");
         }
 
         [Test]

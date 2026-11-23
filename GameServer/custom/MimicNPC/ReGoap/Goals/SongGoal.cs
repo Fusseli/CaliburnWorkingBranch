@@ -6,42 +6,34 @@ using DOL.GS.Scripts;
 namespace DOL.GS.ReGoap.Mimic.Goals
 {
     /// <summary>
-    /// PR31: play a song. Bards and Minstrels are their realm's speed class, and the
+    /// PR31/PR34: play a song. Bards and Minstrels are their realm's speed class, and the
     /// group-wide songs (speed, endurance, mana) are pulsing buffs that must be kept up
     /// between fights and through the regen window - not combat abilities.
     ///
-    /// Ranking is deliberately blunt, because a song that sits mid-table simply never
-    /// fires: the goal has to outrank the routine work it competes with, while still
-    /// yielding to anything that saves a life.
+    /// One priority for both classes. PR31 split bards (45) from minstrels (11) on the
+    /// assumption that minstrels should mostly swing instead - but the split was based on
+    /// player-class instincts, not on what these bots can actually do. MinstrelSpec grants
+    /// only a melee weapon spec, Specs.Instruments and Specs.Stealth: no Nurture, no
+    /// Regrowth, no cure line. A minstrel therefore has no heal, cure or rez to displace,
+    /// so ranking its songs at 11 below the calm-rez at 15 only cost it its speed buff
+    /// right after a fight, when a corpse is exactly what is lying around.
     ///
-    ///   SONG_PRIORITY_SUPPORT  45 - below emergency and group heals (100/50) and CC
-    ///                                (40), above adds, purge, protect and resurrection.
-    ///                                A bard is a healer/buffer/CC, so singing IS its
-    ///                                main job and it should rarely be idle.
-    ///   SONG_PRIORITY_DAMAGE   11 - a minstrel is a damage class that happens to heal,
-    ///                                so its songs must beat routine damage (2) without
-    ///                                displacing interrupts (9), guard (7) or kiting (6).
+    /// If a minstrel ever gains heal or rez specs, split the priority again then.
     ///
-    /// The health regen song is included by GetBestSong but is a slow over-time, never a
-    /// substitute for a real heal, so it is deliberately the lowest-ranked song.
+    /// Sits below emergency heal (100) and group heal (50), so real healing always wins.
     /// </summary>
     public sealed class SongGoal : MimicGoal
     {
-        /// <summary>For a support-leaning singer (bard): singing is the main job.</summary>
-        public const float SONG_PRIORITY_SUPPORT = 45f;
-        /// <summary>For a damage-leaning singer (minstrel): songs supplement the swing.</summary>
-        public const float SONG_PRIORITY_DAMAGE = 11f;
+        /// <summary>For both singers: below heals, above cures, rez, interrupts and all
+        /// routine work, so keeping the group speed buff up is not leftover effort.</summary>
+        public const float SONG_PRIORITY = 45f;
 
-        private readonly float _priority;
-
-        public SongGoal(MimicNPC body, MimicBrain brain, bool supportLeaning)
-            : base(body, brain)
+        public SongGoal(MimicNPC body, MimicBrain brain) : base(body, brain)
         {
-            _priority = supportLeaning ? SONG_PRIORITY_SUPPORT : SONG_PRIORITY_DAMAGE;
         }
 
         public override float GetPriority(ReGoapState<string, object> state)
-            => GetBool(state, TacticalSensor.SongAvailable) ? _priority : 0f;
+            => GetBool(state, TacticalSensor.SongAvailable) ? SONG_PRIORITY : 0f;
 
         public override bool IsGoalSatisfied(ReGoapState<string, object> state)
             => !GetBool(state, TacticalSensor.SongAvailable);

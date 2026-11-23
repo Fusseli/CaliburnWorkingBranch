@@ -617,7 +617,84 @@ namespace DOL.AI.Brain
         private static Spell PickHigherTier(Spell current, Spell candidate)
             => current == null || candidate.Value > current.Value ? candidate : current;
 
-        /// <summary>PR31/PR33: play one song, one tick of work per decision.
+        /// <summary>PR34: how good a song is. Lower is better, matching the order
+        /// GetBestSong has always preferred: speed, then endurance, then mana, then health.
+        /// Exposed as a pure function so the "is this song worth interrupting for?"
+        /// decision can be unit-tested without a live pulse.
+        ///
+        /// The health regen song is last on purpose - it is a slow over-time and never a
+        /// substitute for a real heal.</summary>
+        public static int SongRank(eSpellType type)
+        {
+            switch (type)
+            {
+                case eSpellType.SpeedEnhancement:
+                case eSpellType.SpeedOfTheRealm:
+                case eSpellType.CombatSpeedBuff:
+                case eSpellType.CelerityBuff:
+                    return 0;
+                case eSpellType.EnduranceRegenBuff:
+                case eSpellType.AllRegenBuff:
+                case eSpellType.PowerHealthEnduranceRegenBuff:
+                    return 1;
+                case eSpellType.PowerRegenBuff:
+                case eSpellType.HeroismBuff:
+                    return 2;
+                case eSpellType.HealthRegenBuff:
+                    return 3;
+                default:
+                    return int.MaxValue;
+            }
+        }
+
+        /// <summary>PR34: should a running song be cancelled in favour of a better one?
+        /// Strictly better only - an equal-rank song is left alone so the bot does not
+        /// churn a perfectly good buff back and forth.</summary>
+        public static bool ShouldYieldSong(int runningRank, int wantedRank)
+            => wantedRank < runningRank;
+
+        /// <summary>PR34: the song currently pulsing on this bot, or null. Found from
+        /// ActivePulseSpells, which is keyed by eSpellType, so the rank is right there in
+        /// the dictionary key.</summary>
+        private Spell GetPulsingSong(out int rank)
+        {
+            rank = int.MaxValue;
+            if (Body == null)
+                return null;
+            foreach (var entry in Body.ActivePulseSpells)
+            {
+                if (entry.Value == null || !entry.Value.NeedInstrument)
+                    continue;
+                int candidate = SongRank(entry.Key);
+                if (candidate < rank)
+                {
+                    rank = candidate;
+                    // Keep going only if this is still the best we have seen.
+                }
+                if (rank == 0)
+                    break;
+            }
+            foreach (var entry in Body.ActivePulseSpells)
+            {
+                if (entry.Value != null && entry.Value.NeedInstrument && SongRank(entry.Key) == rank)
+                    return entry.Value;
+            }
+            return null;
+        }
+
+        /// <summary>PR34: stop the running song so the next tick can play a better one.
+        /// Same call MimicNPC.SwitchWeapon uses when it has to break a pulse.</summary>
+        private void StopPulsingSong(Spell song)
+        {
+            if (Body == null || song == null)
+                return;
+            var effect = EffectListService.GetPulseEffectOnTarget(Body, song);
+            if (effect != null)
+                EffectService.RequestImmediateCancelEffect(effect);
+            log.Debug($"Song: {MimicBody.Name} stopping {song.Name} to switch to a better song");
+        }
+
+
         ///
         /// Playing from the instrument slot matters because SpellHandler.CheckInstrument()
         /// tests the caster's ACTIVE weapon, and MimicNPC.SwitchWeapon cancels any pulse
@@ -632,8 +709,31 @@ namespace DOL.AI.Brain
         /// Fails closed so the planner simply tries something else next decision.</summary>
         public bool ExecuteGoapSong()
         {
-            if (Body == null || !CanPlaySongs || IsSongPulsing)
+            if (Body == null || !CanPlaySongs)
             {
+                _pendingSong = null;
+                return false;
+            }
+
+            var inCombat = Body.InCombat || HasAggro;
+            var regenWindow = IsInRegenWindow();
+
+            // PR34: a pulsing song runs on its own power, so without this a bot that
+            // started the wrong one held it indefinitely and never upgraded - a minstrel
+            // that took health regen after a wipe could keep it through the whole lull.
+            // Yield only for a strictly better song, so a good buff is never churned.
+            if (IsSongPulsing)
+            {
+                var running = GetPulsingSong(out int runningRank);
+                var wanted = GetBestSong(inCombat, regenWindow, GroupNeedsMana(),
+                    GroupNeedsEndurance(), GroupNeedsHealth());
+                if (running != null && wanted != null
+                    && ShouldYieldSong(runningRank, SongRank(wanted.SpellType)))
+                {
+                    StopPulsingSong(running);
+                    _pendingSong = wanted;
+                    return true;
+                }
                 _pendingSong = null;
                 return false;
             }
@@ -650,7 +750,7 @@ namespace DOL.AI.Brain
 
             var song = _pendingSong;
             _pendingSong = null;
-            song ??= GetBestSong(Body.InCombat, IsInRegenWindow(), GroupNeedsMana(),
+            song ??= GetBestSong(inCombat, regenWindow, GroupNeedsMana(),
                 GroupNeedsEndurance(), GroupNeedsHealth());
             if (song == null)
                 return false;
@@ -698,19 +798,39 @@ namespace DOL.AI.Brain
         public bool ShouldHoldSongStance
             => IsSongPulsing && Body != null && Body.ActiveWeaponSlot == GetInstrumentStance();
 
-        /// <summary>PR31: "not fighting, or still winding down after a fight" - the window
-        /// where a bard or minstrel should be keeping the group speed buff up. There is no
-        /// regen FSM state (the states are WakingUp/Idle/FollowLeader/Aggro/Roaming/Camp/
-        /// ReturnToSpawn/Patrolling/Duel/Dead), so it is derived: calm, no aggro, and not
-        /// badly hurt.</summary>
+        /// <summary>PR31/PR34: "not fighting, or still winding down after a fight" - the
+        /// window where a bard or minstrel should be keeping the group speed buff up. There
+        /// is no regen FSM state (the states are WakingUp/Idle/FollowLeader/Aggro/Roaming/
+        /// Camp/ReturnToSpawn/Patrolling/Duel/Dead), so it is derived: nothing is beating on
+        /// me, I am healthy enough to be worth buffing, and the group is not still fighting.
+        ///
+        /// PR34: this no longer requires !InCombat. It used to, which made it dead weight -
+        /// it could only be true when !inCombat was already true, so the regenWindow argument
+        /// in GetBestSong never changed the outcome. That mattered because a minstrel that went
+        /// to melee in the fight kept InCombat set afterwards, and that alone suppressed the
+        /// speed song: the singer was flagged as fighting and fell through to health regen.
+        ///
+        /// Aggro is the honest "is something hitting me" signal; InCombat is a sticky UI-ish
+        /// flag that outlives the fight.</summary>
         public bool IsInRegenWindow()
         {
-            if (Body == null)
+            if (Body == null || HasAggro)
                 return false;
-            if (Body.InCombat || HasAggro)
+            if (Body.HealthPercent < RegenWindowHealthPercent)
                 return false;
-            return Body.HealthPercent >= 70;
+            if (Body.Group == null)
+                return true;
+            foreach (GameLiving member in Body.Group.GetMembersInTheGroup())
+            {
+                if (member != null && member.InCombat)
+                    return false;
+            }
+            return true;
         }
+
+        /// <summary>PR34: how healthy a singer must be before it is worth putting a group
+        /// buff up rather than healing itself.</summary>
+        public const int RegenWindowHealthPercent = 70;
 
         /// <summary>PR31: does anybody in the group need mana topped up? Mirrors the
         /// threshold the old dead song code used (ManaPercent &lt; 80 on a mana class).</summary>
