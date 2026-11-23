@@ -96,8 +96,14 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             SetBool(MimicWorldStateKeys.IS_MAIN_CC, _brain.IsMainCC);
             SetBool(MimicWorldStateKeys.BUFFS_MAINTAINED, false);
             SetBool(SupportAvailable, canAct && !_body.IsSilenced && _body.CanCastHealSpells);
-            SetBool(BuffsAvailable, canAct && context == MimicDecisionContext.Support && !_body.InCombat
-                && !_body.IsMoving && !_body.IsSilenced);
+            // PR40: a defensive cast in flight must not be re-requested. The action picks a
+            // RANDOM missing buff and queues it, and CastingComponent silently discards
+            // the previously queued spell - so without this the bot replaced its own queued
+            // buff every tick with a different random one, and the buff it had chosen never
+            // happened. That is what "goes through all its buffs and none of them stick"
+            // looked like.
+            SetBool(BuffsAvailable, canAct && context == MimicDecisionContext.Support
+                && MimicBrain.CanStartDefensiveCast(_body.IsCasting, _body.IsSilenced, _body.IsMoving, _body.InCombat));
             // PR38: the IsMainCC gate is gone. Only the group's elected crowd controller could
             // ever reach this action, so in a group of eight with three mezz-capable bots
             // exactly one acted, and a solo bot - which is never any role - could not act

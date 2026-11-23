@@ -116,7 +116,16 @@ namespace DOL.GS.ReGoap.Mimic
                         bool planned = TryPlan(_planner);
                         _phaseWatch.Stop();
                         LastPlanMs += _phaseWatch.ElapsedMilliseconds;
-                        if (!planned) return Fallback("No achievable active goal");
+                        if (!planned)
+                        {
+                            // PR40: a spell in flight is our work and the tick stays here.
+                            if (!ShouldFallbackToFsm(planned, IsCasting))
+                            {
+                                HoldTickForCast();
+                                return true;
+                            }
+                            return Fallback("No achievable active goal");
+                        }
                         LastGoal = currentGoal.GetName();
                         var action = currentPlan.Peek();
                         LastAction = action.GetName();
@@ -129,6 +138,13 @@ namespace DOL.GS.ReGoap.Mimic
                         }
                         actions.Remove(action);
                         UpdateSensors();
+                    }
+                    // PR40: same rule at the second exit. Every action failed, but if a
+                    // spell is running, handing the tick to the FSM would destroy it.
+                    if (!ShouldFallbackToFsm(false, IsCasting))
+                    {
+                        HoldTickForCast();
+                        return true;
                     }
                     return Fallback("All eligible actions failed");
                 }
@@ -154,6 +170,58 @@ namespace DOL.GS.ReGoap.Mimic
             LastGoal = "None";
             LastAction = "None";
             return false;
+        }
+
+        /// <summary>
+        /// PR40: is a spell running?
+        ///
+        /// Read through the casting component rather than Body.IsCasting: the casting
+        /// component is a plain field on GameLiving, so it is null on a body that was
+        /// never constructed, and the agent's own test double is exactly that.
+        /// </summary>
+        private bool IsCasting => Body?.castingComponent?.IsCasting == true;
+
+        /// <summary>
+        /// PR40: should the agent hand this tick to the FSM?
+        ///
+        /// "No plan" means the planner found no goal whose action can run. If a spell is
+        /// in flight at that moment, the GOAP still owns the tick, because **every FSM
+        /// fallback destroys a cast**:
+        ///
+        ///  - a weapon switch cancels the spell - <c>MimicNPC.SwitchWeapon</c> calls
+        ///    <c>StopCurrentSpellcast()</c>
+        ///  - sitting cancels it - the <c>IsSitting</c> setter calls
+        ///    <c>CurrentSpellHandler?.CasterMoves()</c>
+        ///  - moving cancels it - <c>SpellHandler.CheckDuringCast</c> calls
+        ///    <c>CasterMoves()</c> when the caster is moving
+        ///
+        /// PR38 added <c>!IsCasting</c> to <c>OffenseAvailable</c>, which was correct -
+        /// it broke the queued-cast chain - but it also meant that while a spell was
+        /// running there was no action left for the planner, so the agent fell back to
+        /// the FSM and the FSM's weapon flip destroyed the spell. An archer's shot was
+        /// started and cancelled every think tick, and a sorcerer's self buff was
+        /// interrupted the same way.
+        ///
+        /// Before PR38 the fallback never happened during a cast, because
+        /// <c>OffenseAvailable</c> was still true and <c>CheckSpells</c> returned
+        /// <c>casted || Body.IsCasting</c> - the action "succeeded" without doing
+        /// anything, which is how the GOAP used to keep the tick.
+        ///
+        /// Pure, so the decision can be pinned without a body.
+        /// </summary>
+        public static bool ShouldFallbackToFsm(bool hasPlan, bool isCasting)
+            => !hasPlan && !isCasting;
+
+        /// <summary>
+        /// PR40: take the tick while a spell is running. The status says so, so
+        /// <c>/mgoap status</c> shows "GOAP: casting" instead of an FSM reason - which
+        /// is how you tell "the bot is busy casting" from "the bot had nothing to do".
+        /// </summary>
+        private void HoldTickForCast()
+        {
+            Status = "GOAP: casting";
+            LastGoal = "None";
+            LastAction = "None";
         }
 
         public bool IsEnabled() => _enabled;

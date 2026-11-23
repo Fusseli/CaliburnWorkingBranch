@@ -1072,6 +1072,60 @@ namespace DOL.Tests.Unit
             });
         }
 
+        // PR40: the GOAP keeps the tick while a spell is running.
+        [Test]
+        public void TheGoapKeepsTheTickWhileASpellIsRunning()
+        {
+            // PR40. PR38 added "!IsCasting" to OffenseAvailable, which was correct - it
+            // broke the queued-cast chain - but it also meant that while a spell was
+            // running there was no action left for the planner. The agent fell back to the
+            // FSM, and EVERY FSM fallback destroys a cast:
+            //
+            //   a weapon switch cancels it - MimicNPC.SwitchWeapon -> StopCurrentSpellcast
+            //   sitting cancels it      - the IsSitting setter  -> CasterMoves
+            //   moving cancels it       - SpellHandler.CheckDuringCast -> CasterMoves
+            //
+            // So an archer's shot was started and cancelled every think tick, and a
+            // sorcerer's self buff was interrupted the same way. Before PR38 the fallback
+            // never happened during a cast, because OffenseAvailable was still true and
+            // CheckSpells returned "casted || Body.IsCasting" - the action "succeeded"
+            // without doing anything, which is how the GOAP used to keep the tick.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicReGoapAgent.ShouldFallbackToFsm(true, false), Is.False,
+                    "There is a plan - the GOAP runs it");
+                Assert.That(MimicReGoapAgent.ShouldFallbackToFsm(false, false), Is.True,
+                    "Nothing to do and nothing running - the FSM may take the tick");
+                Assert.That(MimicReGoapAgent.ShouldFallbackToFsm(false, true), Is.False,
+                    "A spell is running - the FSM must not take the tick, because every "
+                    + "FSM fallback cancels the spell");
+                Assert.That(MimicReGoapAgent.ShouldFallbackToFsm(true, true), Is.False);
+            });
+        }
+
+        [Test]
+        public void ADefensiveCastIsNotRequestedWhileOneIsRunning()
+        {
+            // PR40. CheckDefensiveSpells picks a RANDOM missing buff and CastSpell QUEUES
+            // it while the previous one is still casting - and CastingComponent does
+            // QueuedSpellHandler = newSpellHandler, which silently DISCARDS the spell that
+            // was queued before it. The queue is refreshed every think tick, so the bot
+            // replaced its own queued buff every tick with a different random one, and the
+            // buff it had actually chosen never happened.
+            Assert.Multiple(() =>
+            {
+                Assert.That(MimicBrain.CanStartDefensiveCast(false, false, false, false), Is.True);
+                Assert.That(MimicBrain.CanStartDefensiveCast(true, false, false, false), Is.False,
+                    "A buff is already running - re-requesting it only churns the queue");
+                Assert.That(MimicBrain.CanStartDefensiveCast(false, true, false, false), Is.False,
+                    "Silenced");
+                Assert.That(MimicBrain.CanStartDefensiveCast(false, false, true, false), Is.False,
+                    "Moving");
+                Assert.That(MimicBrain.CanStartDefensiveCast(false, false, false, true), Is.False,
+                    "In combat");
+            });
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

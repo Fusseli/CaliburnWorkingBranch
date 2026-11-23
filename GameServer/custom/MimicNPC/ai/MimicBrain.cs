@@ -2399,6 +2399,22 @@ namespace DOL.AI.Brain
         public static bool CanStartOffensiveCast(bool isCasting, bool isSilenced, bool isFleeing)
             => !isCasting && !isSilenced && !isFleeing;
 
+        /// <summary>
+        /// PR40: may this bot start a new defensive cast?
+        ///
+        /// A buff in flight must not be re-requested. <c>CheckDefensiveSpells</c> picks a
+        /// RANDOM missing buff and <c>CastSpell</c> QUEUES it while the previous one is
+        /// still casting - and <c>CastingComponent.StartCastSpell</c> does
+        /// <c>QueuedSpellHandler = newSpellHandler</c>, which silently DISCARDS the spell
+        /// that was queued before it. The queue is refreshed every think tick, so the bot
+        /// replaced its own queued buff every tick with a different random one, and the
+        /// buff it had actually chosen never happened.
+        ///
+        /// Pure, so the decision can be pinned without a body.
+        /// </summary>
+        public static bool CanStartDefensiveCast(bool isCasting, bool isSilenced, bool isMoving, bool inCombat)
+            => !isCasting && !isSilenced && !isMoving && !inCombat;
+
         /// <summary>The enemy this bot last started a control cast on.</summary>
         private GameLiving _myCcClaim;
 
