@@ -415,15 +415,25 @@ namespace DOL.AI.Brain
         /// <summary>Standard rez range: all realm rez spells use 1500 units.</summary>
         public const int REZ_RANGE = 1500;
 
-        /// <summary>PR26: is this bot fighting with a bow? The active weapon *slot* is
-        /// the only trustworthy signal. GameLiving.CanCastHarmfulSpells is just
-        /// HarmfulSpells.Count &gt; 0, which is true for every archer because their bow is
-        /// an eSpellType.Archery spell, and for melee bots that happen to hold a harm - so
-        /// it cannot be used to tell "is a bow user" from "can cast". The same trap bit the
-        /// RA buyer, where Item_Type (an eObjectType) was compared against an
-        /// eInventorySlot and the two numberings collided on 13.
-        /// Used by the sensor to keep bow users out of kiting and out of debuffing.</summary>
-        public bool IsBowUser => Body != null && Body.ActiveWeaponSlot == eActiveWeaponSlot.Distance;
+        /// <summary>PR26/PR27: does this bot fight at range - a bow, crossbow or thrown
+        /// weapon equipped in the distance slot?
+        ///
+        /// PR27: this MUST read the inventory, never Body.ActiveWeaponSlot. The active
+        /// slot is a momentary action state, not a loadout fact: this class switches to
+        /// Distance immediately before every archery cast, and back to Standard/TwoHanded
+        /// on the melee and puller-reset paths. So an archer's slot flips several times
+        /// inside one fight, and a sensor sampling it got a coin flip - which is why
+        /// archers still kited while in melee but correctly stopped when out of it.
+        ///
+        /// This is the same expression PerformPull already uses to choose a ranged pull,
+        /// so the two now share one definition of "ranged attacker" rather than three
+        /// ad-hoc tests. Stable for the whole fight, and semantically the right question
+        /// for both gates: a ranged attacker wants to hold its range, so it should not
+        /// kite and should not spend decisions debuffing.</summary>
+        public bool IsBowUser
+            => Body != null
+            && Body.Inventory != null
+            && Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null;
 
         /// <summary>How far this bot can actually reach a corpse with the rez spells it
         /// holds. The sensor used to gate on the flat REZ_RANGE while the action gated on
@@ -1447,9 +1457,15 @@ namespace DOL.AI.Brain
                 {
                     Body.ReturnToSpawnPoint(Body.MaxSpeed);
 
-                    if ((MimicBody.CharacterClass.ID != (int)eCharacterClass.Hunter ||
-                        MimicBody.CharacterClass.ID != (int)eCharacterClass.Ranger ||
-                        MimicBody.CharacterClass.ID != (int)eCharacterClass.Scout) &&
+                    // PR27: these were joined with ||, so the condition was always true -
+                    // no class can fail all three "not an archer" comparisons at once, so
+                    // the archer exclusion never applied. That put archer pullers into a
+                    // melee slot on pull reset, and they had to switch back to Distance
+                    // before they could shoot: the churn that made ActiveWeaponSlot flap
+                    // and briefly defeated the kiting/debuff exclusion.
+                    if (MimicBody.CharacterClass.ID != (int)eCharacterClass.Hunter &&
+                        MimicBody.CharacterClass.ID != (int)eCharacterClass.Ranger &&
+                        MimicBody.CharacterClass.ID != (int)eCharacterClass.Scout &&
                         MimicBody.CharacterClass.ClassType != eClassType.ListCaster)
                     {
                         if (MimicBody.MimicSpec.Is2H)
@@ -1542,7 +1558,9 @@ namespace DOL.AI.Brain
 
             IsPulling = true;
 
-            if (Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null)
+            // PR27: IsBowUser is this same inventory test, so "ranged attacker" is
+            // defined once in this class rather than duplicated here.
+            if (IsBowUser)
             {
                 Body.SwitchWeapon(eActiveWeaponSlot.Distance);
                 Body.StartAttack(target);

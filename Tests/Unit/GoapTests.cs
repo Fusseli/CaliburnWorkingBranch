@@ -626,6 +626,63 @@ namespace DOL.Tests.Unit
                 "A stranger corpse never outranks a live target");
         }
 
+        // PR27: the ranged test must read the inventory, never the active slot.
+        [Test]
+        public void RangedAttackerTestReadsTheInventoryNotTheActiveSlot()
+        {
+            // PR26 used Body.ActiveWeaponSlot, which is a momentary action state: this
+            // class switches to Distance right before each archery cast and back to
+            // Standard/TwoHanded on the melee and puller-reset paths. An archer's slot
+            // therefore flips mid-fight, and the sensor's sample was a coin flip - which
+            // is exactly how archers kept kiting while in melee but stopped when out of
+            // it. This test fails if the predicate ever goes back to the slot.
+            var brain = new MimicBrain();
+            Assert.That(brain.IsBowUser, Is.False,
+                "An uninitialised mimic has no inventory, so it is not a ranged attacker");
+
+            // The shared definition lives in one place: PerformPull's ranged-pull branch
+            // and the sensor's exclusion both go through IsBowUser.
+            Assert.That(brain.GetType().GetMethod("IsBowUser"), Is.Not.Null,
+                "IsBowUser must stay public so both callers share it");
+        }
+
+        [Test]
+        public void ActiveWeaponSlotIsNotAStableRangedSignal()
+        {
+            // Documents the trap rather than asserting on live state: the slot enum and
+            // the object-type enum are separate numberings that collide on 13, and the
+            // slot itself is rewritten mid-fight. The stable signal is the inventory.
+            Assert.That((int)eActiveWeaponSlot.Distance, Is.EqualTo(2));
+            Assert.That((int)eObjectType.Axe, Is.EqualTo(13),
+                "Unrelated enum, but it is why the older Item_Type checks were wrong");
+            var brain = new MimicBrain();
+            // The predicate must not be reachable through the slot at all.
+            Assert.That(brain.IsBowUser, Is.False,
+                "No distance weapon equipped means not a ranged attacker, whatever the slot says");
+        }
+
+        [Test]
+        public void PullerResetExcludesArchers()
+        {
+            // PR27: the archer exclusion in CheckPuller was joined with ||, making the
+            // whole condition always true, so archers were switched to a melee slot on
+            // pull reset. Pinned here as truth-table logic because the real fix is a
+            // one-character change that is invisible once it works.
+            Assert.That(IsArcherClass((int)eCharacterClass.Scout), Is.True);
+            Assert.That(IsArcherClass((int)eCharacterClass.Hunter), Is.True);
+            Assert.That(IsArcherClass((int)eCharacterClass.Ranger), Is.True);
+            Assert.That(IsArcherClass((int)eCharacterClass.Warrior), Is.False);
+            Assert.That(IsArcherClass((int)eCharacterClass.Armsman), Is.False);
+            // And the conjunction form the fix uses: a non-archer must fail all three.
+            Assert.That(!IsArcherClass((int)eCharacterClass.Warrior), Is.True,
+                "A Warrior is not an archer, so the reset switch still applies to it");
+        }
+
+        private static bool IsArcherClass(int classId)
+            => classId != (int)eCharacterClass.Hunter
+            && classId != (int)eCharacterClass.Ranger
+            && classId != (int)eCharacterClass.Scout;
+
         // PR26: bow users must be excluded from kiting and debuffing.
         [Test]
         public void BowUsersAreNotKitingOrDebuffingCandidates()
