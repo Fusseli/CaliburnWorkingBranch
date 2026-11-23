@@ -435,6 +435,35 @@ namespace DOL.AI.Brain
             && Body.Inventory != null
             && Body.Inventory.GetItem(eInventorySlot.DistanceWeapon) != null;
 
+        /// <summary>PR36: is this bot holding a melee weapon? Copied from the expression
+        /// TacticalSensor already uses for FlankAvailable, but promoted here so flank and
+        /// kite are the same question and cannot disagree.
+        ///
+        /// Item_Type is the item's slot type, so comparing it against the distance slot
+        /// answers "is the active weapon something you swing at" rather than "does it have
+        /// a bow somewhere in the pack".</summary>
+        public bool IsMeleeArmed
+            => Body?.ActiveWeapon != null
+            && Body.ActiveWeapon.Item_Type != (int)eInventorySlot.DistanceWeapon;
+
+        /// <summary>PR36: shortest offensive range that makes running away worthwhile.</summary>
+        public const int KITE_MIN_OFFENSIVE_RANGE = 1500;
+
+        /// <summary>PR36: does this bot have an attack that actually reaches past melee?
+        ///
+        /// This is the honest test for "is it a kiter", and it replaces CanCastHarmfulSpells
+        /// which only asked "does it have any harmful spell at all". Mimsies are built from
+        /// their class specs, so every one of them has *something* harmful - a weapon spec
+        /// contributes a short-range harm - which is why pure melee classes were kiting.
+        /// A Thane or Valewalker also trains a caster spec, and that nuke reaches well past
+        /// melee, so the same test correctly keeps them able to kite at range.
+        ///
+        /// Tunable rather than derived, because the exact range of a weapon spec's harm is
+        /// data, and a const can be adjusted live without touching the database.</summary>
+        public bool HasRangedOffensive
+            => Body?.HarmfulSpells != null
+            && Body.HarmfulSpells.Any(s => s != null && s.Range >= KITE_MIN_OFFENSIVE_RANGE);
+
         #region PR32 - bard / minstrel melee policy
 
         /// <summary>PR32: is this a Bard? Bards are their realm's support class -

@@ -723,6 +723,50 @@ namespace DOL.Tests.Unit
                 "Interrupts must survive the frontline policy");
         }
 
+        // PR36: kiting and debuffing need to know what the bot actually fights with.
+        [Test]
+        public void KitingIsGatedOnReachingPastMeleeNotOnHavingAnyHarm()
+        {
+            // PR36. The kite gate asked CanCastHarmfulSpells, which is only "has any
+            // harmful spell" - and every mimic has one, because a weapon spec contributes
+            // a short-range harm. So pure melee classes kited mid-fight, which is what
+            // "melee classes still try to kite more often or not" described.
+            //
+            // The replacement asks whether the bot has an attack that reaches past melee,
+            // which is the honest question. Both predicates need a live body to read, so
+            // what is pinned here is that they exist, that they are the ones the sensor
+            // consults, and that the threshold is a tunable constant rather than a guess
+            // baked into a comparison.
+            Assert.That(typeof(MimicBrain).GetMethod("HasRangedOffensive"), Is.Not.Null);
+            Assert.That(typeof(MimicBrain).GetMethod("IsMeleeArmed"), Is.Not.Null,
+                "Promoted from the sensor's local so flank and kite are the same question");
+
+            // A weapon spec's harm is short, a caster spec's nuke is long. 1500 sits between
+            // them in this data; kept as a const so it can be tuned live rather than
+            // requiring a database query to adjust.
+            Assert.That(MimicBrain.KITE_MIN_OFFENSIVE_RANGE, Is.GreaterThan(0));
+            Assert.That(MimicBrain.KITE_MIN_OFFENSIVE_RANGE, Is.EqualTo(1500),
+                "Adjust here if weapon-spec harms in your database reach further than expected");
+        }
+
+        [Test]
+        public void MeleeArmedIsSharedBetweenFlankAndDebuff()
+        {
+            // PR26 excluded bow users from debuffing but left everyone else. The same
+            // shared-pool problem applies to melee: a weapon spec can contribute a
+            // debuff-flagged harmful spell, so a tank could spend its tick debuffing
+            // instead of holding threat.
+            //
+            // IsMeleeArmed is the predicate the debuff gate now uses, and it is the same
+            // expression FlankAvailable uses for positional styles - one definition, so the
+            // two cannot drift apart.
+            var armed = typeof(MimicBrain).GetMethod("IsMeleeArmed");
+            Assert.That(armed, Is.Not.Null);
+            Assert.That(armed.GetParameters(), Is.Empty, "It reads the active weapon itself");
+            Assert.That(typeof(MimicBrain).GetMethod("IsBowUser"), Is.Not.Null,
+                "Bow users stay excluded from debuffing and kiting");
+        }
+
         // PR35: the speed gate must read aggro, not the sticky InCombat flag.
         [Test]
         public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()

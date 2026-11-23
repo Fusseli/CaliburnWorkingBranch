@@ -246,12 +246,14 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             // Solo casters mirror the FSM (long flight, hold ring); grouped casters fall
             // back to a kite mate (tank first) instead of fleeing across the map.
             // Main tanks hold the line in groups and never kite.
-            // PR26: CanCastHarmfulSpells is only "has any harmful spell", which is true
-            // for every archer (their bow is a spell) and for melee bots holding a harm.
-            // Gating kiting on that made archers and melee run back and forth mid-fight.
-            // A bow user wants to hold its range, not break it, and melee has no ranged
-            // cast to protect - so neither kites. Only genuine casters do.
-            bool isCaster = (_body.CanCastHarmfulSpells || _brain.IsHealer) && !_brain.IsBowUser;
+            // PR26 first excluded bow users here; PR36 replaces the whole test. "Can I kite"
+            // now means "do I have an attack that reaches past melee", not "do I have any
+            // harmful spell". CanCastHarmfulSpells is true for every mimic, because a
+            // weapon spec contributes a short-range harm - which is exactly why pure melee
+            // classes ran back and forth mid-fight. A caster spec's nuke passes the range
+            // test, so a Thane or Valewalker still kites, just at range (see below). A bow
+            // user is still excluded: it holds its range instead.
+            bool isCaster = (_brain.HasRangedOffensive || _brain.IsHealer) && !_brain.IsBowUser;
             bool solo = _body.Group == null;
             bool meleed = false;
             if (combat && isCaster)
@@ -265,6 +267,14 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
                 }
             }
             bool pressured = combat && isCaster && canAct && (_body.IsBeingInterrupted || meleed);
+
+            // PR36: already in reach means fighting beats running. Without this a hybrid
+            // that closed the distance would still break away, which is the "kites more
+            // often or not" behaviour - a Thane should swing once it is on top of someone
+            // and only kite when it cannot reach.
+            if (pressured && targetLiving != null
+                && _body.IsWithinRadius(targetLiving, _body.attackComponent.AttackRange))
+                pressured = false;
             bool holdRing = false;
             // Computed whenever the bot could kite, not only while a flight is already
             // flagged: the action clears IsFleeing the moment it holds, so gating this on
@@ -310,13 +320,18 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             // 3.0 (assist) / 0.9, above ArrowTypeGoal 2.5 and DealDamageGoal 2.0, so an
             // archer holding any debuff-flagged spell stopped shooting to debuff instead.
             // A bow user is excluded outright.
-            SetBool(DebuffAvailable, canAct && !_brain.IsBowUser && targetValid && canDebuff && !targetDebuffed
+            // PR36: same for a melee-armed bot. A weapon spec can contribute a debuff-flagged
+            // harmful spell, so a tank could spend its tick debuffing instead of holding
+            // threat. canDebuff itself is left alone - "can this bot debuff" is still a true
+            // statement; the question that was wrong was whether a melee bot should be
+            // spending its time on it.
+            SetBool(DebuffAvailable, canAct && !_brain.IsBowUser && !_brain.IsMeleeArmed
+                && targetValid && canDebuff && !targetDebuffed
                 && !_body.IsSilenced && !_brain.IsFleeing);
             // Positional styles: same gates as the FSM flank loop (melee weapon, attack
             // range, positional styles, not the tank), plus a victim standing still and
             // busy elsewhere. Dancing around an active duelist never pays.
-            bool meleeArmed = _body.ActiveWeapon != null
-                && _body.ActiveWeapon.Item_Type != (int)eInventorySlot.DistanceWeapon;
+            bool meleeArmed = _brain.IsMeleeArmed;
             bool victimOpen = targetLiving != null && !targetLiving.IsMoving && targetLiving.TargetObject != _body;
             SetBool(FlankAvailable, canAct && combat && targetValid && meleeArmed && victimOpen
                 && _body.IsWithinRadius(targetLiving, _body.attackComponent.AttackRange)
