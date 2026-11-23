@@ -723,6 +723,51 @@ namespace DOL.Tests.Unit
                 "Interrupts must survive the frontline policy");
         }
 
+        // PR35: the speed gate must read aggro, not the sticky InCombat flag.
+        [Test]
+        public void SpeedGateIsAggroBasedAndCarriesNoHealthTerm()
+        {
+            // PR35. PR34 gated the speed song on "!InCombat || regenWindow", and both halves
+            // were unreliable: Body.InCombat outlives a fight - the test minstrel had gone to
+            // melee - and the regenWindow half demanded 70% health, blocking the buff exactly
+            // when the bot wanted it. Result: it sang PowerRegenBuff and never came back to
+            // speed.
+            //
+            // The replacement is aggro-based with no health term, because heals at 50/100
+            // already outrank the song at 45 and the song never needed to police that.
+            // CanBuffUpGroup needs a live body to read, so what is pinned is that it exists,
+            // takes no arguments - and in particular no health threshold.
+            var method = typeof(MimicBrain).GetMethod("CanBuffUpGroup");
+            Assert.That(method, Is.Not.Null, "The aggro-based gate must exist");
+            Assert.That(method.GetParameters(), Is.Empty,
+                "It takes no arguments - in particular no health threshold");
+
+            // Endurance, mana and health stay ungated: a singer exists to put those back
+            // during a fight. Their ordering in the preference chain is what is pinned here.
+            Assert.That(MimicBrain.SongRank(eSpellType.SpeedEnhancement),
+                Is.LessThan(MimicBrain.SongRank(eSpellType.EnduranceRegenBuff)),
+                "Speed outranks the resource songs when a safe moment allows it");
+            Assert.That(MimicBrain.SongRank(eSpellType.EnduranceRegenBuff),
+                Is.LessThan(MimicBrain.SongRank(eSpellType.PowerRegenBuff)));
+        }
+
+        [Test]
+        public void RunningSongHandsBackToSpeedOnceTheFightEnds()
+        {
+            // PR35 end-to-end shape: mid-fight a minstrel sings a resource song because
+            // speed is gated off. When aggro clears the gate opens, speed becomes wanted, and
+            // because it outranks the resource songs the yield must fire - otherwise the bot
+            // holds a mana song through the entire lull, which is the bug being fixed.
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 2, wantedRank: 0), Is.True,
+                "Mana running, fight over, speed now wanted: hand back");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 1, wantedRank: 0), Is.True,
+                "Endurance running and speed wanted: speed wins");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 0, wantedRank: 0), Is.False,
+                "Already singing speed: do not churn it");
+            Assert.That(MimicBrain.ShouldYieldSong(runningRank: 0, wantedRank: 2), Is.False,
+                "Never trade the speed song for a weaker one");
+        }
+
         // PR31: songs.
         [Test]
         public void SongRankingPutsSpeedFirstAndHealingLast()

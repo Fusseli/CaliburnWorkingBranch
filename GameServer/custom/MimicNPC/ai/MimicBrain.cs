@@ -575,7 +575,7 @@ namespace DOL.AI.Brain
         ///     HealGroupGoal. It is ranked below every real heal on purpose.
         ///
         /// Pure decision, so it is unit-testable without a live body.</summary>
-        public Spell GetBestSong(bool inCombat, bool regenWindow, bool groupNeedsMana,
+        public Spell GetBestSong(bool canBuffUpGroup, bool groupNeedsMana,
             bool groupNeedsEndurance, bool groupNeedsHealth)
         {
             Spell speed = null, endur = null, mana = null, heal = null;
@@ -587,18 +587,24 @@ namespace DOL.AI.Brain
                     case eSpellType.SpeedOfTheRealm:
                     case eSpellType.CombatSpeedBuff:
                     case eSpellType.CelerityBuff:
-                        // Speed is a pre-battle and regen-window buff, not a mid-fight one.
-                        if (!inCombat || regenWindow)
+                        // PR35: the only gated song, and gated on the honest signal. Speed is
+                        // a group-wide buff for between fights, so it waits for a safe moment.
+                        if (canBuffUpGroup)
                             speed = PickHigherTier(speed, song);
                         break;
                     case eSpellType.EnduranceRegenBuff:
                     case eSpellType.AllRegenBuff:
                     case eSpellType.PowerHealthEnduranceRegenBuff:
+                        // PR35: deliberately NOT gated. Endurance is what the group burns
+                        // through in a fight, and a singer exists to put it back - taking
+                        // this away mid-fight would make bards and minstrels worse exactly
+                        // when they are needed.
                         if (groupNeedsEndurance)
                             endur = PickHigherTier(endur, song);
                         break;
                     case eSpellType.PowerRegenBuff:
                     case eSpellType.HeroismBuff:
+                        // Same reasoning: mid-fight mana regen is wanted, not withheld.
                         if (groupNeedsMana)
                             mana = PickHigherTier(mana, song);
                         break;
@@ -617,7 +623,7 @@ namespace DOL.AI.Brain
         private static Spell PickHigherTier(Spell current, Spell candidate)
             => current == null || candidate.Value > current.Value ? candidate : current;
 
-        /// <summary>PR34: how good a song is. Lower is better, matching the order
+        /// <summary>PR34/PR35: how good a song is. Lower is better, matching the order
         /// GetBestSong has always preferred: speed, then endurance, then mana, then health.
         /// Exposed as a pure function so the "is this song worth interrupting for?"
         /// decision can be unit-tested without a live pulse.
@@ -715,8 +721,8 @@ namespace DOL.AI.Brain
                 return false;
             }
 
-            var inCombat = Body.InCombat || HasAggro;
-            var regenWindow = IsInRegenWindow();
+            // PR35: one honest gate replaces PR34's "!inCombat || regenWindow".
+            var canBuffUpGroup = CanBuffUpGroup();
 
             // PR34: a pulsing song runs on its own power, so without this a bot that
             // started the wrong one held it indefinitely and never upgraded - a minstrel
@@ -725,7 +731,7 @@ namespace DOL.AI.Brain
             if (IsSongPulsing)
             {
                 var running = GetPulsingSong(out int runningRank);
-                var wanted = GetBestSong(inCombat, regenWindow, GroupNeedsMana(),
+                var wanted = GetBestSong(canBuffUpGroup, GroupNeedsMana(),
                     GroupNeedsEndurance(), GroupNeedsHealth());
                 if (running != null && wanted != null
                     && ShouldYieldSong(runningRank, SongRank(wanted.SpellType)))
@@ -750,7 +756,7 @@ namespace DOL.AI.Brain
 
             var song = _pendingSong;
             _pendingSong = null;
-            song ??= GetBestSong(inCombat, regenWindow, GroupNeedsMana(),
+            song ??= GetBestSong(canBuffUpGroup, GroupNeedsMana(),
                 GroupNeedsEndurance(), GroupNeedsHealth());
             if (song == null)
                 return false;
@@ -798,39 +804,38 @@ namespace DOL.AI.Brain
         public bool ShouldHoldSongStance
             => IsSongPulsing && Body != null && Body.ActiveWeaponSlot == GetInstrumentStance();
 
-        /// <summary>PR31/PR34: "not fighting, or still winding down after a fight" - the
-        /// window where a bard or minstrel should be keeping the group speed buff up. There
-        /// is no regen FSM state (the states are WakingUp/Idle/FollowLeader/Aggro/Roaming/
-        /// Camp/ReturnToSpawn/Patrolling/Duel/Dead), so it is derived: nothing is beating on
-        /// me, I am healthy enough to be worth buffing, and the group is not still fighting.
+        /// <summary>PR31/PR35: is this bot in a safe moment to put the group speed buff up?
         ///
-        /// PR34: this no longer requires !InCombat. It used to, which made it dead weight -
-        /// it could only be true when !inCombat was already true, so the regenWindow argument
-        /// in GetBestSong never changed the outcome. That mattered because a minstrel that went
-        /// to melee in the fight kept InCombat set afterwards, and that alone suppressed the
-        /// speed song: the singer was flagged as fighting and fell through to health regen.
+        /// PR35: PR34 answered this with "!InCombat || regenWindow", and both halves were
+        /// wrong. Body.InCombat is a sticky flag that outlives a fight - and the minstrel in
+        /// the test had gone to *melee*, so its speed song stayed blocked after the battle
+        /// while the ungated mana song kept being picked. It sang PowerRegenBuff and never
+        /// came back to speed. The health condition on top was wrong in principle too: a
+        /// hurt singer should heal, and HealGroupGoal (50) and EmergencyHealGoal (100)
+        /// already outrank the song (45), so the song never needed to second-guess them -
+        /// and demanding 70% health blocked the speed song exactly when the bot wanted a
+        /// group buff most.
         ///
-        /// Aggro is the honest "is something hitting me" signal; InCombat is a sticky UI-ish
-        /// flag that outlives the fight.</summary>
-        public bool IsInRegenWindow()
+        /// Aggro is the honest signal: HasAggro is !AggroList.IsEmpty, and that table
+        /// empties when the enemies actually die. No health term on purpose.
+        ///
+        /// This gates the SPEED song only. Endurance, mana and health songs stay ungated -
+        /// a singer is needed for those mid-fight, which is the whole point of the class.</summary>
+        public bool CanBuffUpGroup()
         {
             if (Body == null || HasAggro)
-                return false;
-            if (Body.HealthPercent < RegenWindowHealthPercent)
-                return false;
+                return false;                       // something is on me right now
             if (Body.Group == null)
-                return true;
+                return true;                        // solo and calm
             foreach (GameLiving member in Body.Group.GetMembersInTheGroup())
             {
-                if (member != null && member.InCombat)
+                // MimicBrain is not on GameLiving, so this needs the cast. A group-mate
+                // still being beaten on means the group is not ready to be buffed.
+                if (member is MimicNPC mate && mate.MimicBrain != null && mate.MimicBrain.HasAggro)
                     return false;
             }
             return true;
         }
-
-        /// <summary>PR34: how healthy a singer must be before it is worth putting a group
-        /// buff up rather than healing itself.</summary>
-        public const int RegenWindowHealthPercent = 70;
 
         /// <summary>PR31: does anybody in the group need mana topped up? Mirrors the
         /// threshold the old dead song code used (ManaPercent &lt; 80 on a mana class).</summary>

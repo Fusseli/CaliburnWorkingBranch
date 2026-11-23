@@ -227,8 +227,10 @@ namespace DOL.GS.ReGoap.Mimic.Sensors
             Spell songToPlay = null;
             if (canSing)
             {
-                bool regenWindow = _brain.IsInRegenWindow();
-                songToPlay = _brain.GetBestSong(_body.InCombat || _brain.HasAggro, regenWindow,
+                // PR35: CanBuffUpGroup replaces "!InCombat || regenWindow". Only the speed
+                // song is gated by it - endurance, mana and health songs stay available
+                // mid-fight, because that is when a singer is actually needed.
+                songToPlay = _brain.GetBestSong(_brain.CanBuffUpGroup(),
                     _brain.GroupNeedsMana(), _brain.GroupNeedsEndurance(), _brain.GroupNeedsHealth());
             }
             SetObject(SONG_TYPE, songToPlay == null ? null : songToPlay.SpellType.ToString());
